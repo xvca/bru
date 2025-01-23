@@ -1,6 +1,6 @@
 # Bru - Coffee Scale Interface
 
-A Next.js web application that provides a responsive interface for an ESP32-based coffee scale. Designed for precision pour-over coffee brewing with real-time weight, flow rate, and timing measurements.
+A Next.js web application that provides a responsive interface for an ESP32-based coffee scale. Designed for precision espresso brewing with real-time weight, flow rate, and timing measurements.
 
 ## Features
 
