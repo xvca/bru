@@ -47,7 +47,6 @@ export default function CoffeeBrewControl() {
 		state: 0,
 	}
 
-	// Create axios instance with common config
 	const api = axios.create({
 		baseURL: ESPUrl,
 		headers: {
@@ -71,13 +70,12 @@ export default function CoffeeBrewControl() {
 	// wake the ESP on page load
 	useEffect(() => {
 		wakeESP()
-	}, [])
+	})
 
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
 	}, [, targetWeight])
 
-	// WebSocket Connection
 	useEffect(() => {
 		let reconnectInterval: NodeJS.Timeout
 		let messageCheckInterval: NodeJS.Timeout
@@ -140,7 +138,7 @@ export default function CoffeeBrewControl() {
 			clearInterval(reconnectInterval)
 			clearInterval(messageCheckInterval)
 		}
-	}, [])
+	})
 
 	const startBrew = useCallback(async () => {
 		try {
@@ -164,7 +162,7 @@ export default function CoffeeBrewControl() {
 				}
 			}
 		}
-	}, [targetWeight])
+	}, [api, targetWeight])
 
 	const stopBrew = useCallback(async () => {
 		try {
@@ -179,7 +177,7 @@ export default function CoffeeBrewControl() {
 				)
 			}
 		}
-	}, [])
+	}, [api])
 
 	const wakeESP = useCallback(async () => {
 		try {
@@ -193,7 +191,7 @@ export default function CoffeeBrewControl() {
 				)
 			}
 		}
-	}, [])
+	}, [api])
 
 	console.log()
 	const getBrewStateText = (state: number) => {
@@ -357,6 +355,7 @@ export default function CoffeeBrewControl() {
 																	}
 																	setTargetWeight(value)
 																}}
+																onFocus={(e) => e.target.select()}
 																className='w-full bg-transparent focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 															/>
 														</div>
