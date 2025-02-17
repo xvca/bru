@@ -1,6 +1,6 @@
 import Page from '@/components/page'
 import Section from '@/components/section'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import {
 	Switch,
@@ -64,7 +64,7 @@ const BrewSettings = () => {
 		},
 	})
 
-	const getPrefs = useCallback(async () => {
+	const getPrefs = async () => {
 		try {
 			const { data } = await api.get('/prefs')
 			setPrefs(data)
@@ -79,7 +79,7 @@ const BrewSettings = () => {
 		} finally {
 			setIsLoading(false)
 		}
-	}, [api])
+	}
 
 	const savePrefs = async () => {
 		setIsSaving(true)
@@ -107,7 +107,7 @@ const BrewSettings = () => {
 		}
 	}
 
-	const clearShotData = useCallback(async () => {
+	const clearShotData = async () => {
 		try {
 			const { data } = await api.post('/clear-data')
 			toast.success('Successfully cleared shot data')
@@ -121,9 +121,9 @@ const BrewSettings = () => {
 			}
 			toast.error('Failed to clear shot data')
 		}
-	}, [api])
+	}
 
-	const fetchShotData = useCallback(async () => {
+	const fetchShotData = async () => {
 		setIsLoadingData(true)
 		try {
 			const { data } = await api.get<ShotData>('/data')
@@ -139,16 +139,16 @@ const BrewSettings = () => {
 		} finally {
 			setIsLoadingData(false)
 		}
-	}, [api])
+	}
 
-	const handleViewData = useCallback(async () => {
+	const handleViewData = async () => {
 		setIsViewDataOpen(true)
 		await fetchShotData()
-	}, [fetchShotData])
+	}
 
 	useEffect(() => {
 		getPrefs()
-	}, [getPrefs])
+	}, [])
 
 	const hasChanges = JSON.stringify(prefs) !== JSON.stringify(pendingPrefs)
 
@@ -389,8 +389,9 @@ const BrewSettings = () => {
 					</DialogPanel>
 				</div>
 			</Dialog>
+
 			{/* View Shot Data button */}
-			<div className='fixed bottom-0 left-0 right-0 p-4 flex flex-col gap-4'>
+			<div className='fixed bottom-8 left-0 right-0 p-4 flex flex-col gap-4'>
 				<button
 					onClick={handleViewData}
 					className='w-full py-2 px-4 bg-transparent text-black dark:text-white rounded-lg font-medium flex items-center justify-center gap-2'

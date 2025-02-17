@@ -1,6 +1,6 @@
 import Page from '@/components/page'
 import Section from '@/components/section'
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import CountUp from 'react-countup'
 import { Play, Square, ArrowUp, ArrowDown } from 'lucide-react'
 import { Button } from '@headlessui/react'
@@ -70,7 +70,8 @@ export default function CoffeeBrewControl() {
 	// wake the ESP on page load
 	useEffect(() => {
 		wakeESP()
-	})
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [])
 
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
@@ -140,7 +141,7 @@ export default function CoffeeBrewControl() {
 		}
 	})
 
-	const startBrew = useCallback(async () => {
+	const startBrew = async () => {
 		try {
 			const formData = new FormData()
 			formData.append('weight', targetWeight.toString())
@@ -162,9 +163,9 @@ export default function CoffeeBrewControl() {
 				}
 			}
 		}
-	}, [api, targetWeight])
+	}
 
-	const stopBrew = useCallback(async () => {
+	const stopBrew = async () => {
 		try {
 			const { data } = await api.post('/stop')
 			console.log('Brew stopped:', data)
@@ -177,9 +178,9 @@ export default function CoffeeBrewControl() {
 				)
 			}
 		}
-	}, [api])
+	}
 
-	const wakeESP = useCallback(async () => {
+	const wakeESP = async () => {
 		try {
 			const { data } = await api.post('/wake')
 			console.log('ESP now active: ', data)
@@ -191,7 +192,7 @@ export default function CoffeeBrewControl() {
 				)
 			}
 		}
-	}, [api])
+	}
 
 	console.log()
 	const getBrewStateText = (state: number) => {
