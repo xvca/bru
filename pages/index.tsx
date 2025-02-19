@@ -2,9 +2,18 @@ import Page from '@/components/page'
 import Section from '@/components/section'
 import React, { useState, useEffect, useRef } from 'react'
 import CountUp from 'react-countup'
-import { Play, Square, ArrowUp, ArrowDown } from 'lucide-react'
+import {
+	Play,
+	Square,
+	ArrowUp,
+	ArrowDown,
+	PowerIcon,
+	LoaderCircle,
+} from 'lucide-react'
 import { Button } from '@headlessui/react'
 import axios from 'axios'
+import toast, { Toaster } from 'react-hot-toast'
+import { Gauge } from '@/components/gauge'
 
 enum BrewStates {
 	IDLE,
@@ -22,6 +31,7 @@ export default function CoffeeBrewControl() {
 		return 20
 	})
 	const [ws, setWs] = useState<WebSocket | null>(null)
+	const [isWaking, setIsWaking] = useState(false)
 	const [isConnected, setIsConnected] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
 	const [brewData, setBrewData] = useState({
@@ -67,46 +77,66 @@ export default function CoffeeBrewControl() {
 		brewDataRef.current = brewData
 	}, [brewData])
 
-	// wake the ESP on page load
-	useEffect(() => {
-		wakeESP()
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [])
-
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
 	}, [, targetWeight])
 
 	useEffect(() => {
-		let reconnectInterval: NodeJS.Timeout
+		let ws: WebSocket | null = null
+		let reconnectTimeout: NodeJS.Timeout
 		let messageCheckInterval: NodeJS.Timeout
+		let isReconnecting = false
 
-		const connectWebSocket = () => {
-			const websocket = new WebSocket(wsUrl)
-
-			websocket.onopen = () => {
-				setWs(websocket)
+		const connect = () => {
+			// Only try to connect if we're not already connecting and don't have an active connection
+			if (isReconnecting || (ws && ws.readyState === WebSocket.OPEN)) {
+				return
 			}
 
-			websocket.onclose = () => {
+			isReconnecting = true
+
+			if (ws) {
+				ws.close()
+			}
+
+			ws = new WebSocket(wsUrl)
+
+			ws.onopen = () => {
+				console.log('ws opened')
+				setWs(ws)
+				isReconnecting = false
+				wakeESP()
+			}
+
+			ws.onclose = () => {
+				console.log('ws closed')
 				setBrewData(defaultBrewData)
 				setIsConnected(false)
 				setWs(null)
+				isReconnecting = false
+
+				// Schedule a reconnection
+				reconnectTimeout = setTimeout(() => {
+					connect()
+				}, 1000)
 			}
 
-			websocket.onerror = () => {
+			ws.onerror = () => {
+				console.log('ws error')
 				setBrewData(defaultBrewData)
 				setIsConnected(false)
-				websocket.close()
+				ws?.close()
+				isReconnecting = false
 			}
 
-			websocket.onmessage = (event) => {
+			ws.onmessage = (event) => {
 				try {
+					console.log('ws message received')
 					const data = JSON.parse(event.data)
 					setLastMessageTime(Date.now())
 					setBrewData(data)
 					setIsConnected(true)
-					if (brewDataRef.current.state == BrewStates.IDLE) {
+					if (data.state === BrewStates.IDLE) {
 						setIsBrewing(false)
 					} else {
 						setIsBrewing(true)
@@ -119,27 +149,29 @@ export default function CoffeeBrewControl() {
 
 		// Check for stale connection
 		messageCheckInterval = setInterval(() => {
-			console.log('last message was at: ', lastMessageTimeRef.current)
 			const now = Date.now()
 			if (now - lastMessageTimeRef.current > 5000 && isConnectedRef.current) {
-				setIsConnected(false)
-				if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.close()
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					ws.close()
+				}
 			}
-		}, 1000)
+		}, 5000)
 
-		// Setup reconnection interval
-		reconnectInterval = setInterval(() => {
-			if (wsRef.current === null) {
-				connectWebSocket()
-			}
-		}, 1000) // Retry every second
+		connect()
 
 		return () => {
-			if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.close()
-			clearInterval(reconnectInterval)
-			clearInterval(messageCheckInterval)
+			if (ws) {
+				ws.close()
+			}
+			if (reconnectTimeout) {
+				clearTimeout(reconnectTimeout)
+			}
+			if (messageCheckInterval) {
+				clearInterval(messageCheckInterval)
+			}
+			isReconnecting = false
 		}
-	})
+	}, [])
 
 	const startBrew = async () => {
 		try {
@@ -155,7 +187,6 @@ export default function CoffeeBrewControl() {
 					'Failed to start brew:',
 					error.response?.data?.message || error.message,
 				)
-				// Handle specific error cases
 				if (error.response?.status === 409) {
 					console.error('A brew is already running')
 				} else if (error.response?.status === 403) {
@@ -181,16 +212,22 @@ export default function CoffeeBrewControl() {
 	}
 
 	const wakeESP = async () => {
+		if (isConnected) return
+		setIsWaking(true)
 		try {
 			const { data } = await api.post('/wake')
 			console.log('ESP now active: ', data)
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
-				console.error(
-					'Failed to stop brew:',
-					error.response?.data?.message || error.message,
+				const message = String(
+					`Failed to wake ESP:
+						${error.response?.data?.message || error.message}`,
 				)
+				console.error(message)
+				toast.error(message)
 			}
+		} finally {
+			setIsWaking(false)
 		}
 	}
 
@@ -210,55 +247,9 @@ export default function CoffeeBrewControl() {
 		}
 	}
 
-	const WeightGauge = () => {
-		const CIRCLE_RADIUS = 45
-		const CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS
-		// If you want to show 75% of the circle, use 0.75
-		const DESIRED_ARC_FRACTION = 0.6
-		const VISIBLE_ARC = CIRCUMFERENCE * DESIRED_ARC_FRACTION
-		const START_OFFSET = 162
-
-		return (
-			<svg className='w-full aspect-square' viewBox='0 0 100 100'>
-				<circle
-					className='stroke-gray-400'
-					cx='52'
-					cy='45'
-					r={CIRCLE_RADIUS}
-					strokeLinecap='round'
-					fill='none'
-					strokeWidth='2'
-					strokeDasharray={`${VISIBLE_ARC} ${CIRCUMFERENCE}`}
-					transform={`rotate(${START_OFFSET} 50 50)`} // Rotate to start at 12 o'clock
-				/>
-				<circle
-					className={`${
-						isBrewing ? 'stroke-blue-500' : 'stroke-gray-500'
-					} transition-all duration-300 ease-in-out`}
-					cx='52'
-					cy='45'
-					r={CIRCLE_RADIUS}
-					strokeLinecap='round'
-					fill='none'
-					strokeWidth='2'
-					strokeDasharray={`${VISIBLE_ARC} ${CIRCUMFERENCE}`}
-					strokeDashoffset={Math.min(
-						VISIBLE_ARC, // VISIBLE_ARC (maximum value)
-						Math.max(
-							0, // minimum value
-							CIRCUMFERENCE *
-								(DESIRED_ARC_FRACTION -
-									(brewData.weight / targetWeight) * DESIRED_ARC_FRACTION),
-						),
-					)}
-					transform={`rotate(${START_OFFSET} 50 50)`} // Rotate to start at 12 o'clock
-				/>
-			</svg>
-		)
-	}
-
 	return (
 		<Page>
+			<Toaster position='top-center' />
 			<div className='flex flex-col'>
 				{/* Main content area */}
 				<Section>
@@ -275,15 +266,44 @@ export default function CoffeeBrewControl() {
 									{isConnected ? 'Connected' : 'Disconnected'}
 								</span>
 							</div>
-							<span className='text-sm font-medium'>
-								{isConnected && getBrewStateText(brewData.state)}
-							</span>
+							{isConnected ? (
+								<span className='text-sm font-medium'>
+									{isConnected && getBrewStateText(brewData.state)}
+								</span>
+							) : (
+								<span className='text-sm'>
+									<Button
+										onClick={wakeESP}
+										disabled={isConnected || isWaking}
+										className='relative w-full py-1 px-2 border border-gray-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-500 hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 flex items-center justify-center'
+									>
+										{/* Button content */}
+										<div className='relative z-10 flex items-center justify-center space-x-2'>
+											{isWaking ? (
+												<span className='animate-spin'>
+													<LoaderCircle size={16} />{' '}
+												</span>
+											) : (
+												<PowerIcon size={16} />
+											)}
+											<span>Wake</span>
+										</div>
+									</Button>
+								</span>
+							)}
 						</div>
 
 						{/* Circular Progress Container */}
 						<div className='relative'>
 							{/* Circular Progress Background */}
-							<WeightGauge />
+							<Gauge
+								value={(brewData.weight / targetWeight) * 100}
+								min={0}
+								max={100}
+								arcSize={250}
+								gaugePrimaryColor={isBrewing ? '#638cc7' : '#898e8c'}
+								gaugeSecondaryColor='#eeeeee'
+							/>
 
 							{/* Centered Content */}
 							<div className='absolute inset-0 flex flex-col items-center justify-center gap-4'>
