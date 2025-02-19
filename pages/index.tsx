@@ -105,7 +105,6 @@ export default function CoffeeBrewControl() {
 				console.log('ws opened')
 				setWs(ws)
 				isReconnecting = false
-				wakeESP()
 			}
 
 			ws.onclose = () => {

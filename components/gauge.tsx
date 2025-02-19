@@ -23,8 +23,8 @@ export function Gauge({
 	const currentPercent = Math.round(((value - min) / (max - min)) * 100)
 
 	// Arc calculation helpers
-	const radius = 36
-	const center = { x: 50, y: 50 }
+	const radius = 48
+	const center = { x: 50, y: 55 }
 
 	const angleOffset = 270 - arcSize
 
