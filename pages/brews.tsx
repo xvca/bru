@@ -1,5 +1,5 @@
-import Page from '@/components/page'
-import Section from '@/components/section'
+import Page from '@/components/Page'
+import Section from '@/components/Section'
 import { createClient } from '@/utils/supabase/client'
 import { AuthSession } from '@supabase/supabase-js'
 import { useRouter } from 'next/router'

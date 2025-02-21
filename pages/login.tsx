@@ -1,5 +1,5 @@
-import Page from '@/components/page'
-import Section from '@/components/section'
+import Page from '@/components/Page'
+import Section from '@/components/Section'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'

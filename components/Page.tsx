@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import Appbar from '@/components/appbar'
+import Appbar from '@/components/Appbar'
 
 interface Props {
 	title?: string
