@@ -3,7 +3,7 @@ import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Switch, Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import { Loader2, RefreshCw, Trash2Icon } from 'lucide-react'
+import { Loader2, RefreshCw, CircleX } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
@@ -379,7 +379,7 @@ const BrewSettings = () => {
 																	})
 																}
 															>
-																<Trash2Icon size={14} />
+																<CircleX size={14} />
 															</button>
 														</div>
 													))}
