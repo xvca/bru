@@ -6,6 +6,7 @@ interface Gauge {
 	min: number
 	arcSize: number
 	gaugePrimaryColor: string
+	gaugePrimaryEndColor: string
 	gaugeSecondaryColor: string
 	className?: string
 }
@@ -16,6 +17,7 @@ export function Gauge({
 	value = 0,
 	arcSize = 250,
 	gaugePrimaryColor,
+	gaugePrimaryEndColor,
 	gaugeSecondaryColor,
 	className,
 }: Gauge) {
@@ -29,6 +31,31 @@ export function Gauge({
 	const angleOffset = 270 - arcSize
 
 	const circumference = (arcSize / 360) * (2 * Math.PI * radius)
+
+	const getCurrentColor = () => {
+		if (!gaugePrimaryEndColor) return gaugePrimaryColor
+
+		// Convert hex to RGB for interpolation
+		const hex2rgb = (hex: string) => {
+			const r = parseInt(hex.slice(1, 3), 16)
+			const g = parseInt(hex.slice(3, 5), 16)
+			const b = parseInt(hex.slice(5, 7), 16)
+			return [r, g, b]
+		}
+
+		const startRGB = hex2rgb(gaugePrimaryColor)
+		const endRGB = hex2rgb(gaugePrimaryEndColor)
+
+		// Interpolate between colors based on progress
+		const progress = currentPercent / 100
+		const currentRGB = startRGB.map((start, i) => {
+			const end = endRGB[i]
+			const value = Math.round(start + (end - start) * progress)
+			return value
+		})
+
+		return `rgb(${currentRGB.join(',')})`
+	}
 
 	const calculateArcPath = (percentage: number, arcSize: number = 360) => {
 		// Calculate full arc path
@@ -64,12 +91,12 @@ export function Gauge({
 				{/* Progress arc */}
 				<path
 					d={calculateArcPath(100, arcSize)} // Full arc path
-					stroke={gaugePrimaryColor}
+					stroke={getCurrentColor()}
 					strokeWidth='2'
 					strokeLinecap='round'
 					fill='none'
 					strokeDasharray={`${(currentPercent * circumference) / 100} ${circumference}`}
-					className='transition-[stroke-dasharray] duration-300 ease-in-out'
+					className='transition-[stroke-dasharray] duration-500 ease-in-out'
 				/>
 			</svg>
 		</div>

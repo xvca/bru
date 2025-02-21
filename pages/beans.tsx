@@ -31,7 +31,7 @@ export default function Beans() {
 	}
 
 	return (
-		<Page>
+		<Page title='Beans'>
 			<Section>
 				<h1 className='text-2xl font-bold mb-6'>Coffee Beans</h1>
 				<div className='space-y-4'>

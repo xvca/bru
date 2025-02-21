@@ -63,7 +63,8 @@ const BrewSettings = () => {
 		description: '',
 	})
 
-	const ESPUrl = process.env.NEXT_PUBLIC_ESP_URL || 'http://localhost:8080'
+	const ESPUrl =
+		`http://${process.env.NEXT_PUBLIC_ESP_IP}` || 'http://localhost:8080'
 
 	const api = axios.create({
 		baseURL: ESPUrl,
@@ -208,7 +209,7 @@ const BrewSettings = () => {
 	}
 
 	return (
-		<Page>
+		<Page title='ESP Settings'>
 			<Toaster position='top-center' />
 			<Section>
 				<div className='space-y-6'>
@@ -222,12 +223,12 @@ const BrewSettings = () => {
 							onChange={(checked) =>
 								setPendingPrefs({ ...pendingPrefs, isEnabled: checked })
 							}
-							className={`group inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition data-[checked]:bg-blue-600`}
+							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-[checked]:bg-primary-light`}
 						>
 							<span
 								className={`${
 									pendingPrefs.isEnabled ? 'translate-x-6' : 'translate-x-1'
-								} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+								} inline-block h-4 w-4 transform rounded-full bg-background transition-transform`}
 							/>
 						</Switch>
 					</div>
@@ -245,14 +246,14 @@ const BrewSettings = () => {
 										: PreinfusionMode.SIMPLE,
 								})
 							}
-							className={`group inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition data-[checked]:bg-blue-600`}
+							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-[checked]:bg-primary-light`}
 						>
 							<span
 								className={`${
 									pendingPrefs.pMode === PreinfusionMode.WEIGHT_TRIGGERED
 										? 'translate-x-6'
 										: 'translate-x-1'
-								} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+								} inline-block h-4 w-4 transform rounded-full bg-background transition-transform`}
 							/>
 						</Switch>
 					</div>
@@ -319,7 +320,7 @@ const BrewSettings = () => {
 				<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
 
 				<div className='fixed inset-0 flex items-center justify-center p-4'>
-					<DialogPanel className='mx-auto max-w-2xl w-full rounded-lg bg-white dark:bg-zinc-900 p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
+					<DialogPanel className='mx-auto max-w-2xl w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
 						<DialogTitle className='text-lg font-medium leading-6 flex justify-between items-center'>
 							<span>Shot Data</span>
 							<button
@@ -337,7 +338,7 @@ const BrewSettings = () => {
 								</div>
 							) : shotData ? (
 								<div className='space-y-4'>
-									<div className='text-sm text-gray-500 dark:text-gray-400 flex align-middle gap-2'>
+									<div className='text-sm text-text-secondary flex align-middle gap-2'>
 										<span>
 											Flow Compensation Factor:{' '}
 											{shotData.flowCompFactor.toFixed(3)}
@@ -353,7 +354,7 @@ const BrewSettings = () => {
 									{shotData.shots.some((shot) => shot.targetWeight > 0) ? (
 										<div>
 											<div className='space-y-4'>
-												<div className='grid grid-cols-4 gap-4 font-medium text-sm text-gray-500 dark:text-gray-400'>
+												<div className='grid grid-cols-4 gap-4 font-medium text-sm text-text-secondary'>
 													<div>Target Weight</div>
 													<div>Final Weight</div>
 													<div>Last Flow Rate</div>
@@ -378,21 +379,22 @@ const BrewSettings = () => {
 																		title: `Delete Shot #${index + 1}?`,
 																	})
 																}
+																className='mr-auto'
 															>
-																<CircleX size={14} />
+																<CircleX size={14} color='var(--color-error)' />
 															</button>
 														</div>
 													))}
 											</div>
 										</div>
 									) : (
-										<div className='text-center py-8 text-gray-500 dark:text-gray-400'>
+										<div className='text-center py-8 text-text-secondary'>
 											No shot data available
 										</div>
 									)}
 								</div>
 							) : (
-								<div className='text-center py-8 text-red-500'>
+								<div className='text-center py-8 text-error'>
 									Failed to load shot data
 								</div>
 							)}
@@ -409,8 +411,8 @@ const BrewSettings = () => {
 										title: `Clear shot data?`,
 									})
 								}
-								className='px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300
-                            hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md'
+								className='px-4 py-2 text-sm font-medium text-error
+                            hover:bg-input-border transition-colors rounded-md'
 							>
 								Clear shot data
 							</button>

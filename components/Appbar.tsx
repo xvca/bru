@@ -29,7 +29,7 @@ const Appbar = () => {
 
 			{/* Sliding Menu */}
 			<div
-				className={`fixed top-0 left-0 right-0 bg-zinc-100 dark:bg-zinc-900 z-40 transform transition-transform duration-300 ease-in-out ${
+				className={`fixed top-0 left-0 right-0 bg-background z-40 transform transition-transform duration-300 ease-in-out ${
 					isMenuOpen ? 'translate-y-0' : '-translate-y-full'
 				}`}
 			>
@@ -41,8 +41,8 @@ const Appbar = () => {
 							onClick={() => setIsMenuOpen(false)}
 							className={`block py-3 text-lg ${
 								router.pathname === href
-									? 'text-indigo-500 dark:text-indigo-400'
-									: 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
+									? 'text-primary'
+									: 'text-text hover:text-text-secondary'
 							}`}
 						>
 							{label}
@@ -52,11 +52,11 @@ const Appbar = () => {
 			</div>
 
 			{/* Main Appbar */}
-			<div className='fixed top-0 left-0 z-20 w-full bg-zinc-900 pt-safe'>
-				<header className='border-b bg-zinc-100 px-safe dark:border-zinc-800 dark:bg-zinc-900'>
+			<div className='fixed top-0 left-0 z-20 w-full bg-background pt-safe'>
+				<header className='border-b border-text bg-background px-safe'>
 					<div className='mx-auto flex h-12 max-w-screen-md items-center justify-between px-4'>
 						<Link href='/'>
-							<h1 className='font-medium'>Bru</h1>
+							<h1 className='font-medium text-text'>Bru</h1>
 						</Link>
 
 						<button
@@ -66,17 +66,17 @@ const Appbar = () => {
 						>
 							<div className='w-6 h-5 relative flex flex-col justify-between'>
 								<span
-									className={`w-full h-0.5 bg-zinc-600 dark:bg-zinc-400 transform transition-all duration-300 ${
+									className={`w-full h-0.5 bg-text transform transition-all duration-300 ${
 										isMenuOpen ? 'rotate-45 translate-y-2' : ''
 									}`}
 								/>
 								<span
-									className={`w-full h-0.5 bg-zinc-600 dark:bg-zinc-400 transition-all duration-300 ${
+									className={`w-full h-0.5 bg-text transition-all duration-300 ${
 										isMenuOpen ? 'opacity-0' : ''
 									}`}
 								/>
 								<span
-									className={`w-full h-0.5 bg-zinc-600 dark:bg-zinc-400 transform transition-all duration-300 ${
+									className={`w-full h-0.5 bg-text transform transition-all duration-300 ${
 										isMenuOpen ? '-rotate-45 -translate-y-2' : ''
 									}`}
 								/>

@@ -31,7 +31,7 @@ export default function Brews() {
 	}
 
 	return (
-		<Page>
+		<Page title='Brews'>
 			<Section>
 				<h1 className='text-2xl font-bold mb-6'>Brew Logs</h1>
 				<div className='space-y-4'>

@@ -3,10 +3,38 @@
 @tailwind utilities;
 
 body {
-	@apply min-h-screen select-none bg-zinc-50 text-zinc-900 antialiased p-safe dark:bg-zinc-900 dark:text-zinc-50;
+	@apply min-h-screen select-none antialiased p-safe;
 
 	/* PWA enhancements */
 	-webkit-overflow-scrolling: touch;
 	-webkit-tap-highlight-color: transparent;
 	-webkit-touch-callout: none;
+}
+
+:root {
+	--color-primary: #6b4423;
+	--color-primary-dark: #553019;
+	--color-primary-light: #8b593c;
+	--color-background: #fdfbf7;
+	--color-text: #2c1810;
+	--color-text-secondary: #6f5e53;
+
+	--color-border: #e8e1d9;
+	--color-input-bg: #ffffff;
+	--color-input-border: #d8cec4;
+	--color-success: #43694b;
+	--color-error: #a64b45;
+
+	--color-gauge-primary: #6b4423;
+	--color-gauge-secondary: #f5f1ea;
+}
+
+.dark {
+	--color-background: #1f1815;
+	--color-text: #e8e1d9;
+	--color-text-secondary: #a39589;
+	--color-border: #362c25;
+	--color-input-bg: #2c231d;
+	--color-input-border: #463831;
+	--color-gauge-secondary: #2c231d;
 }

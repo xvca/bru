@@ -48,8 +48,10 @@ export default function CoffeeBrewControl() {
 	const lastMessageTimeRef = useRef(lastMessageTime)
 	const brewDataRef = useRef(brewData)
 
-	const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080'
-	const ESPUrl = process.env.NEXT_PUBLIC_ESP_URL || 'http://localhost:8080'
+	const wsUrl =
+		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
+	const ESPUrl =
+		`http://${process.env.NEXT_PUBLIC_ESP_IP}` || 'http://localhost:8080'
 
 	const defaultBrewData = {
 		weight: 0,
@@ -155,7 +157,10 @@ export default function CoffeeBrewControl() {
 		// Check for stale connection
 		messageCheckInterval = setInterval(() => {
 			const now = Date.now()
-			if (now - lastMessageTimeRef.current > 5000 && isConnectedRef.current) {
+			if (
+				now - lastMessageTimeRef.current > 60 * 1000 &&
+				isConnectedRef.current
+			) {
 				if (ws && ws.readyState === WebSocket.OPEN) {
 					ws.close()
 				}
@@ -253,7 +258,7 @@ export default function CoffeeBrewControl() {
 	}
 
 	return (
-		<Page>
+		<Page title='Autobru'>
 			<Toaster position='top-center' />
 			<div className='flex flex-col'>
 				{/* Main content area */}
@@ -264,10 +269,10 @@ export default function CoffeeBrewControl() {
 							<div className='flex items-center space-x-2'>
 								<span
 									className={`w-3 h-3 rounded-full ${
-										isConnected ? 'bg-green-500' : 'bg-red-500'
+										isConnected ? 'bg-success' : 'bg-error'
 									}`}
 								/>
-								<span className='text-sm text-gray-500'>
+								<span className='text-sm text-text-secondary'>
 									{isConnected ? 'Connected' : 'Disconnected'}
 								</span>
 							</div>
@@ -280,7 +285,7 @@ export default function CoffeeBrewControl() {
 									<Button
 										onClick={wakeESP}
 										disabled={isConnected || isWaking}
-										className='relative w-full py-1 px-2 border border-gray-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-gray-500 hover:bg-gray-100 active:bg-gray-200 transition-colors duration-200 flex items-center justify-center'
+										className='relative w-full py-1 px-2 border border-border rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-text-secondary hover:bg-border transition-colors duration-200 flex items-center justify-center'
 									>
 										{/* Button content */}
 										<div className='relative z-10 flex items-center justify-center space-x-2'>
@@ -302,12 +307,19 @@ export default function CoffeeBrewControl() {
 						<div className='relative'>
 							{/* Circular Progress Background */}
 							<Gauge
-								value={(brewData.weight / targetWeight) * 100}
+								value={
+									brewData.weight < 0
+										? 0
+										: (brewData.weight / targetWeight) * 100
+								}
 								min={0}
 								max={100}
 								arcSize={250}
-								gaugePrimaryColor={isBrewing ? '#638cc7' : '#898e8c'}
-								gaugeSecondaryColor='#eeeeee'
+								gaugePrimaryColor={
+									isBrewing ? '#a64b45' : 'var(--color-input-border)'
+								}
+								gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
+								gaugeSecondaryColor='var(--color-gauge-secondary)'
 							/>
 
 							{/* Centered Content */}
@@ -412,7 +424,7 @@ export default function CoffeeBrewControl() {
 					<Button
 						onClick={isBrewing ? stopBrew : startBrew}
 						disabled={!isConnected}
-						className='relative w-full py-4 rounded-xl text-white dark:text-black font-medium
+						className='relative w-full py-4 rounded-xl text-background font-medium
             disabled:opacity-50 disabled:cursor-not-allowed
             flex items-center justify-center overflow-hidden'
 					>
@@ -432,10 +444,7 @@ export default function CoffeeBrewControl() {
 						</div>
 
 						{/* Base color */}
-						<div
-							className={`absolute inset-0 bg-black dark:bg-white`}
-							style={{ zIndex: 1 }}
-						/>
+						<div className={`absolute inset-0 bg-text`} style={{ zIndex: 1 }} />
 					</Button>
 				</div>
 			</div>
