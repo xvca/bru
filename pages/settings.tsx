@@ -1,16 +1,11 @@
-import Page from '@/components/page'
-import Section from '@/components/section'
+import Page from '@/components/Page'
+import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import {
-	Switch,
-	Dialog,
-	DialogPanel,
-	DialogTitle,
-	Description,
-} from '@headlessui/react'
-import { Loader2 } from 'lucide-react'
+import { Switch, Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
+import { Loader2, RefreshCw, Trash2Icon } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 enum PreinfusionMode {
 	SIMPLE = 0,
@@ -50,10 +45,23 @@ const BrewSettings = () => {
 	})
 	const [isSaving, setIsSaving] = useState(false)
 	const [isLoading, setIsLoading] = useState(true)
-	const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+	const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false)
 	const [isViewDataOpen, setIsViewDataOpen] = useState(false)
 	const [shotData, setShotData] = useState<ShotData | null>(null)
 	const [isLoadingData, setIsLoadingData] = useState(false)
+	const [isRecalcSpinning, setIsSpinning] = useState(false)
+
+	const [modalData, setModalData] = useState<{
+		isOpen: boolean
+		shotIndex: number | null
+		title: string
+		description: string
+	}>({
+		isOpen: false,
+		shotIndex: null,
+		title: '',
+		description: '',
+	})
 
 	const ESPUrl = process.env.NEXT_PUBLIC_ESP_URL || 'http://localhost:8080'
 
@@ -66,7 +74,7 @@ const BrewSettings = () => {
 
 	const getPrefs = async () => {
 		try {
-			const { data } = await api.get('/prefs')
+			const { data } = await api.get('/prefs', { timeout: 5000 })
 			setPrefs(data)
 			setPendingPrefs(data)
 		} catch (error) {
@@ -107,26 +115,10 @@ const BrewSettings = () => {
 		}
 	}
 
-	const clearShotData = async () => {
-		try {
-			const { data } = await api.post('/clear-data')
-			toast.success('Successfully cleared shot data')
-			setIsConfirmOpen(false)
-		} catch (error) {
-			if (axios.isAxiosError(error)) {
-				console.error(
-					'Failed to get preferences:',
-					error.response?.data?.message || error.message,
-				)
-			}
-			toast.error('Failed to clear shot data')
-		}
-	}
-
 	const fetchShotData = async () => {
 		setIsLoadingData(true)
 		try {
-			const { data } = await api.get<ShotData>('/data')
+			const { data } = await api.get<ShotData>('/data', { timeout: 5000 })
 			setShotData(data)
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
@@ -139,6 +131,57 @@ const BrewSettings = () => {
 		} finally {
 			setIsLoadingData(false)
 		}
+	}
+
+	const clearShotData = async () => {
+		const index = modalData.shotIndex
+
+		try {
+			if (index === null) {
+				const { data } = await api.post('/clear-data')
+
+				console.log('clearing data: ', data)
+			} else {
+				const formData = new FormData()
+				formData.append('index', index.toString())
+
+				const { data } = await api.post('/clear-shot', formData)
+
+				console.log('Deleted shot at index', data)
+			}
+
+			await fetchShotData()
+		} catch (error) {
+			if (axios.isAxiosError(error)) {
+				console.error(
+					`Failed to clear shot data at index ${index}:`,
+					error.response?.data?.message || error.message,
+				)
+			}
+		}
+	}
+
+	const recalcFlowComp = async () => {
+		try {
+			const { data } = await api.post('/recalc-comp-factor')
+
+			console.log('recalculated flow comp factor', data)
+
+			await fetchShotData()
+		} catch (error) {
+			if (axios.isAxiosError(error)) {
+				console.error(
+					`Failed to recalculate flow comp factor`,
+					error.response?.data?.message || error.message,
+				)
+			}
+		}
+	}
+
+	const handleRecalcClick = () => {
+		setIsSpinning(true)
+		recalcFlowComp()
+		setTimeout(() => setIsSpinning(false), 1000)
 	}
 
 	const handleViewData = async () => {
@@ -294,29 +337,50 @@ const BrewSettings = () => {
 								</div>
 							) : shotData ? (
 								<div className='space-y-4'>
-									<div className='text-sm text-gray-500 dark:text-gray-400'>
-										Flow Compensation Factor:{' '}
-										{shotData.flowCompFactor.toFixed(3)}
+									<div className='text-sm text-gray-500 dark:text-gray-400 flex align-middle gap-2'>
+										<span>
+											Flow Compensation Factor:{' '}
+											{shotData.flowCompFactor.toFixed(3)}
+										</span>
+										<button onClick={handleRecalcClick}>
+											<RefreshCw
+												size={14}
+												className={`${isRecalcSpinning ? 'animate-spin' : ''}`}
+											/>
+										</button>
 									</div>
 
 									{shotData.shots.some((shot) => shot.targetWeight > 0) ? (
 										<div>
 											<div className='space-y-4'>
-												<div className='grid grid-cols-3 gap-4 font-medium text-sm text-gray-500 dark:text-gray-400'>
+												<div className='grid grid-cols-4 gap-4 font-medium text-sm text-gray-500 dark:text-gray-400'>
 													<div>Target Weight</div>
 													<div>Final Weight</div>
 													<div>Last Flow Rate</div>
+													<div></div>
 												</div>
 												{shotData.shots
 													.filter((shot) => shot.targetWeight > 0)
-													.map((shot, index) => (
+													.map((shot, index: number) => (
 														<div
 															key={index}
-															className='grid grid-cols-3 gap-4 text-sm'
+															className='grid grid-cols-4 gap-4 text-sm'
 														>
 															<div>{shot.targetWeight.toFixed(1)}g</div>
 															<div>{shot.finalWeight.toFixed(1)}g</div>
 															<div>{shot.lastFlowRate.toFixed(1)}g/s</div>
+															<button
+																onClick={() =>
+																	setModalData({
+																		isOpen: true,
+																		shotIndex: index,
+																		description: `Are you sure you want to delete shot #${index + 1}? This action cannot be undone.`,
+																		title: `Delete Shot #${index + 1}?`,
+																	})
+																}
+															>
+																<Trash2Icon size={14} />
+															</button>
 														</div>
 													))}
 											</div>
@@ -337,7 +401,14 @@ const BrewSettings = () => {
 						<div className='mt-6 flex justify-around gap-2'>
 							{/* Clear shot data button */}
 							<button
-								onClick={() => setIsConfirmOpen(true)}
+								onClick={() =>
+									setModalData({
+										isOpen: true,
+										shotIndex: null,
+										description: `Are you sure you want to clear all shot data? This action cannot be undone.`,
+										title: `Clear shot data?`,
+									})
+								}
 								className='px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300
                             hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md'
 							>
@@ -348,47 +419,22 @@ const BrewSettings = () => {
 				</div>
 			</Dialog>
 
-			{/* Confirmation Modal */}
-			<Dialog
-				open={isConfirmOpen}
-				onClose={() => setIsConfirmOpen(false)}
-				className='relative z-50'
-			>
-				{/* The backdrop, rendered as a fixed sibling to the panel container */}
-				<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
-
-				{/* Full-screen container to center the panel */}
-				<div className='fixed inset-0 flex items-center justify-center p-4'>
-					<DialogPanel className='mx-auto max-w-sm rounded-lg bg-white dark:bg-zinc-900 p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
-						<DialogTitle className='text-lg font-medium leading-6'>
-							Clear Shot Data
-						</DialogTitle>
-						<Description className='mt-2 text-sm text-gray-500 dark:text-gray-400'>
-							Are you sure you want to clear all shot data? This action cannot
-							be undone.
-						</Description>
-
-						<div className='mt-6 flex gap-3 justify-end'>
-							<button
-								type='button'
-								className='px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300
-                          hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md'
-								onClick={() => setIsConfirmOpen(false)}
-							>
-								Cancel
-							</button>
-							<button
-								type='button'
-								className='px-4 py-2 text-sm font-medium text-white bg-red-600
-                          hover:bg-red-700 rounded-md'
-								onClick={clearShotData}
-							>
-								Clear Data
-							</button>
-						</div>
-					</DialogPanel>
-				</div>
-			</Dialog>
+			{/* Clear single shot Confirmation Modal */}
+			<ConfirmModal
+				open={modalData.isOpen}
+				onClose={() =>
+					setModalData((prev) => ({
+						...prev,
+						isOpen: false,
+						shotIndex: null,
+					}))
+				}
+				onConfirm={() => {
+					clearShotData()
+				}}
+				description={modalData.description}
+				title={modalData.title}
+			/>
 
 			{/* View Shot Data button */}
 			<div className='fixed bottom-8 left-0 right-0 p-4 flex flex-col gap-4'>

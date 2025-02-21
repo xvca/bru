@@ -1,5 +1,5 @@
-import Page from '@/components/page'
-import Section from '@/components/section'
+import Page from '@/components/Page'
+import Section from '@/components/Section'
 import React, { useState, useEffect, useRef } from 'react'
 import CountUp from 'react-countup'
 import {
@@ -13,7 +13,7 @@ import {
 import { Button } from '@headlessui/react'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
-import { Gauge } from '@/components/gauge'
+import { Gauge } from '@/components/Gauge'
 
 enum BrewStates {
 	IDLE,
@@ -39,6 +39,7 @@ export default function CoffeeBrewControl() {
 		flowRate: 0,
 		time: 0,
 		state: 0,
+		target: 0,
 	})
 	const [lastMessageTime, setLastMessageTime] = useState<number>(Date.now())
 
@@ -55,6 +56,7 @@ export default function CoffeeBrewControl() {
 		flowRate: 0,
 		time: 0,
 		state: 0,
+		target: 0,
 	}
 
 	const api = axios.create({
@@ -75,6 +77,10 @@ export default function CoffeeBrewControl() {
 	}, [lastMessageTime])
 	useEffect(() => {
 		brewDataRef.current = brewData
+
+		if (isBrewing) {
+			setTargetWeight(brewData.target)
+		}
 	}, [brewData])
 
 	useEffect(() => {
