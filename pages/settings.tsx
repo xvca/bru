@@ -379,7 +379,7 @@ const BrewSettings = () => {
 																		title: `Delete Shot #${index + 1}?`,
 																	})
 																}
-																className='mr-auto'
+																className='ml-auto'
 															>
 																<CircleX size={14} color='var(--color-error)' />
 															</button>

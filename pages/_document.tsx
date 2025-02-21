@@ -8,11 +8,10 @@ export default function Document() {
 				<link rel='icon' type='image/icon' href='/images/favicon.ico' />
 				<meta
 					name='theme-color'
-					content='#18181b'
+					content='#1f1815'
 					media='(prefers-color-scheme: dark)'
 				/>
-				<meta name='theme-color' content='#fffefe' />
-				<meta name='theme-color' content='#f4f4f5' />
+				<meta name='theme-color' content='#fdfbf7' />
 				<link rel='apple-touch-icon' href='/images/icon-maskable-512.png' />
 				<link rel='manifest' href='/manifest.json' />
 			</Head>

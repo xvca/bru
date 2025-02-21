@@ -53,7 +53,7 @@ const Appbar = () => {
 
 			{/* Main Appbar */}
 			<div className='fixed top-0 left-0 z-20 w-full bg-background pt-safe'>
-				<header className='border-b border-text bg-background px-safe'>
+				<header className='border-b border-border bg-background px-safe'>
 					<div className='mx-auto flex h-12 max-w-screen-md items-center justify-between px-4'>
 						<Link href='/'>
 							<h1 className='font-medium text-text'>Bru</h1>
