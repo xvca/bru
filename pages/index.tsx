@@ -32,7 +32,8 @@ export default function CoffeeBrewControl() {
 	})
 	const [ws, setWs] = useState<WebSocket | null>(null)
 	const [isWaking, setIsWaking] = useState(false)
-	const [isConnected, setIsConnected] = useState(false)
+	const [wsConnected, setWsConnected] = useState(false) // tracks only ws connection
+	const [isConnected, setIsConnected] = useState(false) // tracks full system (WS + BLE)
 	const [isBrewing, setIsBrewing] = useState(false)
 	const [brewData, setBrewData] = useState({
 		weight: 0,
@@ -41,12 +42,15 @@ export default function CoffeeBrewControl() {
 		state: 0,
 		target: 0,
 	})
-	const [lastMessageTime, setLastMessageTime] = useState<number>(Date.now())
+	const [lastScaleMessageTime, setLastScaleMessageTime] = useState<number>(
+		Date.now(),
+	)
 
 	const wsRef = useRef(ws)
 	const isConnectedRef = useRef(isConnected)
-	const lastMessageTimeRef = useRef(lastMessageTime)
+	const lastScaleMessageTimeRef = useRef(lastScaleMessageTime)
 	const brewDataRef = useRef(brewData)
+	const isReconnecting = useRef(false)
 
 	const wsUrl =
 		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
@@ -75,8 +79,8 @@ export default function CoffeeBrewControl() {
 		isConnectedRef.current = isConnected
 	}, [isConnected])
 	useEffect(() => {
-		lastMessageTimeRef.current = lastMessageTime
-	}, [lastMessageTime])
+		lastScaleMessageTimeRef.current = lastScaleMessageTime
+	}, [lastScaleMessageTime])
 	useEffect(() => {
 		brewDataRef.current = brewData
 
@@ -89,97 +93,167 @@ export default function CoffeeBrewControl() {
 		localStorage.setItem('targetWeight', targetWeight.toString())
 	}, [, targetWeight])
 
+	const parseWsMessage = (buffer: ArrayBuffer) => {
+		const view = new DataView(buffer)
+		let offset = 0
+
+		try {
+			const weight = view.getFloat32(offset, true)
+			offset += 4
+
+			const flowRate = view.getFloat32(offset, true)
+			offset += 4
+
+			const target = view.getFloat32(offset, true)
+			offset += 4
+
+			const time = view.getUint32(offset, true)
+			offset += 4
+
+			const state = view.getUint8(offset)
+			offset += 1
+
+			setBrewData({ weight, flowRate, target, time, state })
+		} catch (e) {
+			console.error('Error parsing binary metrics:', e)
+			throw e
+		}
+	}
+
 	useEffect(() => {
 		let ws: WebSocket | null = null
 		let reconnectTimeout: NodeJS.Timeout
-		let messageCheckInterval: NodeJS.Timeout
-		let isReconnecting = false
+		let pingTimeout: NodeJS.Timeout
+		let pingInterval: NodeJS.Timeout
 
 		const connect = () => {
-			// Only try to connect if we're not already connecting and don't have an active connection
-			if (isReconnecting || (ws && ws.readyState === WebSocket.OPEN)) {
+			if (
+				isReconnecting.current ||
+				(ws && ws.readyState === WebSocket.CONNECTING)
+			) {
+				console.log('Connection attempt already in progress')
 				return
 			}
 
-			isReconnecting = true
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				console.log('Already connected')
+				return
+			}
+
+			isReconnecting.current = true
+			console.log('Starting connection attempt')
 
 			if (ws) {
 				ws.close()
+				clearInterval(pingInterval)
+				clearInterval(pingTimeout)
 			}
 
-			ws = new WebSocket(wsUrl)
+			try {
+				ws = new WebSocket(wsUrl)
+				ws.binaryType = 'arraybuffer'
 
-			ws.onopen = () => {
-				console.log('ws opened')
-				setWs(ws)
-				isReconnecting = false
-			}
+				const heartbeat = () => {
+					clearTimeout(pingTimeout)
 
-			ws.onclose = () => {
-				console.log('ws closed')
-				setBrewData(defaultBrewData)
-				setIsConnected(false)
-				setWs(null)
-				isReconnecting = false
-
-				// Schedule a reconnection
-				reconnectTimeout = setTimeout(() => {
-					connect()
-				}, 1000)
-			}
-
-			ws.onerror = () => {
-				console.log('ws error')
-				setBrewData(defaultBrewData)
-				setIsConnected(false)
-				ws?.close()
-				isReconnecting = false
-			}
-
-			ws.onmessage = (event) => {
-				try {
-					console.log('ws message received')
-					const data = JSON.parse(event.data)
-					setLastMessageTime(Date.now())
-					setBrewData(data)
-					setIsConnected(true)
-					if (data.state === BrewStates.IDLE) {
-						setIsBrewing(false)
-					} else {
-						setIsBrewing(true)
-					}
-				} catch (error) {
-					console.error('Failed to parse WebSocket message:', error)
+					pingTimeout = setTimeout(() => {
+						console.log('Ping timeout - closing connection')
+						if (ws?.readyState === WebSocket.OPEN) {
+							ws?.close()
+						}
+						isReconnecting.current = false
+					}, 5000)
 				}
+
+				ws.onopen = () => {
+					console.log('ws connected')
+					setWs(ws)
+					setWsConnected(true)
+					isReconnecting.current = false
+
+					// Start ping interval
+					pingInterval = setInterval(() => {
+						if (ws?.readyState === WebSocket.OPEN) {
+							console.log('sending ping')
+							ws.send('ping')
+							heartbeat()
+						}
+						if (lastScaleMessageTimeRef.current + 5000 < Date.now()) {
+							setIsConnected(false)
+						}
+					}, 10000)
+				}
+
+				ws.onclose = (event) => {
+					console.log('ws disconnected:', event.code, event.reason)
+					clearInterval(pingTimeout)
+
+					setWsConnected(false)
+					setIsConnected(false)
+
+					setBrewData(defaultBrewData)
+					setWs(null)
+
+					if (!isReconnecting.current) {
+						isReconnecting.current = false
+						reconnectTimeout = setTimeout(() => {
+							connect()
+						}, 1000)
+					}
+				}
+
+				ws.onerror = (error) => {
+					console.log('ws error: ', error)
+					setWsConnected(false)
+					setIsConnected(false)
+					setBrewData(defaultBrewData)
+
+					if (ws?.readyState === WebSocket.OPEN) {
+						ws?.close()
+					}
+					isReconnecting.current = false
+				}
+
+				ws.onmessage = (event) => {
+					try {
+						if (typeof event.data === 'string' && event.data === 'pong') {
+							console.log('Pong received')
+							clearTimeout(pingTimeout)
+							return
+						}
+
+						if (event.data instanceof ArrayBuffer) {
+							parseWsMessage(event.data)
+							if (!isConnected) setIsConnected(true)
+						}
+
+						setLastScaleMessageTime(Date.now())
+
+						if (brewData.state === BrewStates.IDLE) {
+							setIsBrewing(false)
+						} else {
+							setIsBrewing(true)
+						}
+					} catch (error) {
+						console.error('Failed to parse WebSocket message:', error)
+					}
+				}
+			} catch (error) {
+				console.error('Error creating ws:', error)
+				isReconnecting.current = false
 			}
 		}
-
-		// Check for stale connection
-		messageCheckInterval = setInterval(() => {
-			const now = Date.now()
-			if (
-				now - lastMessageTimeRef.current > 60 * 1000 &&
-				isConnectedRef.current
-			) {
-				if (ws && ws.readyState === WebSocket.OPEN) {
-					ws.close()
-				}
-			}
-		}, 5000)
 
 		connect()
 
 		return () => {
+			isReconnecting.current = false
+			clearInterval(pingInterval)
+			clearTimeout(pingTimeout)
+			clearTimeout(reconnectTimeout)
 			if (ws) {
 				ws.close()
 			}
-			if (reconnectTimeout) {
-				clearTimeout(reconnectTimeout)
-			}
-			if (messageCheckInterval) {
-				clearInterval(messageCheckInterval)
-			}
-			isReconnecting = false
 		}
 	}, [])
 
@@ -241,7 +315,6 @@ export default function CoffeeBrewControl() {
 		}
 	}
 
-	console.log()
 	const getBrewStateText = (state: number) => {
 		switch (state) {
 			case 0:
@@ -255,6 +328,12 @@ export default function CoffeeBrewControl() {
 			default:
 				return ''
 		}
+	}
+
+	const getConnectionStateText = () => {
+		if (!wsConnected && !isConnected) return 'Disconnected'
+		if (wsConnected && !isConnected) return 'ESP Connected'
+		else return 'Connected'
 	}
 
 	return (
@@ -273,7 +352,7 @@ export default function CoffeeBrewControl() {
 									}`}
 								/>
 								<span className='text-sm text-text-secondary'>
-									{isConnected ? 'Connected' : 'Disconnected'}
+									{getConnectionStateText()}
 								</span>
 							</div>
 							{isConnected ? (
@@ -329,9 +408,10 @@ export default function CoffeeBrewControl() {
 									<CountUp
 										end={brewData.time / 1000}
 										decimals={1}
-										duration={2}
+										duration={0.5}
 										preserveValue={true}
 										suffix={'s'}
+										delay={100}
 									/>
 								</div>
 
@@ -340,7 +420,7 @@ export default function CoffeeBrewControl() {
 									<CountUp
 										end={brewData.weight}
 										decimals={1}
-										duration={2}
+										duration={0.5}
 										preserveValue={true}
 										suffix={'g'}
 									/>
@@ -352,9 +432,10 @@ export default function CoffeeBrewControl() {
 										<CountUp
 											end={brewData.flowRate}
 											decimals={1}
-											duration={2}
+											duration={0.5}
 											preserveValue={true}
 											suffix={'g/s'}
+											delay={100}
 										/>
 									</div>
 								)}
