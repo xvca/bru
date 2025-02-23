@@ -84,6 +84,12 @@ export default function CoffeeBrewControl() {
 	useEffect(() => {
 		brewDataRef.current = brewData
 
+		if (brewData.state === BrewStates.IDLE) {
+			setIsBrewing(false)
+		} else {
+			setIsBrewing(true)
+		}
+
 		if (isBrewing) {
 			setTargetWeight(brewData.target)
 		}
@@ -228,12 +234,6 @@ export default function CoffeeBrewControl() {
 						}
 
 						setLastScaleMessageTime(Date.now())
-
-						if (brewData.state === BrewStates.IDLE) {
-							setIsBrewing(false)
-						} else {
-							setIsBrewing(true)
-						}
 					} catch (error) {
 						console.error('Failed to parse WebSocket message:', error)
 					}
