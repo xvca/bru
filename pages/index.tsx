@@ -22,6 +22,12 @@ enum BrewStates {
 	DRIPPING,
 }
 
+interface InterpolatedData {
+	weight: number
+	flowRate: number
+	time: number
+}
+
 export default function CoffeeBrewControl() {
 	const [targetWeight, setTargetWeight] = useState(() => {
 		if (typeof window !== 'undefined') {
@@ -42,6 +48,13 @@ export default function CoffeeBrewControl() {
 		state: 0,
 		target: 0,
 	})
+
+	const [interpolatedData, setInterpolatedData] = useState<InterpolatedData>({
+		weight: 0,
+		flowRate: 0,
+		time: 0,
+	})
+
 	const [lastScaleMessageTime, setLastScaleMessageTime] = useState<number>(
 		Date.now(),
 	)
@@ -256,6 +269,49 @@ export default function CoffeeBrewControl() {
 			}
 		}
 	}, [])
+
+	const SMOOTHING = 0.3
+
+	const lerp = (start: number, end: number, t: number) => {
+		return start * (1 - t) + end * t
+	}
+
+	const lastInterpUpdateTime = useRef(Date.now())
+
+	useEffect(() => {
+		let animationFrameId: number
+
+		const updateValues = () => {
+			const now = Date.now()
+			const deltaTime = (now - lastInterpUpdateTime.current) / 1000
+
+			setInterpolatedData((prev) => {
+				if (!isBrewing) return brewData
+
+				const weight =
+					lerp(prev.weight, brewData.weight, SMOOTHING) +
+					brewData.flowRate * deltaTime
+				const flowRate = lerp(prev.flowRate, brewData.flowRate, SMOOTHING)
+				const time =
+					lerp(prev.time, brewData.time, SMOOTHING) + deltaTime * 1000
+
+				return {
+					weight,
+					flowRate,
+					time,
+				}
+			})
+
+			lastInterpUpdateTime.current = now
+			animationFrameId = requestAnimationFrame(updateValues)
+		}
+
+		animationFrameId = requestAnimationFrame(updateValues)
+
+		return () => {
+			cancelAnimationFrame(animationFrameId)
+		}
+	}, [brewData, isBrewing])
 
 	const startBrew = async () => {
 		try {
