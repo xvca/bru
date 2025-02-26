@@ -462,7 +462,7 @@ export default function CoffeeBrewControl() {
 								{/* Timer */}
 								<div className='text-4xl font-bold tabular-nums'>
 									<CountUp
-										end={brewData.time / 1000}
+										end={interpolatedData.time / 1000}
 										decimals={1}
 										duration={0.5}
 										preserveValue={true}
@@ -474,7 +474,7 @@ export default function CoffeeBrewControl() {
 								{/* Weight Display */}
 								<div className='text-6xl font-bold tabular-nums'>
 									<CountUp
-										end={brewData.weight}
+										end={interpolatedData.weight}
 										decimals={1}
 										duration={0.5}
 										preserveValue={true}
@@ -486,7 +486,7 @@ export default function CoffeeBrewControl() {
 								{isBrewing && (
 									<div className='text-2xl font-bold tabular-nums'>
 										<CountUp
-											end={brewData.flowRate}
+											end={interpolatedData.flowRate}
 											decimals={1}
 											duration={0.5}
 											preserveValue={true}
