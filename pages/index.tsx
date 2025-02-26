@@ -276,42 +276,54 @@ export default function CoffeeBrewControl() {
 		return start * (1 - t) + end * t
 	}
 
-	const lastInterpUpdateTime = useRef(Date.now())
+	// const lastFrameTime = useRef(Date.now())
+	// const lastUpdateTime = useRef(Date.now())
 
-	useEffect(() => {
-		let animationFrameId: number
+	// useEffect(() => {
+	// 	let animationFrameId: number
+	// 	const UPDATE_INTERVAL = 100 // Update state every 100ms instead of every frame
 
-		const updateValues = () => {
-			const now = Date.now()
-			const deltaTime = (now - lastInterpUpdateTime.current) / 1000
+	// 	const updateValues = () => {
+	// 		const now = Date.now()
+	// 		const deltaTime = (now - lastFrameTime.current) / 1000
+	// 		lastFrameTime.current = now
 
-			setInterpolatedData((prev) => {
-				if (!isBrewing) return brewData
+	// 		// Calculate the new values every frame
+	// 		let currentInterpolation = { ...interpolatedData }
 
-				const weight =
-					lerp(prev.weight, brewData.weight, SMOOTHING) +
-					brewData.flowRate * deltaTime
-				const flowRate = lerp(prev.flowRate, brewData.flowRate, SMOOTHING)
-				const time =
-					lerp(prev.time, brewData.time, SMOOTHING) + deltaTime * 1000
+	// 		if (isBrewing) {
+	// 			currentInterpolation = {
+	// 				weight: currentInterpolation.weight + brewData.flowRate * deltaTime,
+	// 				flowRate: lerp(
+	// 					currentInterpolation.flowRate,
+	// 					brewData.flowRate,
+	// 					SMOOTHING,
+	// 				),
+	// 				time: currentInterpolation.time + deltaTime * 1000,
+	// 			}
 
-				return {
-					weight,
-					flowRate,
-					time,
-				}
-			})
+	// 			// Only update React state at intervals
+	// 			if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
+	// 				setInterpolatedData(currentInterpolation)
+	// 				lastUpdateTime.current = now
+	// 			}
+	// 		} else {
+	// 			// When not brewing, just sync with brewData
+	// 			if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
+	// 				setInterpolatedData(brewData)
+	// 				lastUpdateTime.current = now
+	// 			}
+	// 		}
 
-			lastInterpUpdateTime.current = now
-			animationFrameId = requestAnimationFrame(updateValues)
-		}
+	// 		animationFrameId = requestAnimationFrame(updateValues)
+	// 	}
 
-		animationFrameId = requestAnimationFrame(updateValues)
+	// 	animationFrameId = requestAnimationFrame(updateValues)
 
-		return () => {
-			cancelAnimationFrame(animationFrameId)
-		}
-	}, [brewData, isBrewing])
+	// 	return () => {
+	// 		cancelAnimationFrame(animationFrameId)
+	// 	}
+	// }, [brewData, isBrewing])
 
 	const startBrew = async () => {
 		try {
@@ -462,7 +474,7 @@ export default function CoffeeBrewControl() {
 								{/* Timer */}
 								<div className='text-4xl font-bold tabular-nums'>
 									<CountUp
-										end={interpolatedData.time / 1000}
+										end={brewData.time / 1000}
 										decimals={1}
 										duration={0.5}
 										preserveValue={true}
@@ -474,7 +486,7 @@ export default function CoffeeBrewControl() {
 								{/* Weight Display */}
 								<div className='text-6xl font-bold tabular-nums'>
 									<CountUp
-										end={interpolatedData.weight}
+										end={brewData.weight}
 										decimals={1}
 										duration={0.5}
 										preserveValue={true}
@@ -486,7 +498,7 @@ export default function CoffeeBrewControl() {
 								{isBrewing && (
 									<div className='text-2xl font-bold tabular-nums'>
 										<CountUp
-											end={interpolatedData.flowRate}
+											end={brewData.flowRate}
 											decimals={1}
 											duration={0.5}
 											preserveValue={true}
