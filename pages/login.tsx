@@ -2,7 +2,6 @@ import Page from '@/components/Page'
 import Section from '@/components/Section'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/utils/supabase/client'
 import { z } from 'zod'
 
 // Create a schema for form validation
@@ -12,51 +11,9 @@ const authSchema = z.object({
 })
 
 export default function LoginPage() {
-	async function login(formData: FormData) {
-		const supabase = createClient()
+	async function login(formData: FormData) {}
 
-		try {
-			const data = authSchema.parse({
-				email: formData.get('email'),
-				password: formData.get('password'),
-			})
-
-			const { error } = await supabase.auth.signInWithPassword(data)
-
-			if (error) {
-				redirect('/error')
-			}
-
-			revalidatePath('/', 'layout')
-			redirect('/account')
-		} catch (error) {
-			console.error('Validation error:', error)
-			redirect('/error')
-		}
-	}
-
-	async function signup(formData: FormData) {
-		const supabase = createClient()
-
-		try {
-			const data = authSchema.parse({
-				email: formData.get('email'),
-				password: formData.get('password'),
-			})
-
-			const { error } = await supabase.auth.signUp(data)
-
-			if (error) {
-				redirect('/error')
-			}
-
-			revalidatePath('/', 'layout')
-			redirect('/account')
-		} catch (error) {
-			console.error('Validation error:', error)
-			redirect('/error')
-		}
-	}
+	async function signup(formData: FormData) {}
 
 	return (
 		<Page title='login'>
