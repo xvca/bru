@@ -292,6 +292,24 @@ export default function CoffeeBrewControl() {
 												<div className='text-xs text-gray-500'>
 													target weight (g)
 												</div>
+												<div className='flex justify-center gap-2 mt-2'>
+													<button
+														onClick={() =>
+															setTargetWeight((prev) => Math.max(prev / 2, 1))
+														}
+														className='px-2 py-1 text-sm border border-border rounded hover:bg-input-border transition-colors'
+													>
+														½×
+													</button>
+													<button
+														onClick={() =>
+															setTargetWeight((prev) => Math.min(prev * 2, 100))
+														}
+														className='px-2 py-1 text-sm border border-border rounded hover:bg-input-border transition-colors'
+													>
+														2×
+													</button>
+												</div>
 											</div>
 											<button
 												onClick={() =>

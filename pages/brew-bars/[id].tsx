@@ -4,6 +4,7 @@ import ProtectedPage from '@/components/ProtectedPage'
 import Section from '@/components/Section'
 import EquipmentFormModal from '@/components/EquipmentFormModal'
 import GrinderFormModal from '@/components/GrinderFormModal'
+import InviteMemberModal from '@/components/InviteMemberModal'
 import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
@@ -31,9 +32,12 @@ interface BrewBar {
 interface BrewBarMember {
 	id: number
 	userId: number
-	username: string
 	role: string
 	isCurrentUser: boolean
+	user: {
+		id: number
+		username: string
+	}
 }
 
 interface Equipment {
@@ -70,6 +74,7 @@ export default function BrewBarDetailPage() {
 	const [equipment, setEquipment] = useState<Equipment[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 
+	const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
 	const [isEquipmentFormOpen, setIsEquipmentFormOpen] = useState(false)
 	const [isGrinderFormOpen, setIsGrinderFormOpen] = useState(false)
 	const [selectedEquipmentId, setSelectedEquipmentId] = useState<
@@ -173,6 +178,20 @@ export default function BrewBarDetailPage() {
 		setIsGrinderFormOpen(true)
 	}
 
+	// Add handler for member removal
+	const handleRemoveMember = async (userId: number) => {
+		try {
+			await axios.delete(`/api/brew-bars/${id}/members/${userId}`, {
+				headers: { Authorization: `Bearer ${user?.token}` },
+			})
+			await fetchMembers() // Refresh member list
+			toast.success('Member removed successfully')
+		} catch (error) {
+			console.error('Error removing member:', error)
+			toast.error('Failed to remove member')
+		}
+	}
+
 	if (isLoading) {
 		return (
 			<ProtectedPage title='Brew Bar Details'>
@@ -226,7 +245,7 @@ export default function BrewBarDetailPage() {
 
 						{brewBar.isOwner && (
 							<button
-								onClick={() => router.push(`/brew-bars/${id}/invite`)}
+								onClick={() => setIsInviteModalOpen(true)}
 								className='flex items-center gap-1 px-3 py-2 bg-text text-background rounded-md'
 							>
 								<UserPlus size={18} />
@@ -286,11 +305,11 @@ export default function BrewBarDetailPage() {
 											>
 												<div className='flex items-center gap-2'>
 													<div className='bg-primary-light text-white rounded-full w-8 h-8 flex items-center justify-center'>
-														{member.username.substring(0, 1).toUpperCase()}
+														{member.user.username.substring(0, 1).toUpperCase()}
 													</div>
 													<div>
 														<p className='font-medium'>
-															{member.username}
+															{member.user.username}
 															{member.isCurrentUser && (
 																<span className='text-text-secondary text-sm ml-2'>
 																	(You)
@@ -305,9 +324,7 @@ export default function BrewBarDetailPage() {
 
 												{brewBar.isOwner && !member.isCurrentUser && (
 													<button
-														onClick={() => {
-															/* Handle member removal */
-														}}
+														onClick={() => handleRemoveMember(member.userId)}
 														className='text-error text-sm hover:underline'
 													>
 														Remove
@@ -400,7 +417,6 @@ export default function BrewBarDetailPage() {
 				</Tab.Group>
 			</Section>
 			<>
-				{/* Equipment Form Modal */}
 				<EquipmentFormModal
 					isOpen={isEquipmentFormOpen}
 					onClose={() => setIsEquipmentFormOpen(false)}
@@ -409,13 +425,19 @@ export default function BrewBarDetailPage() {
 					onSuccess={fetchEquipment}
 				/>
 
-				{/* Grinder Form Modal */}
 				<GrinderFormModal
 					isOpen={isGrinderFormOpen}
 					onClose={() => setIsGrinderFormOpen(false)}
 					brewBarId={Number(id)}
 					grinderId={selectedGrinderId}
 					onSuccess={fetchEquipment}
+				/>
+
+				<InviteMemberModal
+					isOpen={isInviteModalOpen}
+					onClose={() => setIsInviteModalOpen(false)}
+					brewBarId={Number(id)}
+					onSuccess={fetchMembers}
 				/>
 			</>
 		</ProtectedPage>
