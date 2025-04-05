@@ -1,6 +1,6 @@
 import Page from '@/components/Page'
 import Section from '@/components/Section'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import CountUp from 'react-countup'
 import {
 	Play,
@@ -14,18 +14,13 @@ import { Button } from '@headlessui/react'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
 import { Gauge } from '@/components/Gauge'
+import { useWebSocket } from '@/lib/websocketContext'
 
 enum BrewStates {
 	IDLE,
 	PREINFUSION,
 	BREWING,
 	DRIPPING,
-}
-
-interface InterpolatedData {
-	weight: number
-	flowRate: number
-	time: number
 }
 
 export default function CoffeeBrewControl() {
@@ -36,47 +31,15 @@ export default function CoffeeBrewControl() {
 		}
 		return 20
 	})
-	const [ws, setWs] = useState<WebSocket | null>(null)
+
 	const [isWaking, setIsWaking] = useState(false)
-	const [wsConnected, setWsConnected] = useState(false) // tracks only ws connection
-	const [isConnected, setIsConnected] = useState(false) // tracks full system (WS + BLE)
 	const [isBrewing, setIsBrewing] = useState(false)
-	const [brewData, setBrewData] = useState({
-		weight: 0,
-		flowRate: 0,
-		time: 0,
-		state: 0,
-		target: 0,
-	})
 
-	const [interpolatedData, setInterpolatedData] = useState<InterpolatedData>({
-		weight: 0,
-		flowRate: 0,
-		time: 0,
-	})
+	// Use the WebSocket context instead of creating our own
+	const { brewData, isConnected, isWsConnected } = useWebSocket()
 
-	const [lastScaleMessageTime, setLastScaleMessageTime] = useState<number>(
-		Date.now(),
-	)
-
-	const wsRef = useRef(ws)
-	const isConnectedRef = useRef(isConnected)
-	const lastScaleMessageTimeRef = useRef(lastScaleMessageTime)
-	const brewDataRef = useRef(brewData)
-	const isReconnecting = useRef(false)
-
-	const wsUrl =
-		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
 	const ESPUrl =
 		`http://${process.env.NEXT_PUBLIC_ESP_IP}` || 'http://localhost:8080'
-
-	const defaultBrewData = {
-		weight: 0,
-		flowRate: 0,
-		time: 0,
-		state: 0,
-		target: 0,
-	}
 
 	const api = axios.create({
 		baseURL: ESPUrl,
@@ -86,17 +49,12 @@ export default function CoffeeBrewControl() {
 	})
 
 	useEffect(() => {
-		wsRef.current = ws
-	}, [ws])
-	useEffect(() => {
-		isConnectedRef.current = isConnected
-	}, [isConnected])
-	useEffect(() => {
-		lastScaleMessageTimeRef.current = lastScaleMessageTime
-	}, [lastScaleMessageTime])
-	useEffect(() => {
-		brewDataRef.current = brewData
+		// Store target weight in localStorage when it changes
+		localStorage.setItem('targetWeight', targetWeight.toString())
+	}, [targetWeight])
 
+	useEffect(() => {
+		// Update brewing state based on data from context
 		if (brewData.state === BrewStates.IDLE) {
 			setIsBrewing(false)
 		} else {
@@ -107,223 +65,6 @@ export default function CoffeeBrewControl() {
 			setTargetWeight(brewData.target)
 		}
 	}, [brewData])
-
-	useEffect(() => {
-		localStorage.setItem('targetWeight', targetWeight.toString())
-	}, [, targetWeight])
-
-	const parseWsMessage = (buffer: ArrayBuffer) => {
-		const view = new DataView(buffer)
-		let offset = 0
-
-		try {
-			const weight = view.getFloat32(offset, true)
-			offset += 4
-
-			const flowRate = view.getFloat32(offset, true)
-			offset += 4
-
-			const target = view.getFloat32(offset, true)
-			offset += 4
-
-			const time = view.getUint32(offset, true)
-			offset += 4
-
-			const state = view.getUint8(offset)
-			offset += 1
-
-			setBrewData({ weight, flowRate, target, time, state })
-		} catch (e) {
-			console.error('Error parsing binary metrics:', e)
-			throw e
-		}
-	}
-
-	useEffect(() => {
-		let ws: WebSocket | null = null
-		let reconnectTimeout: NodeJS.Timeout
-		let pingTimeout: NodeJS.Timeout
-		let pingInterval: NodeJS.Timeout
-
-		const connect = () => {
-			if (
-				isReconnecting.current ||
-				(ws && ws.readyState === WebSocket.CONNECTING)
-			) {
-				console.log('Connection attempt already in progress')
-				return
-			}
-
-			if (ws && ws.readyState === WebSocket.OPEN) {
-				console.log('Already connected')
-				return
-			}
-
-			isReconnecting.current = true
-			console.log('Starting connection attempt')
-
-			if (ws) {
-				ws.close()
-				clearInterval(pingInterval)
-				clearInterval(pingTimeout)
-			}
-
-			try {
-				ws = new WebSocket(wsUrl)
-				ws.binaryType = 'arraybuffer'
-
-				const heartbeat = () => {
-					clearTimeout(pingTimeout)
-
-					pingTimeout = setTimeout(() => {
-						console.log('Ping timeout - closing connection')
-						if (ws?.readyState === WebSocket.OPEN) {
-							ws?.close()
-						}
-						isReconnecting.current = false
-					}, 5000)
-				}
-
-				ws.onopen = () => {
-					console.log('ws connected')
-					setWs(ws)
-					setWsConnected(true)
-					isReconnecting.current = false
-
-					// Start ping interval
-					pingInterval = setInterval(() => {
-						if (ws?.readyState === WebSocket.OPEN) {
-							console.log('sending ping')
-							ws.send('ping')
-							heartbeat()
-						}
-						if (lastScaleMessageTimeRef.current + 5000 < Date.now()) {
-							setIsConnected(false)
-						}
-					}, 10000)
-				}
-
-				ws.onclose = (event) => {
-					console.log('ws disconnected:', event.code, event.reason)
-					clearInterval(pingTimeout)
-
-					setWsConnected(false)
-					setIsConnected(false)
-
-					setBrewData(defaultBrewData)
-					setWs(null)
-
-					if (!isReconnecting.current) {
-						isReconnecting.current = false
-						reconnectTimeout = setTimeout(() => {
-							connect()
-						}, 1000)
-					}
-				}
-
-				ws.onerror = (error) => {
-					console.log('ws error: ', error)
-					setWsConnected(false)
-					setIsConnected(false)
-					setBrewData(defaultBrewData)
-
-					if (ws?.readyState === WebSocket.OPEN) {
-						ws?.close()
-					}
-					isReconnecting.current = false
-				}
-
-				ws.onmessage = (event) => {
-					try {
-						if (typeof event.data === 'string' && event.data === 'pong') {
-							console.log('Pong received')
-							clearTimeout(pingTimeout)
-							return
-						}
-
-						if (event.data instanceof ArrayBuffer) {
-							parseWsMessage(event.data)
-							if (!isConnected) setIsConnected(true)
-						}
-
-						setLastScaleMessageTime(Date.now())
-					} catch (error) {
-						console.error('Failed to parse WebSocket message:', error)
-					}
-				}
-			} catch (error) {
-				console.error('Error creating ws:', error)
-				isReconnecting.current = false
-			}
-		}
-
-		connect()
-
-		return () => {
-			isReconnecting.current = false
-			clearInterval(pingInterval)
-			clearTimeout(pingTimeout)
-			clearTimeout(reconnectTimeout)
-			if (ws) {
-				ws.close()
-			}
-		}
-	}, [])
-
-	const SMOOTHING = 0.3
-
-	const lerp = (start: number, end: number, t: number) => {
-		return start * (1 - t) + end * t
-	}
-
-	// const lastFrameTime = useRef(Date.now())
-	// const lastUpdateTime = useRef(Date.now())
-
-	// useEffect(() => {
-	// 	let animationFrameId: number
-	// 	const UPDATE_INTERVAL = 100 // Update state every 100ms instead of every frame
-
-	// 	const updateValues = () => {
-	// 		const now = Date.now()
-	// 		const deltaTime = (now - lastFrameTime.current) / 1000
-	// 		lastFrameTime.current = now
-
-	// 		// Calculate the new values every frame
-	// 		let currentInterpolation = { ...interpolatedData }
-
-	// 		if (isBrewing) {
-	// 			currentInterpolation = {
-	// 				weight: currentInterpolation.weight + brewData.flowRate * deltaTime,
-	// 				flowRate: lerp(
-	// 					currentInterpolation.flowRate,
-	// 					brewData.flowRate,
-	// 					SMOOTHING,
-	// 				),
-	// 				time: currentInterpolation.time + deltaTime * 1000,
-	// 			}
-
-	// 			// Only update React state at intervals
-	// 			if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
-	// 				setInterpolatedData(currentInterpolation)
-	// 				lastUpdateTime.current = now
-	// 			}
-	// 		} else {
-	// 			// When not brewing, just sync with brewData
-	// 			if (now - lastUpdateTime.current >= UPDATE_INTERVAL) {
-	// 				setInterpolatedData(brewData)
-	// 				lastUpdateTime.current = now
-	// 			}
-	// 		}
-
-	// 		animationFrameId = requestAnimationFrame(updateValues)
-	// 	}
-
-	// 	animationFrameId = requestAnimationFrame(updateValues)
-
-	// 	return () => {
-	// 		cancelAnimationFrame(animationFrameId)
-	// 	}
-	// }, [brewData, isBrewing])
 
 	const startBrew = async () => {
 		try {
@@ -373,7 +114,7 @@ export default function CoffeeBrewControl() {
 			if (axios.isAxiosError(error)) {
 				const message = String(
 					`Failed to wake ESP:
-						${error.response?.data?.message || error.message}`,
+            ${error.response?.data?.message || error.message}`,
 				)
 				console.error(message)
 				toast.error(message)
@@ -399,8 +140,8 @@ export default function CoffeeBrewControl() {
 	}
 
 	const getConnectionStateText = () => {
-		if (!wsConnected && !isConnected) return 'Disconnected'
-		if (wsConnected && !isConnected) return 'ESP Connected'
+		if (!isWsConnected && !isConnected) return 'Disconnected'
+		if (isWsConnected && !isConnected) return 'ESP Connected'
 		else return 'Connected'
 	}
 

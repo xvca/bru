@@ -1,20 +1,29 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useState } from 'react'
+import { useAuth } from '@/lib/authContext'
+import { LogOut } from 'lucide-react'
 
 const links = [
 	{ label: 'Autobru', href: '/' },
 	{ label: 'Beans', href: '/beans' },
 	{ label: 'Brews', href: '/brews' },
+	{ label: 'Brew Bars', href: '/brew-bars' },
 	{ label: 'ESP Settings', href: '/settings' },
 ]
 
 const Appbar = () => {
 	const router = useRouter()
 	const [isMenuOpen, setIsMenuOpen] = useState(false)
+	const { user, logout } = useAuth()
 
 	const toggleMenu = () => {
 		setIsMenuOpen(!isMenuOpen)
+	}
+
+	const handleLogout = () => {
+		logout()
+		setIsMenuOpen(false)
 	}
 
 	return (
@@ -48,6 +57,17 @@ const Appbar = () => {
 							{label}
 						</Link>
 					))}
+
+					{/* Add logout button if user is logged in */}
+					{user && (
+						<button
+							onClick={handleLogout}
+							className='flex items-center w-full py-3 text-lg text-text hover:text-text-secondary'
+						>
+							<LogOut size={18} className='mr-2' />
+							Logout
+						</button>
+					)}
 				</div>
 			</div>
 

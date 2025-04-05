@@ -10,19 +10,13 @@ const Page = ({ title, children }: Props) => (
 	<>
 		{title ? (
 			<Head>
-				<title>Bru | {title}</title>
+				<title>{`Bru | ${title}`}</title>
 			</Head>
 		) : null}
 
 		<Appbar />
 
-		<main
-			/**
-			 * Padding top = `appbar` height
-			 * Padding bottom = `bottom-nav` height
-			 */
-			className='mx-auto max-w-screen-md pt-12 pb-10 px-safe sm:pb-0 bg-background text-text'
-		>
+		<main className='mx-auto max-w-screen-md pt-12 pb-10 px-safe sm:pb-0 bg-background text-text'>
 			<div className='p-6'>{children}</div>
 		</main>
 	</>
