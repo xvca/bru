@@ -50,15 +50,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	const [isConnected, setIsConnected] = useState(false)
 	const [isWsConnected, setWsConnected] = useState(false)
 	const [brewData, setBrewData] = useState(initialBrewData)
-	const [lastScaleMessageTime, setLastScaleMessageTime] = useState<number>(
-		Date.now(),
-	)
 
 	const wsRef = useRef<WebSocket | null>(null)
 	const isReconnecting = useRef(false)
 	const router = useRouter()
 	const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 	const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+	const lastScaleMessageTimeRef = useRef<number>(Date.now())
 
 	const wsUrl =
 		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
@@ -182,7 +180,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 							wsRef.current.send('ping')
 							heartbeat()
 						}
-						if (lastScaleMessageTime + 5000 < Date.now()) {
+						if (lastScaleMessageTimeRef.current + 5000 < Date.now()) {
 							setIsConnected(false)
 						}
 					}, 10000)
@@ -222,6 +220,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 					try {
 						if (typeof event.data === 'string' && event.data === 'pong') {
 							console.log('Pong received')
+							lastScaleMessageTimeRef.current = Date.now()
 							if (pingTimeoutRef.current) {
 								clearTimeout(pingTimeoutRef.current)
 							}
@@ -231,9 +230,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 						if (event.data instanceof ArrayBuffer) {
 							parseWsMessage(event.data)
 							if (!isConnected) setIsConnected(true)
+							lastScaleMessageTimeRef.current = Date.now()
 						}
-
-						setLastScaleMessageTime(Date.now())
 					} catch (error) {
 						console.error('Failed to parse WebSocket message:', error)
 					}
