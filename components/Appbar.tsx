@@ -9,7 +9,7 @@ const links = [
 	{ label: 'Beans', href: '/beans' },
 	{ label: 'Brews', href: '/brews' },
 	{ label: 'Brew Bars', href: '/brew-bars' },
-	{ label: 'ESP Settings', href: '/settings' },
+	{ label: 'Settings', href: '/settings' },
 ]
 
 const Appbar = () => {
