@@ -111,6 +111,7 @@ export default function ESPSettings() {
 					error.response?.data?.message || error.message,
 				)
 			}
+			toast.error('Failed to fetch esp settings')
 		} finally {
 			setIsLoading(false)
 		}
