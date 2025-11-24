@@ -111,13 +111,14 @@ export default function CoffeeBrewControl() {
 			const { data } = await api.post('/wake')
 			console.log('ESP now active: ', data)
 		} catch (error) {
+			console.log(error)
 			if (axios.isAxiosError(error)) {
 				const message = String(
 					`Failed to wake ESP:
-            ${error.response?.data?.message || error.message}`,
+            ${error.response?.data?.error || error.message}`,
 				)
 				console.error(message)
-				toast.error(message)
+				toast.error(message, { duration: 1000 })
 			}
 		} finally {
 			setIsWaking(false)

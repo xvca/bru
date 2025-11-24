@@ -1,14 +1,52 @@
-import type React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
-interface Gauge {
+interface GaugeProps {
 	max: number
 	value: number
 	min: number
 	arcSize: number
 	gaugePrimaryColor: string
-	gaugePrimaryEndColor: string
+	gaugePrimaryEndColor?: string
 	gaugeSecondaryColor: string
 	className?: string
+}
+
+/**
+ * Custom Hook: Smooths out value changes using Linear Interpolation (Lerp).
+ * @param value The target value to animate to
+ * @param speed The friction factor (0.0 - 1.0). Higher = faster, Lower = smoother/slower.
+ */
+const useProgressiveValue = (targetValue: number, speed = 0.15) => {
+	const [value, setValue] = useState(targetValue)
+	const requestRef = useRef<number>(0)
+	const previousValueRef = useRef<number>(targetValue)
+
+	useEffect(() => {
+		const animate = () => {
+			setValue((prev) => {
+				const diff = targetValue - prev
+
+				if (Math.abs(diff) < 0.05) {
+					previousValueRef.current = targetValue
+					return targetValue
+				}
+
+				const nextValue = prev + diff * speed
+				previousValueRef.current = nextValue
+				return nextValue
+			})
+
+			requestRef.current = requestAnimationFrame(animate)
+		}
+
+		if (previousValueRef.current !== targetValue) {
+			requestRef.current = requestAnimationFrame(animate)
+		}
+
+		return () => cancelAnimationFrame(requestRef.current)
+	}, [targetValue, speed])
+
+	return value
 }
 
 export function Gauge({
@@ -17,48 +55,47 @@ export function Gauge({
 	value = 0,
 	arcSize = 250,
 	gaugePrimaryColor,
-	gaugePrimaryEndColor,
+	gaugePrimaryEndColor = '',
 	gaugeSecondaryColor,
 	className,
-}: Gauge) {
-	arcSize = Math.min(Math.max(arcSize, 180), 360)
-	const currentPercent = Math.round(((value - min) / (max - min)) * 100)
+}: GaugeProps) {
+	const smoothValue = useProgressiveValue(value, 0.1)
 
-	// Arc calculation helpers
+	arcSize = Math.min(Math.max(arcSize, 180), 360)
+
+	const currentPercent = ((smoothValue - min) / (max - min)) * 100
+
 	const radius = 48
 	const center = { x: 50, y: 55 }
-
 	const angleOffset = 270 - arcSize
-
 	const circumference = (arcSize / 360) * (2 * Math.PI * radius)
 
 	const getCurrentColor = () => {
 		if (!gaugePrimaryEndColor) return gaugePrimaryColor
 
-		// Convert hex to RGB for interpolation
 		const hex2rgb = (hex: string) => {
-			const r = parseInt(hex.slice(1, 3), 16)
-			const g = parseInt(hex.slice(3, 5), 16)
-			const b = parseInt(hex.slice(5, 7), 16)
+			const cleanHex = hex.replace('#', '')
+			const r = parseInt(cleanHex.slice(0, 2), 16)
+			const g = parseInt(cleanHex.slice(2, 4), 16)
+			const b = parseInt(cleanHex.slice(4, 6), 16)
 			return [r, g, b]
 		}
 
 		const startRGB = hex2rgb(gaugePrimaryColor)
 		const endRGB = hex2rgb(gaugePrimaryEndColor)
 
-		// Interpolate between colors based on progress
-		const progress = currentPercent / 100
+		const progress = Math.min(Math.max(currentPercent / 100, 0), 1)
+
 		const currentRGB = startRGB.map((start, i) => {
 			const end = endRGB[i]
-			const value = Math.round(start + (end - start) * progress)
-			return value
+			const colorValue = Math.round(start + (end - start) * progress)
+			return colorValue
 		})
 
 		return `rgb(${currentRGB.join(',')})`
 	}
 
 	const calculateArcPath = (percentage: number, arcSize: number = 360) => {
-		// Calculate full arc path
 		const startAngleDegrees = -(arcSize / 2)
 		const startAngle = (-startAngleDegrees + angleOffset) * (Math.PI / 180)
 		const endAngle =
@@ -79,7 +116,6 @@ export function Gauge({
 	return (
 		<div className={className}>
 			<svg fill='none' className='size-full' viewBox='0 0 100 100'>
-				{/* Background arc */}
 				<path
 					d={calculateArcPath(100, arcSize)}
 					stroke={gaugeSecondaryColor}
@@ -88,15 +124,13 @@ export function Gauge({
 					fill='none'
 				/>
 
-				{/* Progress arc */}
 				<path
-					d={calculateArcPath(100, arcSize)} // Full arc path
+					d={calculateArcPath(100, arcSize)}
 					stroke={getCurrentColor()}
 					strokeWidth='2'
 					strokeLinecap='round'
 					fill='none'
 					strokeDasharray={`${(currentPercent * circumference) / 100} ${circumference}`}
-					className='transition-[stroke-dasharray] duration-500 ease-in-out'
 				/>
 			</svg>
 		</div>

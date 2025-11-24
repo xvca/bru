@@ -265,6 +265,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		}
 	}, [router])
 
+	useEffect(() => {
+		if (!isConnected) {
+			setBrewData((prev) => ({ ...prev, weight: 0, flowRate: 0, time: 0 }))
+		}
+	}, [isConnected])
+
 	return (
 		<WebSocketContext.Provider
 			value={{
