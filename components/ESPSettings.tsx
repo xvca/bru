@@ -297,6 +297,7 @@ export default function ESPSettings() {
 										if (value > 100) value = 100
 										setPendingPrefs({ ...pendingPrefs, regularPreset: value })
 									}}
+									onFocus={(e) => e.target.select()}
 									className='w-20 text-right bg-transparent focus:outline-none border-b border-transparent focus:border-text-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 								/>
 								<span className='text-base font-normal text-text-secondary'>
@@ -321,6 +322,7 @@ export default function ESPSettings() {
 										if (value > 100) value = 100
 										setPendingPrefs({ ...pendingPrefs, decafPreset: value })
 									}}
+									onFocus={(e) => e.target.select()}
 									className='w-20 text-right bg-transparent focus:outline-none border-b border-transparent focus:border-text-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 								/>
 								<span className='text-base font-normal text-text-secondary'>

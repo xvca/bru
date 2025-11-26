@@ -18,6 +18,8 @@ module.exports = {
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))',
+					light: 'hsl(var(--color-primary-light))',
+					dark: 'hsl(var(--color-primary-dark))',
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -42,6 +44,19 @@ module.exports = {
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))',
+				},
+
+				success: 'hsl(var(--color-success))',
+				error: 'hsl(var(--color-error))',
+
+				text: {
+					DEFAULT: 'hsl(var(--color-text))',
+					secondary: 'hsl(var(--color-text-secondary))',
+				},
+
+				gauge: {
+					primary: 'hsl(var(--color-gauge-primary))',
+					secondary: 'hsl(var(--color-gauge-secondary))',
 				},
 			},
 			borderRadius: {

@@ -209,7 +209,7 @@ export default function CoffeeBrewControl() {
 									isBrewing ? '#a64b45' : 'var(--color-input-border)'
 								}
 								gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
-								gaugeSecondaryColor='var(--color-gauge-secondary)'
+								gaugeSecondaryColor='hsl(var(--color-gauge-secondary))'
 							/>
 
 							{/* Centered Content */}
