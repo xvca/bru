@@ -1,43 +1,55 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
+	darkMode: ['class'],
 	content: [
-		'./pages/**/*.{js,ts,jsx,tsx}',
-		'./components/**/*.{js,ts,jsx,tsx}',
+		'./pages/**/*.{ts,tsx}',
+		'./components/**/*.{ts,tsx}',
+		'./app/**/*.{ts,tsx}',
+		'./src/**/*.{ts,tsx}',
 	],
-	darkMode: 'class',
-	plugins: [require('tailwindcss-safe-area')],
 	theme: {
 		extend: {
 			colors: {
+				border: 'hsl(var(--border))',
+				input: 'hsl(var(--input))',
+				ring: 'hsl(var(--ring))',
+				background: 'hsl(var(--background))',
+				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: 'var(--color-primary)',
-					dark: 'var(--color-primary-dark)',
-					light: 'var(--color-primary-light)',
+					DEFAULT: 'hsl(var(--primary))',
+					foreground: 'hsl(var(--primary-foreground))',
 				},
-				background: 'var(--color-background)',
-				text: {
-					DEFAULT: 'var(--color-text)',
-					secondary: 'var(--color-text-secondary)',
+				secondary: {
+					DEFAULT: 'hsl(var(--secondary))',
+					foreground: 'hsl(var(--secondary-foreground))',
 				},
-
-				border: 'var(--color-border)',
-				input: {
-					bg: 'var(--color-input-bg)',
-					border: 'var(--color-input-border)',
+				destructive: {
+					DEFAULT: 'hsl(var(--destructive))',
+					foreground: 'hsl(var(--destructive-foreground))',
 				},
-				success: 'var(--color-success)',
-				error: 'var(--color-error)',
-
-				gauge: {
-					primary: 'var(--color-gauge-primary)',
-					secondary: 'var(--color-gauge-secondary)',
+				muted: {
+					DEFAULT: 'hsl(var(--muted))',
+					foreground: 'hsl(var(--muted-foreground))',
+				},
+				accent: {
+					DEFAULT: 'hsl(var(--accent))',
+					foreground: 'hsl(var(--accent-foreground))',
+				},
+				popover: {
+					DEFAULT: 'hsl(var(--popover))',
+					foreground: 'hsl(var(--popover-foreground))',
+				},
+				card: {
+					DEFAULT: 'hsl(var(--card))',
+					foreground: 'hsl(var(--card-foreground))',
 				},
 			},
-			keyframes: {
-				popIn: {
-					'0%': { opacity: '0', transform: 'scale(0.95)' },
-					'100%': { opacity: '1', transform: 'scale(1)' },
-				},
+			borderRadius: {
+				lg: 'var(--radius)',
+				md: 'calc(var(--radius) - 2px)',
+				sm: 'calc(var(--radius) - 4px)',
 			},
 		},
 	},
+	plugins: [require('tailwindcss-animate')],
 }
