@@ -1,4 +1,3 @@
-// pages/beans/index.tsx
 import ProtectedPage from '@/components/ProtectedPage'
 import Section from '@/components/Section'
 import { useState, useEffect } from 'react'

@@ -1,4 +1,3 @@
-// pages/brew-bars.tsx
 import React, { useState, useEffect } from 'react'
 import ProtectedPage from '@/components/ProtectedPage'
 import Section from '@/components/Section'

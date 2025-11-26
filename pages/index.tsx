@@ -1,6 +1,6 @@
 import Page from '@/components/Page'
 import Section from '@/components/Section'
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import CountUp from 'react-countup'
 import {
 	Play,
@@ -80,6 +80,7 @@ export default function CoffeeBrewControl() {
 					'Failed to start brew:',
 					error.response?.data?.message || error.message,
 				)
+				toast.error(error.response?.data?.error || 'Failed to start brew')
 				if (error.response?.status === 409) {
 					console.error('A brew is already running')
 				} else if (error.response?.status === 403) {
@@ -148,7 +149,7 @@ export default function CoffeeBrewControl() {
 
 	return (
 		<Page title='Autobru'>
-			<Toaster position='top-center' />
+			<Toaster position='top-center' toastOptions={{ duration: 2000 }} />
 			<div className='flex flex-col'>
 				{/* Main content area */}
 				<Section>

@@ -1,4 +1,3 @@
-// pages/api/brews/last-parameters.ts
 import { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'

@@ -1,4 +1,3 @@
-// components/InviteMemberModal.tsx
 import { useState } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'

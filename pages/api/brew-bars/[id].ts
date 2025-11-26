@@ -1,4 +1,3 @@
-// pages/api/brew-bars/[id].ts
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'

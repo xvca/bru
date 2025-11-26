@@ -1,4 +1,3 @@
-// bru/pages/api/brew-bars/[id]/equipment/[equipmentId].ts
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
@@ -134,11 +133,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			// Allow deletion if user is either bar owner or equipment creator
 			if (!isBarOwner && !isEquipmentCreator) {
-				res
-					.status(403)
-					.json({
-						error: 'You do not have permission to delete this equipment',
-					})
+				res.status(403).json({
+					error: 'You do not have permission to delete this equipment',
+				})
 				return
 			}
 

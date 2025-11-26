@@ -1,4 +1,3 @@
-// bru/pages/api/brew-bars/[id]/grinders/index.ts
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'

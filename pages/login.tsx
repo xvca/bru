@@ -1,4 +1,3 @@
-// pages/login.tsx
 import Page from '@/components/Page'
 import Section from '@/components/Section'
 import { useState } from 'react'

@@ -1,4 +1,3 @@
-// components/ProtectedPage.tsx
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { useAuth } from '@/lib/authContext'
