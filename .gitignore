@@ -4,8 +4,4 @@
 # Generated via Node.js
 node_modules
 
-# Generated via next-pwa
-**/public/workbox**
-**/public/sw**
-
 .env

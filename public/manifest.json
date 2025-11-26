@@ -26,8 +26,7 @@
 			"purpose": "maskable"
 		}
 	],
-	"start_url": "/?source=pwa",
+	"start_url": "/",
 	"orientation": "portrait",
-	"display": "standalone",
-	"scope": "/"
+	"display": "standalone"
 }
