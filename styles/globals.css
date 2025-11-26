@@ -2,39 +2,90 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-	@apply min-h-screen select-none antialiased p-safe;
+@layer base {
+	:root {
+		--color-primary: 28 51% 28%;
+		--color-primary-dark: 23 54% 22%;
+		--color-primary-light: 22 39% 39%;
+		--color-background: 40 55% 98%;
+		--color-text: 17 47% 12%;
+		--color-text-secondary: 23 14% 38%;
 
-	/* PWA enhancements */
-	-webkit-overflow-scrolling: touch;
-	-webkit-tap-highlight-color: transparent;
-	-webkit-touch-callout: none;
+		--color-border: 33 24% 88%;
+		--color-input-bg: 0 0% 100%;
+		--color-input-border: 30 18% 81%;
+		--color-success: 133 22% 34%;
+		--color-error: 4 41% 46%;
+
+		--color-gauge-secondary: 40 33% 94%;
+
+		--radius: 0.5rem;
+
+		--background: var(--color-background);
+		--foreground: var(--color-text);
+
+		--card: var(--color-background);
+		--card-foreground: var(--color-text);
+
+		--popover: var(--color-background);
+		--popover-foreground: var(--color-text);
+
+		--primary: var(--color-primary);
+		--primary-foreground: 0 0% 100%;
+
+		--secondary: var(--color-gauge-secondary);
+		--secondary-foreground: var(--color-text);
+
+		--muted: var(--color-input-bg);
+		--muted-foreground: var(--color-text-secondary);
+
+		--accent: var(--color-primary-light);
+		--accent-foreground: 0 0% 100%;
+
+		--destructive: var(--color-error);
+		--destructive-foreground: 0 0% 100%;
+
+		--border: var(--color-border);
+		--input: var(--color-input-border);
+		--ring: var(--color-primary);
+	}
+
+	.dark {
+		--color-background: 17 19% 10%;
+		--color-text: 33 24% 88%;
+		--color-text-secondary: 23 12% 59%;
+		--color-border: 23 19% 18%;
+		--color-input-bg: 23 21% 15%;
+		--color-input-border: 23 18% 23%;
+		--color-gauge-secondary: 23 21% 15%;
+
+		--background: var(--color-background);
+		--foreground: var(--color-text);
+		--card: var(--color-background);
+		--card-foreground: var(--color-text);
+		--popover: var(--color-background);
+		--popover-foreground: var(--color-text);
+		--primary: var(--color-primary);
+		--primary-foreground: 0 0% 100%;
+		--secondary: var(--color-gauge-secondary);
+		--secondary-foreground: var(--color-text);
+		--muted: var(--color-input-bg);
+		--muted-foreground: var(--color-text-secondary);
+		--accent: var(--color-primary-dark);
+		--accent-foreground: 0 0% 100%;
+		--destructive: var(--color-error);
+		--destructive-foreground: 0 0% 100%;
+		--border: var(--color-border);
+		--input: var(--color-input-border);
+		--ring: var(--color-primary-light);
+	}
 }
 
-:root {
-	--color-primary: #6b4423;
-	--color-primary-dark: #553019;
-	--color-primary-light: #8b593c;
-	--color-background: #fdfbf7;
-	--color-text: #2c1810;
-	--color-text-secondary: #6f5e53;
-
-	--color-border: #e8e1d9;
-	--color-input-bg: #ffffff;
-	--color-input-border: #d8cec4;
-	--color-success: #43694b;
-	--color-error: #a64b45;
-
-	--color-gauge-primary: #6b4423;
-	--color-gauge-secondary: #f5f1ea;
-}
-
-.dark {
-	--color-background: #1f1815;
-	--color-text: #e8e1d9;
-	--color-text-secondary: #a39589;
-	--color-border: #362c25;
-	--color-input-bg: #2c231d;
-	--color-input-border: #463831;
-	--color-gauge-secondary: #2c231d;
+@layer base {
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }
