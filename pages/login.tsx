@@ -39,7 +39,6 @@ export default function LoginPage() {
 		e.preventDefault()
 
 		try {
-			// Validate form data
 			authSchema.parse(formData)
 
 			setIsLoading(true)
@@ -62,8 +61,14 @@ export default function LoginPage() {
 
 			toast.success('Login successful')
 			router.push('/')
-		} catch (error) {
-			// Handle errors as before
+		} catch (err) {
+			console.error(err)
+			if (err instanceof z.ZodError) {
+				const first = err.errors[0]
+				toast.error(first.message)
+			} else {
+				toast.error("couldn't log in")
+			}
 		} finally {
 			setIsLoading(false)
 		}
@@ -106,8 +111,14 @@ export default function LoginPage() {
 
 			toast.success('Account created successfully')
 			router.push('/')
-		} catch (error) {
-			// Handle errors as before
+		} catch (err) {
+			console.error(err)
+			if (err instanceof z.ZodError) {
+				const first = err.errors[0]
+				toast.error(first.message)
+			} else {
+				toast.error("couldn't sign up")
+			}
 		} finally {
 			setIsLoading(false)
 		}

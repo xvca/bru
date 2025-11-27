@@ -13,7 +13,6 @@ export default async function handler(
 	try {
 		const { username, password } = req.body
 
-		// Check if user already exists
 		const existingUser = await prisma.user.findUnique({
 			where: { username },
 		})

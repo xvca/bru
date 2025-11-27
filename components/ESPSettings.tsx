@@ -518,7 +518,7 @@ export default function ESPSettings() {
 										title: 'Clear All Data?',
 									})
 								}
-								className='w-full py-2 text-sm font-medium text-error border border-error/30 hover:bg-error/10 rounded-md transition-colors'
+								className='w-full py-2 text-sm font-medium text-error border border-error/30 hover:bg-destructive/10 rounded-md transition-colors'
 							>
 								Reset All Data & Factors
 							</button>

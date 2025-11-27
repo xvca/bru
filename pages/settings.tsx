@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import Page from '@/components/Page'
 import Section from '@/components/Section'
 import {
@@ -23,15 +23,10 @@ import {
 import ESPSettings from '@/components/ESPSettings'
 import toast, { Toaster } from 'react-hot-toast'
 
-type SettingsTab = 'account' | 'preferences' | 'esp'
-
-const tabs = [{ id: 'esp', name: 'ESP Settings', icon: SettingsIcon }]
-
 export default function Settings() {
 	const { user } = useAuth()
 	const [selectedTab, setSelectedTab] = useState(0)
 
-	// State for account settings
 	const [accountForm, setAccountForm] = useState({
 		username: user?.username || '',
 		currentPassword: '',
@@ -39,22 +34,151 @@ export default function Settings() {
 		confirmPassword: '',
 	})
 
-	// State for preferences
-	const [preferences, setPreferences] = useState({
-		defaultBrewBarId: null,
-	})
-
-	useEffect(() => {
-		if (user) {
-			tabs.push({ id: 'account', name: 'Account', icon: User })
-			tabs.push({ id: 'preferences', name: 'Preferences', icon: Coffee })
-		}
-	}, [user])
-
 	const handleAccountSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		// TODO: Implement account update logic
 	}
+
+	const tabs = useMemo(() => {
+		const items = []
+
+		if (user) {
+			items.push({
+				id: 'account',
+				name: 'Account',
+				icon: User,
+				content: (
+					<div className='space-y-4'>
+						<form onSubmit={handleAccountSubmit} className='space-y-4'>
+							<div>
+								<label
+									htmlFor='username'
+									className='block text-sm font-medium mb-1'
+								>
+									Username
+								</label>
+								<input
+									type='text'
+									id='username'
+									value={accountForm.username}
+									onChange={(e) =>
+										setAccountForm({ ...accountForm, username: e.target.value })
+									}
+									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								/>
+							</div>
+							<div>
+								<label
+									htmlFor='currentPassword'
+									className='block text-sm font-medium mb-1'
+								>
+									Current Password
+								</label>
+								<input
+									type='password'
+									id='currentPassword'
+									value={accountForm.currentPassword}
+									onChange={(e) =>
+										setAccountForm({
+											...accountForm,
+											currentPassword: e.target.value,
+										})
+									}
+									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								/>
+							</div>
+							<div>
+								<label
+									htmlFor='newPassword'
+									className='block text-sm font-medium mb-1'
+								>
+									New Password
+								</label>
+								<input
+									type='password'
+									id='newPassword'
+									value={accountForm.newPassword}
+									onChange={(e) =>
+										setAccountForm({
+											...accountForm,
+											newPassword: e.target.value,
+										})
+									}
+									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								/>
+							</div>
+							<div>
+								<label
+									htmlFor='confirmPassword'
+									className='block text-sm font-medium mb-1'
+								>
+									Confirm New Password
+								</label>
+								<input
+									type='password'
+									id='confirmPassword'
+									value={accountForm.confirmPassword}
+									onChange={(e) =>
+										setAccountForm({
+											...accountForm,
+											confirmPassword: e.target.value,
+										})
+									}
+									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								/>
+							</div>
+							<button
+								type='submit'
+								className='px-4 py-2 bg-text text-background rounded-lg'
+							>
+								Update Account
+							</button>
+						</form>
+					</div>
+				),
+			})
+
+			items.push({
+				id: 'preferences',
+				name: 'Preferences',
+				icon: Coffee,
+				content: (
+					<div>
+						<div>
+							<label
+								htmlFor='defaultBrewBar'
+								className='block text-sm font-medium mb-1'
+							>
+								Default Brew Bar
+							</label>
+							<select
+								id='defaultBrewBar'
+								className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+							>
+								<option value=''>Personal Space</option>
+							</select>
+						</div>
+						<button className='mt-4 px-4 py-2 bg-text text-background rounded-lg'>
+							Save Preferences
+						</button>
+					</div>
+				),
+			})
+		}
+
+		items.push({
+			id: 'esp',
+			name: 'ESP Settings',
+			icon: SettingsIcon,
+			content: <ESPSettings />,
+		})
+
+		return items
+	}, [user, accountForm])
+
+	useEffect(() => {
+		setSelectedTab(0)
+	}, [user])
 
 	return (
 		<Page title='Settings'>
@@ -71,14 +195,14 @@ export default function Settings() {
 									<div className='relative'>
 										<ListboxButton className='flex items-center justify-between w-full px-4 py-2 rounded-lg bg-input-border/20 text-text'>
 											<div className='flex items-center gap-2'>
-												{tabs[selectedTab].icon && (
+												{tabs[selectedTab]?.icon && (
 													<div>
 														{React.createElement(tabs[selectedTab].icon, {
 															size: 18,
 														})}
 													</div>
 												)}
-												<span>{tabs[selectedTab].name}</span>
+												<span>{tabs[selectedTab]?.name}</span>
 											</div>
 											<ChevronDown size={18} />
 										</ListboxButton>
@@ -87,9 +211,9 @@ export default function Settings() {
 												<ListboxOption
 													key={tab.id}
 													value={index}
-													className={({ active }) =>
+													className={({ focus }) =>
 														`flex items-center px-4 py-2 cursor-pointer ${
-															active
+															focus
 																? 'bg-input-border/50 text-text'
 																: 'text-text-secondary'
 														}`
@@ -110,16 +234,16 @@ export default function Settings() {
 							{/* Desktop Sidebar Navigation */}
 							<div className='hidden lg:block lg:w-64'>
 								<TabList className='flex flex-col gap-1'>
-									{tabs.map((tab, index) => (
+									{tabs.map((tab) => (
 										<Tab
 											key={tab.id}
 											className={({ selected }) =>
 												`flex items-center justify-between w-full px-4 py-2 text-left rounded-lg transition-colors
-                      ${
-												selected
-													? 'bg-input-border text-text'
-													: 'text-text-secondary hover:bg-input-border/50'
-											}`
+                                                ${
+																									selected
+																										? 'bg-input-border text-text'
+																										: 'text-text-secondary hover:bg-input-border/50'
+																								}`
 											}
 										>
 											<div className='flex items-center gap-2'>
@@ -133,144 +257,15 @@ export default function Settings() {
 								</TabList>
 							</div>
 
-							{/* Content Panels */}
+							{/* Content Panels - Dynamic Rendering */}
 							<div className='flex-1'>
 								<TabPanels>
-									{/* Account Settings */}
-									{user && (
-										<TabPanel>
-											<div>
-												<form
-													onSubmit={handleAccountSubmit}
-													className='space-y-4'
-												>
-													<div>
-														<label
-															htmlFor='username'
-															className='block text-sm font-medium mb-1'
-														>
-															Username
-														</label>
-														<input
-															type='text'
-															id='username'
-															value={accountForm.username}
-															onChange={(e) =>
-																setAccountForm({
-																	...accountForm,
-																	username: e.target.value,
-																})
-															}
-															className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
-														/>
-													</div>
-
-													<div>
-														<label
-															htmlFor='currentPassword'
-															className='block text-sm font-medium mb-1'
-														>
-															Current Password
-														</label>
-														<input
-															type='password'
-															id='currentPassword'
-															value={accountForm.currentPassword}
-															onChange={(e) =>
-																setAccountForm({
-																	...accountForm,
-																	currentPassword: e.target.value,
-																})
-															}
-															className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
-														/>
-													</div>
-
-													<div>
-														<label
-															htmlFor='newPassword'
-															className='block text-sm font-medium mb-1'
-														>
-															New Password
-														</label>
-														<input
-															type='password'
-															id='newPassword'
-															value={accountForm.newPassword}
-															onChange={(e) =>
-																setAccountForm({
-																	...accountForm,
-																	newPassword: e.target.value,
-																})
-															}
-															className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
-														/>
-													</div>
-
-													<div>
-														<label
-															htmlFor='confirmPassword'
-															className='block text-sm font-medium mb-1'
-														>
-															Confirm New Password
-														</label>
-														<input
-															type='password'
-															id='confirmPassword'
-															value={accountForm.confirmPassword}
-															onChange={(e) =>
-																setAccountForm({
-																	...accountForm,
-																	confirmPassword: e.target.value,
-																})
-															}
-															className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
-														/>
-													</div>
-
-													<button
-														type='submit'
-														className='px-4 py-2 bg-text text-background rounded-lg'
-													>
-														Update Account
-													</button>
-												</form>
-											</div>
+									{tabs.map((tab) => (
+										<TabPanel key={tab.id}>
+											{/* Render the content defined in the array */}
+											{tab.content}
 										</TabPanel>
-									)}
-
-									{/* Preferences */}
-									{user && (
-										<TabPanel>
-											<div>
-												<div>
-													<label
-														htmlFor='defaultBrewBar'
-														className='block text-sm font-medium mb-1'
-													>
-														Default Brew Bar
-													</label>
-													<select
-														id='defaultBrewBar'
-														className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
-													>
-														<option value=''>Personal Space</option>
-													</select>
-												</div>
-
-												<button className='px-4 py-2 bg-text text-background rounded-lg'>
-													Save Preferences
-												</button>
-											</div>
-										</TabPanel>
-									)}
-
-									{/* ESP Settings */}
-									<TabPanel>
-										<div>
-											<ESPSettings />
-										</div>
-									</TabPanel>
+									))}
 								</TabPanels>
 							</div>
 						</div>

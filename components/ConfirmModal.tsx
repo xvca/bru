@@ -48,7 +48,7 @@ export function ConfirmModal({
 						</button>
 						<button
 							type='button'
-							className='px-4 py-2 text-sm font-medium text-background bg-error
+							className='px-4 py-2 text-sm font-medium text-background bg-destructive
                            transition-colors rounded-md'
 							onClick={handleConfirm}
 						>

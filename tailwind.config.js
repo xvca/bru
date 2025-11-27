@@ -10,53 +10,57 @@ module.exports = {
 	theme: {
 		extend: {
 			colors: {
-				border: 'hsl(var(--border))',
-				input: 'hsl(var(--input))',
-				ring: 'hsl(var(--ring))',
-				background: 'hsl(var(--background))',
-				foreground: 'hsl(var(--foreground))',
+				border: 'var(--border)',
+				input: 'var(--input)',
+				ring: 'var(--ring)',
+				background: 'var(--background)',
+				foreground: 'var(--foreground)',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))',
-					light: 'hsl(var(--color-primary-light))',
-					dark: 'hsl(var(--color-primary-dark))',
+					DEFAULT: 'var(--primary)',
+					foreground: 'var(--primary-foreground)',
+					light: 'var(--color-primary-light)',
+					dark: 'var(--color-primary-dark)',
 				},
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))',
+					DEFAULT: 'var(--secondary)',
+					foreground: 'var(--secondary-foreground)',
 				},
 				destructive: {
-					DEFAULT: 'hsl(var(--destructive))',
-					foreground: 'hsl(var(--destructive-foreground))',
+					DEFAULT: 'var(--destructive)',
+					foreground: 'var(--destructive-foreground)',
 				},
 				muted: {
-					DEFAULT: 'hsl(var(--muted))',
-					foreground: 'hsl(var(--muted-foreground))',
+					DEFAULT: 'var(--muted)',
+					foreground: 'var(--muted-foreground)',
 				},
 				accent: {
-					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))',
+					DEFAULT: 'var(--accent)',
+					foreground: 'var(--accent-foreground)',
 				},
 				popover: {
-					DEFAULT: 'hsl(var(--popover))',
-					foreground: 'hsl(var(--popover-foreground))',
+					DEFAULT: 'var(--popover)',
+					foreground: 'var(--popover-foreground)',
 				},
 				card: {
-					DEFAULT: 'hsl(var(--card))',
-					foreground: 'hsl(var(--card-foreground))',
+					DEFAULT: 'var(--card)',
+					foreground: 'var(--card-foreground)',
 				},
-
-				success: 'hsl(var(--color-success))',
-				error: 'hsl(var(--color-error))',
-
+				success: 'var(--color-success)',
+				error: 'var(--color-error)',
 				text: {
-					DEFAULT: 'hsl(var(--color-text))',
-					secondary: 'hsl(var(--color-text-secondary))',
+					DEFAULT: 'var(--color-text)',
+					secondary: 'var(--color-text-secondary)',
 				},
-
 				gauge: {
-					primary: 'hsl(var(--color-gauge-primary))',
-					secondary: 'hsl(var(--color-gauge-secondary))',
+					primary: 'var(--color-gauge-primary)',
+					secondary: 'var(--color-gauge-secondary)',
+				},
+				chart: {
+					1: 'var(--chart-1)',
+					2: 'var(--chart-2)',
+					3: 'var(--chart-3)',
+					4: 'var(--chart-4)',
+					5: 'var(--chart-5)',
 				},
 			},
 			borderRadius: {

@@ -9,8 +9,10 @@ import {
 	ArrowDown,
 	PowerIcon,
 	LoaderCircle,
+	Ghost,
 } from 'lucide-react'
-import { Button } from '@headlessui/react'
+// import { Button } from '@headlessui/react'
+import { Button } from '@/components/ui/button'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
 import { Gauge } from '@/components/Gauge'
@@ -159,7 +161,7 @@ export default function CoffeeBrewControl() {
 							<div className='flex items-center space-x-2'>
 								<span
 									className={`w-3 h-3 rounded-full ${
-										isConnected ? 'bg-success' : 'bg-error'
+										isConnected ? 'bg-success' : 'bg-destructive'
 									}`}
 								/>
 								<span className='text-sm text-text-secondary'>
@@ -175,7 +177,9 @@ export default function CoffeeBrewControl() {
 									<Button
 										onClick={wakeESP}
 										disabled={isConnected || isWaking}
-										className='relative w-full py-1 px-2 border border-border rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed text-text-secondary hover:bg-border transition-colors duration-200 flex items-center justify-center'
+										className='rounded-full'
+										variant='ghost'
+										size='sm'
 									>
 										{/* Button content */}
 										<div className='relative z-10 flex items-center justify-center space-x-2'>
@@ -209,7 +213,7 @@ export default function CoffeeBrewControl() {
 									isBrewing ? '#a64b45' : 'var(--color-input-border)'
 								}
 								gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
-								gaugeSecondaryColor='hsl(var(--color-gauge-secondary))'
+								gaugeSecondaryColor='var(--muted)'
 							/>
 
 							{/* Centered Content */}
@@ -256,14 +260,16 @@ export default function CoffeeBrewControl() {
 									<div className='flex justify-center items-center space-x-4'>
 										<div className='flex justify-center items-center space-x-4'>
 											<div>
-												<button
+												<Button
 													onClick={() =>
 														setTargetWeight((prev) => Math.max(prev - 1, 1))
 													}
-													className='p-2 rounded-full z-10'
+													variant='ghost'
+													size='icon'
+													className='rounded-full [&_svg]:size-6'
 												>
-													<ArrowDown size={24} />
-												</button>
+													<ArrowDown />
+												</Button>
 											</div>
 											<div className='w-24 text-center'>
 												<div className='text-2xl font-bold tabular-nums'>
@@ -295,32 +301,36 @@ export default function CoffeeBrewControl() {
 													target weight (g)
 												</div>
 												<div className='flex justify-center gap-2 mt-2'>
-													<button
+													<Button
+														size='sm'
 														onClick={() =>
 															setTargetWeight((prev) => Math.max(prev / 2, 1))
 														}
-														className='px-2 py-1 text-sm border border-border rounded hover:bg-input-border transition-colors'
+														variant='outline'
 													>
 														½×
-													</button>
-													<button
+													</Button>
+													<Button
+														size='sm'
 														onClick={() =>
 															setTargetWeight((prev) => Math.min(prev * 2, 100))
 														}
-														className='px-2 py-1 text-sm border border-border rounded hover:bg-input-border transition-colors'
+														variant='outline'
 													>
 														2×
-													</button>
+													</Button>
 												</div>
 											</div>
-											<button
+											<Button
 												onClick={() =>
 													setTargetWeight((prev) => Math.min(prev + 1, 100))
 												}
-												className='p-2 rounded-full'
+												size='icon'
+												variant='ghost'
+												className='rounded-full [&_svg]:size-6'
 											>
-												<ArrowUp size={24} />
-											</button>
+												<ArrowUp />
+											</Button>
 										</div>
 									</div>
 								)}
@@ -330,13 +340,12 @@ export default function CoffeeBrewControl() {
 				</Section>
 
 				{/* Fixed bottom button */}
-				<div className='fixed bottom-8 left-0 right-0 p-4'>
+				<div className='fixed bottom-8 left-0 right-0 p-4 text-center'>
 					<Button
 						onClick={isBrewing ? stopBrew : startBrew}
 						disabled={!isConnected}
-						className='relative w-full py-4 rounded-xl text-background font-medium
-            disabled:opacity-50 disabled:cursor-not-allowed
-            flex items-center justify-center overflow-hidden'
+						size='lg'
+						className='w-[80%] rounded-full mx-auto'
 					>
 						{/* Button content */}
 						<div className='relative z-10 flex items-center justify-center space-x-2'>

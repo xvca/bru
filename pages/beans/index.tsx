@@ -3,7 +3,7 @@ import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import type { Bean } from '@prisma/client'
+import type { Bean } from 'generated/prisma/client'
 import {
 	Loader2,
 	Plus,
@@ -112,7 +112,7 @@ export default function BeansPage() {
 
 		if (daysDifference <= 7) return 'bg-success'
 		if (daysDifference <= 21) return 'bg-yellow-500'
-		return 'bg-error'
+		return 'bg-destructive'
 	}
 
 	return (
