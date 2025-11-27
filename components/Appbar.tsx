@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { useState } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { LogOut } from 'lucide-react'
+import { Button } from './ui/button'
 
 const links = [
 	{ label: 'Autobru', href: '/' },
@@ -51,7 +52,7 @@ const Appbar = () => {
 							className={`block py-3 text-lg ${
 								router.pathname === href
 									? 'text-primary'
-									: 'text-text hover:text-text-secondary'
+									: 'text-text hover:text-primary'
 							}`}
 						>
 							{label}
@@ -62,7 +63,7 @@ const Appbar = () => {
 					{user && (
 						<button
 							onClick={handleLogout}
-							className='flex items-center w-full py-3 text-lg text-text hover:text-text-secondary'
+							className='flex items-center w-full py-3 text-lg text-text hover:text-primary'
 						>
 							<LogOut size={18} className='mr-2' />
 							Logout
@@ -75,14 +76,17 @@ const Appbar = () => {
 			<div className='fixed top-0 left-0 z-20 w-full bg-background pt-safe'>
 				<header className='border-b border-border bg-background px-safe'>
 					<div className='mx-auto flex h-12 max-w-(--breakpoint-md) items-center justify-between px-4'>
-						<Link href='/'>
-							<h1 className='font-medium text-text'>Bru</h1>
-						</Link>
+						<Button variant='ghost'>
+							<Link href='/'>
+								<h1 className='font-medium text-text'>Bru</h1>
+							</Link>
+						</Button>
 
-						<button
+						<Button
 							onClick={toggleMenu}
-							className='p-2 focus:outline-hidden'
 							aria-label='Toggle menu'
+							variant='ghost'
+							size='sm'
 						>
 							<div className='w-6 h-5 relative flex flex-col justify-between'>
 								<span
@@ -101,7 +105,7 @@ const Appbar = () => {
 									}`}
 								/>
 							</div>
-						</button>
+						</Button>
 					</div>
 				</header>
 			</div>

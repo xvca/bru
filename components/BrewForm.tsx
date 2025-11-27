@@ -4,7 +4,9 @@ import { useAuth } from '@/lib/authContext'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { Loader2, X } from 'lucide-react'
+import { Spinner } from './ui/spinner'
+import { Button } from './ui/button'
+import { X } from 'lucide-react'
 
 // Form validation schema
 const brewSchema = z.object({
@@ -60,7 +62,6 @@ export default function BrewForm({
 	const [isFetching, setIsFetching] = useState(isEditMode)
 	const [errors, setErrors] = useState<Record<string, string>>({})
 
-	// Bean and method options
 	const [beans, setBeans] = useState<Array<{ id: number; name: string }>>([])
 	const [methods, setMethods] = useState<Array<{ id: number; name: string }>>(
 		[],
@@ -94,7 +95,8 @@ export default function BrewForm({
 			: '',
 	})
 
-	// Fetch beans for dropdown
+	console.log({ isLoading })
+
 	useEffect(() => {
 		const fetchBeans = async () => {
 			try {
@@ -335,18 +337,15 @@ export default function BrewForm({
 				<DialogPanel className='mx-auto max-w-xl w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out] overflow-y-auto max-h-[90vh]'>
 					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
 						<span>{isEditMode ? 'Edit Brew' : 'Add New Brew'}</span>
-						<button
-							onClick={onClose}
-							className='text-text-secondary hover:text-text'
-						>
+						<Button onClick={onClose} variant='ghost'>
 							<X size={20} />
 							<span className='sr-only'>Close</span>
-						</button>
+						</Button>
 					</DialogTitle>
 
 					{isFetching || beansLoading || methodsLoading ? (
 						<div className='flex justify-center items-center py-8'>
-							<Loader2 className='w-8 h-8 animate-spin' />
+							<Spinner />
 						</div>
 					) : (
 						<form onSubmit={handleSubmit} className='space-y-4'>
@@ -546,18 +545,20 @@ export default function BrewForm({
 								</label>
 								<div className='flex items-center space-x-1'>
 									{[1, 2, 3, 4, 5].map((rating) => (
-										<button
+										<Button
 											key={rating}
 											type='button'
 											onClick={() => setFormData({ ...formData, rating })}
-											className={`w-8 h-8 rounded-full flex items-center justify-center ${
+											className={`rounded-full hover:bg-background hover:text-warning ${
 												(formData.rating ?? 0) >= rating
-													? 'text-yellow-500'
+													? 'text-warning'
 													: 'text-text-secondary'
 											}`}
+											size='icon'
+											variant='ghost'
 										>
 											{rating === 0 ? '☆' : '★'}
-										</button>
+										</Button>
 									))}
 								</div>
 							</div>
@@ -583,21 +584,13 @@ export default function BrewForm({
 
 							{/* Buttons */}
 							<div className='flex justify-end gap-3 pt-2'>
-								<button
-									type='button'
-									onClick={onClose}
-									className='px-4 py-2 border border-border rounded-lg'
-								>
+								<Button type='button' onClick={onClose} variant='outline'>
 									Cancel
-								</button>
-								<button
-									type='submit'
-									disabled={isLoading}
-									className='px-4 py-2 bg-text text-background rounded-lg flex items-center gap-2 disabled:opacity-70'
-								>
-									{isLoading && <Loader2 className='w-4 h-4 animate-spin' />}
+								</Button>
+								<Button variant='default' disabled={isLoading}>
+									{isLoading && <Spinner />}
 									{isEditMode ? 'Update Brew' : 'Add Brew'}
-								</button>
+								</Button>
 							</div>
 						</form>
 					)}

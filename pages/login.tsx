@@ -1,10 +1,13 @@
 import Page from '@/components/Page'
 import Section from '@/components/Section'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { useState } from 'react'
 import { z } from 'zod'
 import { useRouter } from 'next/router'
 import toast, { Toaster } from 'react-hot-toast'
 import { useAuth } from '@/lib/authContext'
+import axios from 'axios'
 
 // Create a schema for form validation
 const authSchema = z.object({
@@ -43,21 +46,9 @@ export default function LoginPage() {
 
 			setIsLoading(true)
 
-			const response = await fetch('/api/auth/login', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(formData),
-			})
+			const response = await axios.post('/api/auth/login', formData)
 
-			if (!response.ok) {
-				const error = await response.json()
-				throw new Error(error.message || 'Login failed')
-			}
-
-			const userData = await response.json()
-
-			// Use the login function from context instead
-			authLogin(userData)
+			authLogin(response.data)
 
 			toast.success('Login successful')
 			router.push('/')
@@ -66,6 +57,8 @@ export default function LoginPage() {
 			if (err instanceof z.ZodError) {
 				const first = err.errors[0]
 				toast.error(first.message)
+			} else if (err instanceof axios.AxiosError) {
+				toast.error(err.response?.data?.error)
 			} else {
 				toast.error("couldn't log in")
 			}
@@ -83,31 +76,13 @@ export default function LoginPage() {
 
 			setIsLoading(true)
 
-			const response = await fetch('/api/auth/register', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(formData),
-			})
-
-			if (!response.ok) {
-				const error = await response.json()
-				throw new Error(error.message || 'Signup failed')
-			}
+			const response = await axios.post('/api/auth/register', formData)
 
 			// For signup, we also need to login after registration
 			// First get login tokens
-			const loginResponse = await fetch('/api/auth/login', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(formData),
-			})
+			const loginResponse = await axios.post('/api/auth/login', formData)
 
-			if (!loginResponse.ok) {
-				throw new Error('Account created but login failed')
-			}
-
-			const userData = await loginResponse.json()
-			authLogin(userData)
+			authLogin(loginResponse.data)
 
 			toast.success('Account created successfully')
 			router.push('/')
@@ -116,6 +91,8 @@ export default function LoginPage() {
 			if (err instanceof z.ZodError) {
 				const first = err.errors[0]
 				toast.error(first.message)
+			} else if (err instanceof axios.AxiosError) {
+				toast.error(err.response?.data?.error)
 			} else {
 				toast.error("couldn't sign up")
 			}
@@ -171,20 +148,19 @@ export default function LoginPage() {
 						</div>
 
 						<div className='flex gap-4'>
-							<button
-								onClick={login}
-								disabled={isLoading}
-								className='flex-1 px-4 py-2 text-background bg-text rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50'
-							>
+							<Button onClick={login} disabled={isLoading} className='grow'>
+								<Spinner />
 								{isLoading ? 'Loading...' : 'Log in'}
-							</button>
-							<button
+							</Button>
+							<Button
 								onClick={signup}
 								disabled={isLoading}
-								className='flex-1 px-4 py-2 border border-text rounded-lg font-medium hover:opacity-70 transition-opacity disabled:opacity-50'
+								variant='outline'
+								className='grow'
 							>
+								<Spinner />
 								{isLoading ? 'Loading...' : 'Sign up'}
-							</button>
+							</Button>
 						</div>
 					</form>
 				</div>

@@ -17,6 +17,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BeanFormModal from '@/components/BeanFormModal'
+import { Button } from '@/components/ui/button'
 
 export default function BeansPage() {
 	const { user } = useAuth()
@@ -111,7 +112,7 @@ export default function BeansPage() {
 		)
 
 		if (daysDifference <= 7) return 'bg-success'
-		if (daysDifference <= 21) return 'bg-yellow-500'
+		if (daysDifference <= 21) return 'bg-warning'
 		return 'bg-destructive'
 	}
 
@@ -121,13 +122,10 @@ export default function BeansPage() {
 			<Section>
 				<div className='flex justify-between items-center mb-6'>
 					<h1 className='text-2xl font-bold'>Coffee Beans</h1>
-					<button
-						onClick={handleAddNew}
-						className='flex items-center gap-1 px-3 py-2 bg-text text-background rounded-md'
-					>
+					<Button onClick={handleAddNew}>
 						<Plus size={18} />
 						<span>Add Bean</span>
-					</button>
+					</Button>
 				</div>
 
 				{isLoading ? (
@@ -138,12 +136,9 @@ export default function BeansPage() {
 					<div className='text-center py-12 space-y-4 border border-dashed border-border rounded-lg'>
 						<Coffee size={48} className='mx-auto opacity-30' />
 						<p>No coffee beans added yet</p>
-						<button
-							onClick={handleAddNew}
-							className='text-primary-light hover:underline'
-						>
+						<Button onClick={handleAddNew} variant='link'>
 							Add your first coffee bean
-						</button>
+						</Button>
 					</div>
 				) : (
 					<div className='space-y-4'>
@@ -153,27 +148,31 @@ export default function BeansPage() {
 								className='border border-border rounded-lg p-4 relative'
 							>
 								{/* Freshness indicator dot */}
-								<div
+								{/*<div
 									className={`w-3 h-3 rounded-full absolute right-4 top-4 ${getFreshnessClass(bean.roastDate)}`}
 									title={`Roasted ${formatDate(bean.roastDate)}`}
-								/>
+								/>*/}
 
 								<div className='flex flex-col gap-1'>
 									<div className='flex justify-between'>
 										<h3 className='text-lg font-medium'>{bean.name}</h3>
 										<div className='flex gap-2'>
-											<button
+											<Button
 												onClick={() => handleEdit(bean.id)}
-												className='p-1 hover:bg-input-border rounded transition-colors'
+												variant='ghost'
+												size='icon'
+												className='rounded-full'
 											>
 												<Edit size={16} />
-											</button>
-											<button
+											</Button>
+											<Button
 												onClick={() => confirmDelete(bean.id, bean.name)}
-												className='p-1 hover:bg-input-border rounded transition-colors text-error'
+												variant='ghost'
+												size='icon'
+												className='rounded-full'
 											>
 												<Trash size={16} />
-											</button>
+											</Button>
 										</div>
 									</div>
 

@@ -4,9 +4,10 @@ import { useAuth } from '@/lib/authContext'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { Loader2, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import { Spinner } from './ui/spinner'
+import { Button } from './ui/button'
 
-// Form validation schema
 const brewBarSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	location: z.string().optional().nullable(),
@@ -162,7 +163,7 @@ export default function BrewBarFormModal({
 
 					{isFetching ? (
 						<div className='flex justify-center items-center py-8'>
-							<Loader2 className='w-8 h-8 animate-spin' />
+							<Spinner />
 						</div>
 					) : (
 						<form onSubmit={handleSubmit} className='space-y-4'>
@@ -209,21 +210,13 @@ export default function BrewBarFormModal({
 
 							{/* Buttons */}
 							<div className='flex justify-end gap-3 pt-2'>
-								<button
-									type='button'
-									onClick={onClose}
-									className='px-4 py-2 border border-border rounded-lg'
-								>
+								<Button type='button' onClick={onClose} variant='outline'>
 									Cancel
-								</button>
-								<button
-									type='submit'
-									disabled={isLoading}
-									className='px-4 py-2 bg-text text-background rounded-lg flex items-center gap-2 disabled:opacity-70'
-								>
-									{isLoading && <Loader2 className='w-4 h-4 animate-spin' />}
+								</Button>
+								<Button type='submit' disabled={isLoading}>
+									{isLoading && <Spinner />}
 									{isEditMode ? 'Update' : 'Create'}
-								</button>
+								</Button>
 							</div>
 						</form>
 					)}

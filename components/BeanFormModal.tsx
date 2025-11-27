@@ -5,6 +5,8 @@ import toast from 'react-hot-toast'
 import { Loader2, X } from 'lucide-react'
 import { z } from 'zod'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
+import { Button } from './ui/button'
+import { Spinner } from './ui/spinner'
 
 // Form validation schema
 const beanSchema = z.object({
@@ -188,13 +190,10 @@ export default function BeanFormModal({
 						<span>
 							{isEditMode ? 'Edit Coffee Bean' : 'Add New Coffee Bean'}
 						</span>
-						<button
-							onClick={onClose}
-							className='text-text-secondary hover:text-text'
-						>
+						<Button onClick={onClose} variant='ghost'>
 							<X size={20} />
 							<span className='sr-only'>Close</span>
-						</button>
+						</Button>
 					</DialogTitle>
 
 					{isFetching ? (
@@ -396,22 +395,14 @@ export default function BeanFormModal({
 
 							{/* Form Actions */}
 							<div className='flex justify-end gap-3'>
-								<button
-									type='button'
-									onClick={onClose}
-									className='px-4 py-2 border border-border rounded-lg'
-								>
+								<Button onClick={onClose} variant='outline'>
 									Cancel
-								</button>
+								</Button>
 
-								<button
-									type='submit'
-									disabled={isLoading}
-									className='px-4 py-2 bg-text text-background rounded-lg flex items-center gap-2 disabled:opacity-70'
-								>
-									{isLoading && <Loader2 className='w-4 h-4 animate-spin' />}
+								<Button type='submit' disabled={isLoading}>
+									{isLoading && <Spinner />}
 									{isEditMode ? 'Update Bean' : 'Add Bean'}
-								</button>
+								</Button>
 							</div>
 						</form>
 					)}

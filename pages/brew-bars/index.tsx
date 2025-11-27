@@ -5,7 +5,6 @@ import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
 import {
-	Loader2,
 	Plus,
 	Users,
 	Coffee,
@@ -17,6 +16,8 @@ import {
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewBarFormModal from '@/components/BrewBarFormModal'
 import { useRouter } from 'next/router'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 
 // Types
 type BrewBar = {
@@ -116,29 +117,23 @@ export default function BrewBarsPage() {
 			<Section>
 				<div className='flex justify-between items-center mb-6'>
 					<h1 className='text-2xl font-bold'>Brew Bars</h1>
-					<button
-						onClick={handleCreateNewBar}
-						className='flex items-center gap-1 px-3 py-2 bg-text text-background rounded-md'
-					>
+					<Button onClick={handleCreateNewBar}>
 						<Plus size={18} />
 						<span>New Brew Bar</span>
-					</button>
+					</Button>
 				</div>
 
 				{isLoading ? (
 					<div className='flex justify-center items-center h-40'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				) : brewBars.length === 0 ? (
 					<div className='text-center py-12 space-y-4 border border-dashed border-border rounded-lg'>
 						<Users size={48} className='mx-auto opacity-30' />
 						<p>No brew bars created yet</p>
-						<button
-							onClick={handleCreateNewBar}
-							className='text-primary-light hover:underline'
-						>
+						<Button onClick={handleCreateNewBar} variant='link'>
 							Create your first brew bar
-						</button>
+						</Button>
 					</div>
 				) : (
 					<div className='space-y-4'>
@@ -162,9 +157,7 @@ export default function BrewBarsPage() {
 											</span>
 
 											{bar.isOwner && (
-												<span className='bg-primary-light text-white text-xs px-2 py-0.5 rounded-full'>
-													Owner
-												</span>
+												<span className='text-primary'>Owner</span>
 											)}
 
 											{!bar.isOwner && bar.role && (
@@ -176,57 +169,65 @@ export default function BrewBarsPage() {
 									</div>
 
 									<div className='flex gap-2'>
-										<button
+										<Button
 											onClick={() => {
 												navigateToMembers(bar.id)
 											}}
-											className='p-1 hover:bg-input-border rounded transition-colors'
 											title='Manage Members'
+											variant='ghost'
+											size='icon'
+											className='rounded-full'
 										>
 											<UserPlus size={16} />
-										</button>
+										</Button>
 
-										<button
+										<Button
 											onClick={() => {
 												navigateToEquipment(bar.id)
 											}}
-											className='p-1 hover:bg-input-border rounded transition-colors'
+											variant='ghost'
+											size='icon'
+											className='rounded-full'
 											title='Manage Equipment'
 										>
 											<Settings size={16} />
-										</button>
+										</Button>
 
 										{bar.isOwner && (
 											<>
-												<button
+												<Button
 													onClick={() => handleEditBar(bar.id)}
-													className='p-1 hover:bg-input-border rounded transition-colors'
+													variant='ghost'
+													size='icon'
+													className='rounded-full'
 													title='Edit Brew Bar'
 												>
 													<Edit size={16} />
-												</button>
+												</Button>
 
-												<button
+												<Button
 													onClick={() => confirmDelete(bar.id, bar.name)}
-													className='p-1 hover:bg-input-border rounded transition-colors text-error'
+													variant='ghost'
+													size='icon'
+													className='rounded-full'
 													title='Delete Brew Bar'
 												>
 													<Trash size={16} />
-												</button>
+												</Button>
 											</>
 										)}
 									</div>
 								</div>
 
 								<div className='mt-4 flex justify-end'>
-									<button
+									<Button
 										onClick={() => {
 											router.push(`/brew-bars/${bar.id}`)
 										}}
-										className='text-primary-light text-sm hover:underline'
+										variant='link'
 									>
 										View Details →
-									</button>
+									</Button>
 								</div>
 							</div>
 						))}

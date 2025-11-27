@@ -3,9 +3,11 @@ import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Switch, Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import { Loader2, RefreshCw, CircleX, Trash2 } from 'lucide-react'
+import { RefreshCw, CircleX, Trash2, X } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { Spinner } from './ui/spinner'
+import { Button } from './ui/button'
 
 const TIMEZONES = [
 	{ label: 'UTC (GMT)', value: 'GMT0' },
@@ -225,7 +227,7 @@ export default function ESPSettings() {
 			<Page>
 				<Section>
 					<div className='flex justify-center items-center min-h-[200px]'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				</Section>
 			</Page>
@@ -244,7 +246,7 @@ export default function ESPSettings() {
 							onChange={(checked) =>
 								setPendingPrefs({ ...pendingPrefs, isEnabled: checked })
 							}
-							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-checked:bg-primary-light`}
+							className={`group inline-flex h-6 w-11 items-center rounded-full bg-secondary transition data-checked:bg-primary`}
 						>
 							<span
 								className={`${
@@ -266,7 +268,7 @@ export default function ESPSettings() {
 										: PreinfusionMode.SIMPLE,
 								})
 							}
-							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-checked:bg-primary-light`}
+							className={`group inline-flex h-6 w-11 items-center rounded-full bg-secondary transition data-checked:bg-primary`}
 						>
 							<span
 								className={`${
@@ -396,18 +398,20 @@ export default function ESPSettings() {
 					<DialogPanel className='mx-auto max-w-2xl w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out] max-h-[90vh] overflow-y-auto'>
 						<DialogTitle className='text-lg font-medium leading-6 flex justify-between items-center mb-4'>
 							<span>Shot History</span>
-							<button
+							<Button
 								onClick={() => setIsViewDataOpen(false)}
-								className='text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+								variant='ghost'
+								size='icon'
+								className='rounded-full'
 							>
-								<span className='sr-only'>Close</span>×
-							</button>
+								<X />
+							</Button>
 						</DialogTitle>
 
 						<div className='mt-2'>
 							{isLoadingData ? (
 								<div className='flex justify-center py-8'>
-									<Loader2 className='w-8 h-8 animate-spin' />
+									<Spinner />
 								</div>
 							) : shotData ? (
 								<div className='space-y-6'>
@@ -430,10 +434,12 @@ export default function ESPSettings() {
 											</div>
 										</div>
 										<div className='col-span-2 flex justify-end'>
-											<button
+											<Button
 												onClick={handleRecalcClick}
-												className='text-xs flex items-center gap-1 text-primary hover:underline'
+												variant='link'
+												size='sm'
 											>
+												{isRecalcSpinning && <Spinner />}
 												<RefreshCw
 													size={12}
 													className={`${
@@ -441,7 +447,7 @@ export default function ESPSettings() {
 													}`}
 												/>
 												Recalculate Factors
-											</button>
+											</Button>
 										</div>
 									</div>
 
@@ -477,7 +483,7 @@ export default function ESPSettings() {
 														</div>
 														<div>{shot.lastFlowRate.toFixed(1)}g/s</div>
 														<div className='flex justify-end'>
-															<button
+															<Button
 																onClick={() =>
 																	setModalData({
 																		isOpen: true,
@@ -486,10 +492,12 @@ export default function ESPSettings() {
 																		title: 'Delete Shot',
 																	})
 																}
-																className='text-text-secondary hover:text-error transition-colors'
+																variant='ghost'
+																size='icon'
+																className='rounded-full text-destructive'
 															>
-																<Trash2 size={16} />
-															</button>
+																<Trash2 />
+															</Button>
 														</div>
 													</div>
 												))}
@@ -508,8 +516,8 @@ export default function ESPSettings() {
 							)}
 						</div>
 
-						<div className='mt-6 pt-4 border-t border-input-border'>
-							<button
+						<div className='mt-6 pt-4 border-t border-input-border text-center'>
+							<Button
 								onClick={() =>
 									setModalData({
 										isOpen: true,
@@ -518,10 +526,11 @@ export default function ESPSettings() {
 										title: 'Clear All Data?',
 									})
 								}
-								className='w-full py-2 text-sm font-medium text-error border border-error/30 hover:bg-destructive/10 rounded-md transition-colors'
+								variant='destructive'
+								className='w-4/5'
 							>
 								Reset All Data & Factors
-							</button>
+							</Button>
 						</div>
 					</DialogPanel>
 				</div>
@@ -544,24 +553,14 @@ export default function ESPSettings() {
 
 			{/* Bottom Action Bar */}
 			<div className='fixed bottom-8 left-0 right-0 p-4 flex flex-col gap-3 max-w-md mx-auto'>
-				<button
-					onClick={handleViewData}
-					className='w-full py-3 px-4 bg-input-bg text-text-primary rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-input-border transition-colors'
-				>
+				<Button onClick={handleViewData} variant='outline'>
 					View Shot History
-				</button>
+				</Button>
 
-				<button
-					onClick={savePrefs}
-					disabled={!hasChanges || isSaving}
-					className='w-full py-3 px-4 bg-primary text-white rounded-xl font-medium
-              disabled:opacity-50 disabled:cursor-not-allowed
-              active:scale-[0.98] transition-all
-              flex items-center justify-center gap-2 shadow-lg shadow-primary/20'
-				>
-					{isSaving && <Loader2 className='w-4 h-4 animate-spin' />}
+				<Button onClick={savePrefs} disabled={!hasChanges || isSaving}>
+					{isSaving && <Spinner />}
 					{isSaving ? 'Saving...' : 'Save Changes'}
-				</button>
+				</Button>
 			</div>
 		</>
 	)

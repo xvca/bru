@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import BrewForm from '@/components/BrewForm'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { Button } from '@/components/ui/button'
 
 interface Bean {
 	name: string
@@ -145,13 +146,10 @@ export default function Brews() {
 			<Section>
 				<div className='flex justify-between items-center mb-6'>
 					<h1 className='text-2xl font-bold'>Brew Logs</h1>
-					<button
-						onClick={handleAddBrew}
-						className='flex items-center gap-1 px-3 py-2 bg-text text-background rounded-md'
-					>
+					<Button onClick={handleAddBrew}>
 						<Plus size={18} />
 						<span>Log Brew</span>
-					</button>
+					</Button>
 				</div>
 
 				{isLoading ? (
@@ -162,12 +160,9 @@ export default function Brews() {
 					<div className='text-center py-12 space-y-4 border border-dashed border-border rounded-lg'>
 						<Coffee size={48} className='mx-auto opacity-30' />
 						<p>No brews recorded yet</p>
-						<button
-							onClick={handleAddBrew}
-							className='text-primary-light hover:underline'
-						>
+						<Button onClick={handleAddBrew} variant='link'>
 							Log your first brew
-						</button>
+						</Button>
 					</div>
 				) : (
 					<div className='space-y-4'>
@@ -193,18 +188,22 @@ export default function Brews() {
 									</div>
 
 									<div className='flex gap-2'>
-										<button
+										<Button
 											onClick={() => handleEditBrew(brew.id)}
-											className='p-1 hover:bg-input-border rounded transition-colors'
+											variant='ghost'
+											size='icon'
+											className='rounded-full'
 										>
 											<Edit size={16} />
-										</button>
-										<button
+										</Button>
+										<Button
 											onClick={() => confirmDeleteBrew(brew.id, brew.bean.name)}
-											className='p-1 hover:bg-input-border rounded transition-colors text-error'
+											variant='ghost'
+											size='icon'
+											className='rounded-full'
 										>
 											<Trash size={16} />
-										</button>
+										</Button>
 									</div>
 								</div>
 

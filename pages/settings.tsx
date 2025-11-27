@@ -22,6 +22,8 @@ import {
 } from 'lucide-react'
 import ESPSettings from '@/components/ESPSettings'
 import toast, { Toaster } from 'react-hot-toast'
+import AccountSettings from '@/components/AccountSettings'
+import PreferencesSettings from '@/components/PreferencesSettings'
 
 export default function Settings() {
 	const { user } = useAuth()
@@ -34,11 +36,6 @@ export default function Settings() {
 		confirmPassword: '',
 	})
 
-	const handleAccountSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
-		// TODO: Implement account update logic
-	}
-
 	const tabs = useMemo(() => {
 		const items = []
 
@@ -47,122 +44,14 @@ export default function Settings() {
 				id: 'account',
 				name: 'Account',
 				icon: User,
-				content: (
-					<div className='space-y-4'>
-						<form onSubmit={handleAccountSubmit} className='space-y-4'>
-							<div>
-								<label
-									htmlFor='username'
-									className='block text-sm font-medium mb-1'
-								>
-									Username
-								</label>
-								<input
-									type='text'
-									id='username'
-									value={accountForm.username}
-									onChange={(e) =>
-										setAccountForm({ ...accountForm, username: e.target.value })
-									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								/>
-							</div>
-							<div>
-								<label
-									htmlFor='currentPassword'
-									className='block text-sm font-medium mb-1'
-								>
-									Current Password
-								</label>
-								<input
-									type='password'
-									id='currentPassword'
-									value={accountForm.currentPassword}
-									onChange={(e) =>
-										setAccountForm({
-											...accountForm,
-											currentPassword: e.target.value,
-										})
-									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								/>
-							</div>
-							<div>
-								<label
-									htmlFor='newPassword'
-									className='block text-sm font-medium mb-1'
-								>
-									New Password
-								</label>
-								<input
-									type='password'
-									id='newPassword'
-									value={accountForm.newPassword}
-									onChange={(e) =>
-										setAccountForm({
-											...accountForm,
-											newPassword: e.target.value,
-										})
-									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								/>
-							</div>
-							<div>
-								<label
-									htmlFor='confirmPassword'
-									className='block text-sm font-medium mb-1'
-								>
-									Confirm New Password
-								</label>
-								<input
-									type='password'
-									id='confirmPassword'
-									value={accountForm.confirmPassword}
-									onChange={(e) =>
-										setAccountForm({
-											...accountForm,
-											confirmPassword: e.target.value,
-										})
-									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								/>
-							</div>
-							<button
-								type='submit'
-								className='px-4 py-2 bg-text text-background rounded-lg'
-							>
-								Update Account
-							</button>
-						</form>
-					</div>
-				),
+				content: <AccountSettings />,
 			})
 
 			items.push({
 				id: 'preferences',
 				name: 'Preferences',
 				icon: Coffee,
-				content: (
-					<div>
-						<div>
-							<label
-								htmlFor='defaultBrewBar'
-								className='block text-sm font-medium mb-1'
-							>
-								Default Brew Bar
-							</label>
-							<select
-								id='defaultBrewBar'
-								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-							>
-								<option value=''>Personal Space</option>
-							</select>
-						</div>
-						<button className='mt-4 px-4 py-2 bg-text text-background rounded-lg'>
-							Save Preferences
-						</button>
-					</div>
-				),
+				content: <PreferencesSettings />,
 			})
 		}
 

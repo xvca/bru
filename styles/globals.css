@@ -90,6 +90,7 @@
 		--accent-foreground: oklch(0.376 0.0225 64.3434);
 		--destructive: oklch(0.5471 0.1438 32.9149);
 		--destructive-foreground: oklch(1 0 0);
+		--warning: oklch(0.65 0.15 70);
 		--success: oklch(0.4833 0.0647 150.07);
 		--border: oklch(0.8606 0.0321 84.5881);
 		--input: oklch(0.8606 0.0321 84.5881);
@@ -169,9 +170,6 @@
 		--sidebar-accent-foreground: oklch(0.9239 0.019 83.0636);
 		--sidebar-border: oklch(0.3795 0.0181 57.128);
 		--sidebar-ring: oklch(0.7264 0.0581 66.6967);
-		--font-sans: Libre Baskerville, serif;
-		--font-serif: Lora, serif;
-		--font-mono: IBM Plex Mono, monospace;
 		--radius: 0.25rem;
 		--shadow-x: 2px;
 		--shadow-y: 3px;
@@ -216,6 +214,7 @@
 		--color-accent-foreground: var(--accent-foreground);
 		--color-destructive: var(--destructive);
 		--color-destructive-foreground: var(--destructive-foreground);
+		--color-warning: var(--warning);
 		--color-success: var(--success);
 		--color-border: var(--border);
 		--color-input: var(--input);

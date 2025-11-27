@@ -11,12 +11,12 @@ import {
 	LoaderCircle,
 	Ghost,
 } from 'lucide-react'
-// import { Button } from '@headlessui/react'
 import { Button } from '@/components/ui/button'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
 import { Gauge } from '@/components/Gauge'
 import { useWebSocket } from '@/lib/websocketContext'
+import { Spinner } from '@/components/ui/spinner'
 
 enum BrewStates {
 	IDLE,
@@ -183,13 +183,7 @@ export default function CoffeeBrewControl() {
 									>
 										{/* Button content */}
 										<div className='relative z-10 flex items-center justify-center space-x-2'>
-											{isWaking ? (
-												<span className='animate-spin'>
-													<LoaderCircle size={16} />{' '}
-												</span>
-											) : (
-												<PowerIcon size={16} />
-											)}
+											{isWaking ? <Spinner /> : <PowerIcon size={16} />}
 											<span>Wake</span>
 										</div>
 									</Button>
@@ -197,9 +191,7 @@ export default function CoffeeBrewControl() {
 							)}
 						</div>
 
-						{/* Circular Progress Container */}
 						<div className='relative'>
-							{/* Circular Progress Background */}
 							<Gauge
 								value={
 									brewData.weight < 0
@@ -210,9 +202,9 @@ export default function CoffeeBrewControl() {
 								max={100}
 								arcSize={250}
 								gaugePrimaryColor={
-									isBrewing ? '#a64b45' : 'var(--color-input-border)'
+									isBrewing ? 'var(--destructive)' : 'var(--border)'
 								}
-								gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
+								gaugePrimaryEndColor={isBrewing ? 'var(--success)' : ''}
 								gaugeSecondaryColor='var(--muted)'
 							/>
 
@@ -241,7 +233,7 @@ export default function CoffeeBrewControl() {
 									/>
 								</div>
 
-								{/* Flow Rate (only shown while brewing) */}
+								{/* Flow Rate */}
 								{isBrewing && (
 									<div className='text-2xl font-bold tabular-nums'>
 										<CountUp
@@ -255,7 +247,7 @@ export default function CoffeeBrewControl() {
 									</div>
 								)}
 
-								{/* Target Weight Selector (only shown when not brewing) */}
+								{/* Target Weight Selector */}
 								{!isBrewing && (
 									<div className='flex justify-center items-center space-x-4'>
 										<div className='flex justify-center items-center space-x-4'>

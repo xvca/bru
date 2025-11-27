@@ -4,6 +4,7 @@ import {
 	DialogTitle,
 	Description,
 } from '@headlessui/react'
+import { Button } from './ui/button'
 
 interface ConfirmModal {
 	open: boolean
@@ -38,22 +39,12 @@ export function ConfirmModal({
 					</Description>
 
 					<div className='mt-6 flex gap-3 justify-end'>
-						<button
-							type='button'
-							className='px-4 py-2 text-sm font-medium text-text
-                          hover:bg-input-border rounded-md transition-colors'
-							onClick={onClose}
-						>
+						<Button type='button' variant='outline' onClick={onClose}>
 							Cancel
-						</button>
-						<button
-							type='button'
-							className='px-4 py-2 text-sm font-medium text-background bg-destructive
-                           transition-colors rounded-md'
-							onClick={handleConfirm}
-						>
+						</Button>
+						<Button type='button' variant='destructive' onClick={handleConfirm}>
 							Clear Data
-						</button>
+						</Button>
 					</div>
 				</DialogPanel>
 			</div>

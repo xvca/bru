@@ -4,9 +4,10 @@ import { useAuth } from '@/lib/authContext'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { Loader2, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import { Spinner } from './ui/spinner'
+import { Button } from './ui/button'
 
-// Form validation schema
 const grinderSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	burrType: z.string().optional().nullable(),
@@ -19,7 +20,7 @@ interface GrinderFormModalProps {
 	isOpen: boolean
 	onClose: () => void
 	brewBarId: number
-	grinderId?: number // If provided, we're in edit mode
+	grinderId?: number
 	onSuccess?: () => void
 }
 
@@ -43,7 +44,6 @@ export default function GrinderFormModal({
 		notes: '',
 	})
 
-	// Reset form when modal opens
 	useEffect(() => {
 		if (isOpen && !isEditMode) {
 			setFormData({
@@ -164,18 +164,19 @@ export default function GrinderFormModal({
 				<DialogPanel className='mx-auto max-w-md w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
 					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
 						<span>{isEditMode ? 'Edit Grinder' : 'Add Grinder'}</span>
-						<button
+						<Button
 							onClick={onClose}
-							className='text-text-secondary hover:text-text'
+							variant='ghost'
+							size='icon'
+							className='rounded-full'
 						>
-							<X size={20} />
-							<span className='sr-only'>Close</span>
-						</button>
+							<X />
+						</Button>
 					</DialogTitle>
 
 					{isFetching ? (
 						<div className='flex justify-center items-center py-8'>
-							<Loader2 className='w-8 h-8 animate-spin' />
+							<Spinner />
 						</div>
 					) : (
 						<form onSubmit={handleSubmit} className='space-y-4'>
@@ -241,21 +242,13 @@ export default function GrinderFormModal({
 
 							{/* Buttons */}
 							<div className='flex justify-end gap-3 pt-2'>
-								<button
-									type='button'
-									onClick={onClose}
-									className='px-4 py-2 border border-border rounded-lg'
-								>
+								<Button type='button' onClick={onClose} variant='outline'>
 									Cancel
-								</button>
-								<button
-									type='submit'
-									disabled={isLoading}
-									className='px-4 py-2 bg-text text-background rounded-lg flex items-center gap-2 disabled:opacity-70'
-								>
-									{isLoading && <Loader2 className='w-4 h-4 animate-spin' />}
+								</Button>
+								<Button type='submit' disabled={isLoading}>
+									{isLoading && <Spinner />}
 									{isEditMode ? 'Update' : 'Add'}
-								</button>
+								</Button>
 							</div>
 						</form>
 					)}

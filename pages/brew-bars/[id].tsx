@@ -8,18 +8,12 @@ import InviteMemberModal from '@/components/InviteMemberModal'
 import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import toast, { Toaster } from 'react-hot-toast'
-import {
-	Loader2,
-	Users,
-	Coffee,
-	Settings,
-	ArrowLeft,
-	UserPlus,
-} from 'lucide-react'
+import { Users, Coffee, Settings, ArrowLeft, UserPlus } from 'lucide-react'
 import Link from 'next/link'
-import { Tab } from '@headlessui/react'
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 
-// Types
 interface BrewBar {
 	id: number
 	name: string
@@ -60,7 +54,6 @@ export default function BrewBarDetailPage() {
 	const [brewBar, setBrewBar] = useState<BrewBar | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [selectedTab, setSelectedTab] = useState(() => {
-		// Default to 0 (Members tab) or use query param
 		if (typeof window !== 'undefined') {
 			return new URLSearchParams(window.location.search).get('tab') ===
 				'equipment'
@@ -111,7 +104,6 @@ export default function BrewBarDetailPage() {
 
 			setBrewBar(data)
 
-			// Fetch members, equipment, and grinders in parallel
 			await Promise.all([fetchMembers(), fetchEquipment(), fetchGrinders()])
 		} catch (error) {
 			console.error('Error fetching brew bar details:', error)
@@ -196,7 +188,7 @@ export default function BrewBarDetailPage() {
 		return (
 			<ProtectedPage title='Brew Bar Details'>
 				<div className='flex justify-center items-center h-40'>
-					<Loader2 className='w-8 h-8 animate-spin' />
+					<Spinner />
 				</div>
 			</ProtectedPage>
 		)
@@ -244,19 +236,16 @@ export default function BrewBarDetailPage() {
 						</div>
 
 						{brewBar.isOwner && (
-							<button
-								onClick={() => setIsInviteModalOpen(true)}
-								className='flex items-center gap-1 px-3 py-2 bg-text text-background rounded-md'
-							>
+							<Button onClick={() => setIsInviteModalOpen(true)}>
 								<UserPlus size={18} />
 								<span>Invite Members</span>
-							</button>
+							</Button>
 						)}
 					</div>
 				</div>
 
-				<Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
-					<Tab.List className='flex space-x-1 rounded-xl bg-input-border p-1'>
+				<TabGroup selectedIndex={selectedTab} onChange={setSelectedTab}>
+					<TabList className='flex space-x-1 rounded-xl bg-input-border p-1'>
 						<Tab
 							className={({ selected }) =>
 								`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-hidden focus:ring-2
@@ -281,11 +270,11 @@ export default function BrewBarDetailPage() {
 						>
 							Equipment
 						</Tab>
-					</Tab.List>
+					</TabList>
 
-					<Tab.Panels className='mt-6'>
+					<TabPanels className='mt-6'>
 						{/* Members Tab */}
-						<Tab.Panel>
+						<TabPanel>
 							<div className='space-y-4'>
 								<div className='flex justify-between items-center mb-4'>
 									<h2 className='text-lg font-medium'>Members</h2>
@@ -323,33 +312,30 @@ export default function BrewBarDetailPage() {
 												</div>
 
 												{brewBar.isOwner && !member.isCurrentUser && (
-													<button
+													<Button
 														onClick={() => handleRemoveMember(member.userId)}
-														className='text-error text-sm hover:underline'
+														variant='destructive'
 													>
 														Remove
-													</button>
+													</Button>
 												)}
 											</div>
 										))}
 									</div>
 								)}
 							</div>
-						</Tab.Panel>
+						</TabPanel>
 
 						{/* Equipment Tab */}
-						<Tab.Panel>
+						<TabPanel>
 							<div className='space-y-6'>
 								{/* Grinders Section */}
 								<div>
 									<div className='flex justify-between items-center mb-4'>
 										<h2 className='text-lg font-medium'>Grinders</h2>
-										<button
-											onClick={handleAddGrinder}
-											className='text-primary-light text-sm hover:underline'
-										>
+										<Button onClick={handleAddGrinder} variant='link'>
 											Add Grinder
-										</button>
+										</Button>
 									</div>
 
 									{grinders.length === 0 ? (
@@ -380,12 +366,9 @@ export default function BrewBarDetailPage() {
 								<div>
 									<div className='flex justify-between items-center mb-4'>
 										<h2 className='text-lg font-medium'>Equipment</h2>
-										<button
-											onClick={handleAddEquipment}
-											className='text-primary-light text-sm hover:underline'
-										>
+										<Button onClick={handleAddEquipment} variant='link'>
 											Add Equipment
-										</button>
+										</Button>
 									</div>
 
 									{equipment.length === 0 ? (
@@ -412,9 +395,9 @@ export default function BrewBarDetailPage() {
 									)}
 								</div>
 							</div>
-						</Tab.Panel>
-					</Tab.Panels>
-				</Tab.Group>
+						</TabPanel>
+					</TabPanels>
+				</TabGroup>
 			</Section>
 			<>
 				<EquipmentFormModal
