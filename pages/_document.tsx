@@ -2,24 +2,6 @@ import { useEffect } from 'react'
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
-	useEffect(() => {
-		if ('serviceWorker' in navigator) {
-			window.addEventListener('load', () => {
-				navigator.serviceWorker.register('/sw.js').then(
-					(registration) => {
-						console.log(
-							'Service Worker registration successful with scope: ',
-							registration.scope,
-						)
-					},
-					(err) => {
-						console.log('Service Worker registration failed: ', err)
-					},
-				)
-			})
-		}
-	}, [])
-
 	return (
 		<Html lang='en'>
 			<Head>
@@ -29,12 +11,12 @@ export default function Document() {
 				<meta
 					name='theme-color'
 					media='(prefers-color-scheme: light)'
-					content='#fdfbf7'
+					content='#f5f1e6'
 				/>
 				<meta
 					name='theme-color'
 					media='(prefers-color-scheme: dark)'
-					content='#1f1815'
+					content='#2d2621'
 				/>
 				<meta name='mobile-web-app-capable' content='yes' />
 				<meta
