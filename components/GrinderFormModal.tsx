@@ -193,7 +193,7 @@ export default function GrinderFormModal({
 									name='name'
 									value={formData.name}
 									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									placeholder='e.g., Niche Zero'
 								/>
 								{errors.name && (
@@ -215,7 +215,7 @@ export default function GrinderFormModal({
 									name='burrType'
 									value={formData.burrType || ''}
 									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									placeholder='e.g., Conical, Flat, etc.'
 								/>
 							</div>
@@ -234,7 +234,7 @@ export default function GrinderFormModal({
 									value={formData.notes || ''}
 									onChange={handleInputChange}
 									rows={3}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									placeholder='Additional notes about this grinder'
 								/>
 							</div>

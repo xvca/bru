@@ -364,7 +364,7 @@ export default function BrewForm({
 									value={formData.beanId || ''}
 									onChange={handleInputChange}
 									required
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								>
 									<option value=''>Select a coffee bean</option>
 									{beans.map((bean) => (
@@ -392,7 +392,7 @@ export default function BrewForm({
 									value={formData.methodId || ''}
 									onChange={handleInputChange}
 									required
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								>
 									<option value=''>Select a brew method</option>
 									{methods.map((method) => (
@@ -424,7 +424,7 @@ export default function BrewForm({
 										min='1'
 										step='0.1'
 										required
-										className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									/>
 									{errors.doseWeight && (
 										<p className='mt-1 text-sm text-error'>
@@ -447,7 +447,7 @@ export default function BrewForm({
 										onChange={handleInputChange}
 										min='1'
 										step='0.1'
-										className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									/>
 									{errors.yieldWeight && (
 										<p className='mt-1 text-sm text-error'>
@@ -471,7 +471,7 @@ export default function BrewForm({
 												handleTimeInputChange('minutes', e.target.value)
 											}
 											placeholder='0'
-											className='w-16 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border text-center'
+											className='w-16 px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border text-center'
 											aria-label='Minutes'
 										/>
 										<span className='text-text-secondary'>:</span>
@@ -483,7 +483,7 @@ export default function BrewForm({
 											}
 											placeholder='00'
 											maxLength={2}
-											className='w-16 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border text-center'
+											className='w-16 px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border text-center'
 											aria-label='Seconds'
 										/>
 										<span className='ml-2 text-text-secondary'>min:sec</span>
@@ -507,7 +507,7 @@ export default function BrewForm({
 										onChange={handleInputChange}
 										min='1'
 										max='100'
-										className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									/>
 									{errors.waterTemperature && (
 										<p className='mt-1 text-sm text-error'>
@@ -532,7 +532,7 @@ export default function BrewForm({
 									value={formData.grindSize || ''}
 									onChange={handleInputChange}
 									placeholder='e.g., Fine, Medium, Coarse, or a number'
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								/>
 							</div>
 
@@ -576,7 +576,7 @@ export default function BrewForm({
 									value={formData.tastingNotes || ''}
 									onChange={handleInputChange}
 									rows={3}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									placeholder='Flavor notes, acidity, body, etc.'
 								/>
 							</div>

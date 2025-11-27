@@ -145,7 +145,7 @@ export default function LoginPage() {
 								value={formData.username}
 								onChange={handleInputChange}
 								required
-								className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background border-input-border'
+								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-background border-input-border'
 							/>
 							{errors.username && (
 								<p className='text-error text-sm'>{errors.username}</p>
@@ -163,7 +163,7 @@ export default function LoginPage() {
 								value={formData.password}
 								onChange={handleInputChange}
 								required
-								className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background border-input-border'
+								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-background border-input-border'
 							/>
 							{errors.password && (
 								<p className='text-error text-sm'>{errors.password}</p>

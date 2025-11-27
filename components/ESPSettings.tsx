@@ -244,7 +244,7 @@ export default function ESPSettings() {
 							onChange={(checked) =>
 								setPendingPrefs({ ...pendingPrefs, isEnabled: checked })
 							}
-							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-[checked]:bg-primary-light`}
+							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-checked:bg-primary-light`}
 						>
 							<span
 								className={`${
@@ -266,7 +266,7 @@ export default function ESPSettings() {
 										: PreinfusionMode.SIMPLE,
 								})
 							}
-							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-[checked]:bg-primary-light`}
+							className={`group inline-flex h-6 w-11 items-center rounded-full bg-text-secondary transition data-checked:bg-primary-light`}
 						>
 							<span
 								className={`${
@@ -298,7 +298,7 @@ export default function ESPSettings() {
 										setPendingPrefs({ ...pendingPrefs, regularPreset: value })
 									}}
 									onFocus={(e) => e.target.select()}
-									className='w-20 text-right bg-transparent focus:outline-none border-b border-transparent focus:border-text-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+									className='w-20 text-right bg-transparent focus:outline-hidden border-b border-transparent focus:border-text-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 								/>
 								<span className='text-base font-normal text-text-secondary'>
 									g
@@ -323,7 +323,7 @@ export default function ESPSettings() {
 										setPendingPrefs({ ...pendingPrefs, decafPreset: value })
 									}}
 									onFocus={(e) => e.target.select()}
-									className='w-20 text-right bg-transparent focus:outline-none border-b border-transparent focus:border-text-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+									className='w-20 text-right bg-transparent focus:outline-hidden border-b border-transparent focus:border-text-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 								/>
 								<span className='text-base font-normal text-text-secondary'>
 									g

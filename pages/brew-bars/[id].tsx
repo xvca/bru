@@ -259,7 +259,7 @@ export default function BrewBarDetailPage() {
 					<Tab.List className='flex space-x-1 rounded-xl bg-input-border p-1'>
 						<Tab
 							className={({ selected }) =>
-								`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
+								`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-hidden focus:ring-2
                 ${
 									selected
 										? 'bg-background shadow text-text'
@@ -271,7 +271,7 @@ export default function BrewBarDetailPage() {
 						</Tab>
 						<Tab
 							className={({ selected }) =>
-								`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2
+								`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-hidden focus:ring-2
                 ${
 									selected
 										? 'bg-background shadow text-text'

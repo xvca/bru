@@ -130,7 +130,7 @@ export default function InviteMemberModal({
 								name='username'
 								value={formData.username}
 								onChange={handleInputChange}
-								className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								placeholder='Enter username'
 							/>
 							{errors.username && (
@@ -148,7 +148,7 @@ export default function InviteMemberModal({
 								name='role'
 								value={formData.role || 'Member'}
 								onChange={handleInputChange}
-								className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 							>
 								<option value='Member'>Member</option>
 								<option value='Admin'>Admin</option>

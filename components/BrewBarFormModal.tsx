@@ -180,7 +180,7 @@ export default function BrewBarFormModal({
 									name='name'
 									value={formData.name}
 									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									placeholder='e.g., Home Coffee Lab'
 								/>
 								{errors.name && (
@@ -202,7 +202,7 @@ export default function BrewBarFormModal({
 									name='location'
 									value={formData.location || ''}
 									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 									placeholder='e.g., Kitchen, Office'
 								/>
 							</div>

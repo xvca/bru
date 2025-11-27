@@ -186,7 +186,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 					name='name'
 					value={formData.name}
 					onChange={handleInputChange}
-					className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+					className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					placeholder='e.g., Ethiopia Yirgacheffe'
 				/>
 				{errors.name && (
@@ -205,7 +205,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 					name='roaster'
 					value={formData.roaster || ''}
 					onChange={handleInputChange}
-					className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+					className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					placeholder='e.g., Heart Coffee Roasters'
 				/>
 			</div>
@@ -221,7 +221,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 					name='origin'
 					value={formData.origin || ''}
 					onChange={handleInputChange}
-					className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+					className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					placeholder='e.g., Ethiopia'
 				/>
 			</div>
@@ -236,7 +236,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 					name='roastLevel'
 					value={formData.roastLevel || ''}
 					onChange={handleInputChange}
-					className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+					className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 				>
 					<option value=''>Select Roast Level</option>
 					<option value='Light'>Light</option>
@@ -259,7 +259,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 						name='roastDate'
 						value={formData.roastDate}
 						onChange={handleInputChange}
-						className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+						className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					/>
 					{errors.roastDate && (
 						<p className='mt-1 text-sm text-error'>{errors.roastDate}</p>
@@ -279,7 +279,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 						name='freezeDate'
 						value={formData.freezeDate || ''}
 						onChange={handleInputChange}
-						className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+						className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					/>
 				</div>
 			</div>
@@ -301,7 +301,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 						onChange={handleInputChange}
 						min='1'
 						step='1'
-						className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+						className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					/>
 					{errors.initialWeight && (
 						<p className='mt-1 text-sm text-error'>{errors.initialWeight}</p>
@@ -323,7 +323,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 						onChange={handleInputChange}
 						min='0'
 						step='1'
-						className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+						className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					/>
 				</div>
 			</div>
@@ -339,7 +339,7 @@ const BeanForm = ({ beanId }: BeanFormProps) => {
 					value={formData.notes || ''}
 					onChange={handleInputChange}
 					rows={4}
-					className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+					className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 					placeholder='Tasting notes, brewing recommendations, etc.'
 				/>
 			</div>

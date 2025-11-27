@@ -31,7 +31,7 @@ const Appbar = () => {
 			{/* Overlay */}
 			{isMenuOpen && (
 				<div
-					className='fixed inset-0 bg-black bg-opacity-50 z-30'
+					className='fixed inset-0 bg-black opacity-50 z-30'
 					onClick={toggleMenu}
 				/>
 			)}
@@ -42,7 +42,7 @@ const Appbar = () => {
 					isMenuOpen ? 'translate-y-0' : '-translate-y-full'
 				}`}
 			>
-				<div className='max-w-screen-md mx-auto px-4 py-6'>
+				<div className='max-w-(--breakpoint-md) mx-auto px-4 py-6'>
 					{links.map(({ label, href }) => (
 						<Link
 							key={label}
@@ -74,14 +74,14 @@ const Appbar = () => {
 			{/* Main Appbar */}
 			<div className='fixed top-0 left-0 z-20 w-full bg-background pt-safe'>
 				<header className='border-b border-border bg-background px-safe'>
-					<div className='mx-auto flex h-12 max-w-screen-md items-center justify-between px-4'>
+					<div className='mx-auto flex h-12 max-w-(--breakpoint-md) items-center justify-between px-4'>
 						<Link href='/'>
 							<h1 className='font-medium text-text'>Bru</h1>
 						</Link>
 
 						<button
 							onClick={toggleMenu}
-							className='p-2 focus:outline-none'
+							className='p-2 focus:outline-hidden'
 							aria-label='Toggle menu'
 						>
 							<div className='w-6 h-5 relative flex flex-col justify-between'>

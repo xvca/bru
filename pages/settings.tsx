@@ -64,7 +64,7 @@ export default function Settings() {
 									onChange={(e) =>
 										setAccountForm({ ...accountForm, username: e.target.value })
 									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								/>
 							</div>
 							<div>
@@ -84,7 +84,7 @@ export default function Settings() {
 											currentPassword: e.target.value,
 										})
 									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								/>
 							</div>
 							<div>
@@ -104,7 +104,7 @@ export default function Settings() {
 											newPassword: e.target.value,
 										})
 									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								/>
 							</div>
 							<div>
@@ -124,7 +124,7 @@ export default function Settings() {
 											confirmPassword: e.target.value,
 										})
 									}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 								/>
 							</div>
 							<button
@@ -153,7 +153,7 @@ export default function Settings() {
 							</label>
 							<select
 								id='defaultBrewBar'
-								className='w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background border-input-border'
+								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
 							>
 								<option value=''>Personal Space</option>
 							</select>

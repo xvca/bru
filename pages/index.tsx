@@ -292,7 +292,7 @@ export default function CoffeeBrewControl() {
 																	setTargetWeight(value)
 																}}
 																onFocus={(e) => e.target.select()}
-																className='w-full bg-transparent focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+																className='w-full bg-transparent focus:outline-hidden text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 															/>
 														</div>
 													</div>
