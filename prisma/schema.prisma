@@ -1,77 +1,74 @@
-// Database connection
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
 generator client {
-  provider = "prisma-client-js"
+  provider               = "prisma-client"
+  output                 = "../generated/prisma"
+  generatedFileExtension = "ts"
+  importFileExtension    = "ts"
+  runtime                = "nodejs"
 }
 
-// User model
+datasource db {
+  provider = "sqlite"
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  createdAt DateTime @default(now()) @map("created_at")
-  brews     Brew[]
-  beans     Bean[]
-  grinders  Grinder[]
-  equipment Equipment[]
+  id             Int             @id @default(autoincrement())
+  username       String          @unique
+  password       String
+  createdAt      DateTime        @default(now()) @map("created_at")
+  brews          Brew[]
+  beans          Bean[]
+  grinders       Grinder[]
+  equipment      Equipment[]
   barMemberships BrewBarMember[]
 
   @@map("users")
 }
 
-// Coffee beans
 model Bean {
-  id            Int      @id @default(autoincrement())
-  name          String
-  roaster       String?
-  origin        String?
-  roastLevel    String?  @map("roast_level")
-  roastDate     DateTime @map("roast_date")
-  freezeDate    DateTime? @map("freeze_date")
-  initialWeight Float    @map("initial_weight")
-  remainingWeight Float?  @map("remaining_weight")
-  notes         String?
-  createdBy     Int      @map("created_by")
-  createdAt     DateTime @default(now()) @map("created_at")
-  user          User     @relation(fields: [createdBy], references: [id])
-  brews         Brew[]
+  id              Int       @id @default(autoincrement())
+  name            String
+  roaster         String?
+  origin          String?
+  roastLevel      String?   @map("roast_level")
+  roastDate       DateTime  @map("roast_date")
+  freezeDate      DateTime? @map("freeze_date")
+  initialWeight   Float     @map("initial_weight")
+  remainingWeight Float?    @map("remaining_weight")
+  notes           String?
+  createdBy       Int       @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  user            User      @relation(fields: [createdBy], references: [id])
+  brews           Brew[]
 
   @@map("beans")
 }
 
-// Grinders
 model Grinder {
-  id       Int     @id @default(autoincrement())
-  name     String
-  burrType String? @map("burr_type")
-  notes    String?
-  createdBy Int    @map("created_by")
-  user     User    @relation(fields: [createdBy], references: [id])
-  brews    Brew[]
-  brewBars BrewBarEquipment[]
+  id        Int                @id @default(autoincrement())
+  name      String
+  burrType  String?            @map("burr_type")
+  notes     String?
+  createdBy Int                @map("created_by")
+  user      User               @relation(fields: [createdBy], references: [id])
+  brews     Brew[]
+  brewBars  BrewBarEquipment[]
 
   @@map("grinders")
 }
 
-// Equipment (machines, pour-over devices, etc.)
 model Equipment {
-  id       Int     @id @default(autoincrement())
-  name     String
-  type     String?
-  notes    String?
-  createdBy Int    @map("created_by")
-  user     User    @relation(fields: [createdBy], references: [id])
-  brews    Brew[]
-  brewBars BrewBarEquipment[]
+  id        Int                @id @default(autoincrement())
+  name      String
+  type      String?
+  notes     String?
+  createdBy Int                @map("created_by")
+  user      User               @relation(fields: [createdBy], references: [id])
+  brews     Brew[]
+  brewBars  BrewBarEquipment[]
 
   @@map("equipment")
 }
 
-// Brew methods
 model BrewMethod {
   id    Int    @id @default(autoincrement())
   name  String
@@ -80,73 +77,69 @@ model BrewMethod {
   @@map("brew_methods")
 }
 
-// Brew bars (shared setups)
 model BrewBar {
-  id          Int      @id @default(autoincrement())
-  name        String
-  location    String?
-  createdBy   Int      @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
-  members     BrewBarMember[]
-  equipment   BrewBarEquipment[]
-  brews       Brew[]
+  id        Int                @id @default(autoincrement())
+  name      String
+  location  String?
+  createdBy Int                @map("created_by")
+  createdAt DateTime           @default(now()) @map("created_at")
+  members   BrewBarMember[]
+  equipment BrewBarEquipment[]
+  brews     Brew[]
 
   @@map("brew_bars")
 }
 
-// Brew bar members
 model BrewBarMember {
-  id      Int      @id @default(autoincrement())
-  barId   Int      @map("bar_id")
-  userId  Int      @map("user_id")
-  role    String?
-  bar     BrewBar  @relation(fields: [barId], references: [id])
-  user    User     @relation(fields: [userId], references: [id])
+  id     Int     @id @default(autoincrement())
+  barId  Int     @map("bar_id")
+  userId Int     @map("user_id")
+  role   String?
+  bar    BrewBar @relation(fields: [barId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
 
   @@unique([barId, userId])
   @@map("brew_bar_members")
 }
 
-// Brew bar equipment
 model BrewBarEquipment {
-  id          Int       @id @default(autoincrement())
-  barId       Int       @map("bar_id")
-  equipmentId Int?      @map("equipment_id")
-  grinderId   Int?      @map("grinder_id")
-  bar         BrewBar   @relation(fields: [barId], references: [id])
+  id          Int        @id @default(autoincrement())
+  barId       Int        @map("bar_id")
+  equipmentId Int?       @map("equipment_id")
+  grinderId   Int?       @map("grinder_id")
+  bar         BrewBar    @relation(fields: [barId], references: [id])
   equipment   Equipment? @relation(fields: [equipmentId], references: [id])
-  grinder     Grinder?  @relation(fields: [grinderId], references: [id])
+  grinder     Grinder?   @relation(fields: [grinderId], references: [id])
 
   @@map("brew_bar_equipment")
 }
 
-// Brews table (the main tracking table)
 model Brew {
-  id              Int         @id @default(autoincrement())
-  userId          Int         @map("user_id")
-  beanId          Int         @map("bean_id")
-  methodId        Int         @map("method_id")
-  grinderId       Int?        @map("grinder_id")
-  equipmentId     Int?        @map("equipment_id")
-  barId           Int?        @map("bar_id")
-  brewDate        DateTime    @default(now()) @map("brew_date")
-  doseWeight      Float       @map("dose_weight")
-  yieldWeight     Float?      @map("yield_weight")
-  brewTime        Int?        @map("brew_time")
-  grindSize       String?     @map("grind_size")
-  waterTemperature Float?      @map("water_temperature")
-  bloomTime       Int?        @map("bloom_time")
-  pourPattern     String?     @map("pour_pattern")
-  rating          Int?        @default(0) @db.SmallInt
-  tastingNotes    String?     @map("tasting_notes")
-  createdAt       DateTime    @default(now()) @map("created_at")
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  beanId           Int      @map("bean_id")
+  methodId         Int      @map("method_id")
+  grinderId        Int?     @map("grinder_id")
+  equipmentId      Int?     @map("equipment_id")
+  barId            Int?     @map("bar_id")
+  brewDate         DateTime @default(now()) @map("brew_date")
+  doseWeight       Float    @map("dose_weight")
+  yieldWeight      Float?   @map("yield_weight")
+  brewTime         Int?     @map("brew_time")
+  grindSize        String?  @map("grind_size")
+  waterTemperature Float?   @map("water_temperature")
+  bloomTime        Int?     @map("bloom_time")
+  pourPattern      String?  @map("pour_pattern")
+  rating           Int?     @default(0)
+  tastingNotes     String?  @map("tasting_notes")
+  createdAt        DateTime @default(now()) @map("created_at")
 
-  user            User        @relation(fields: [userId], references: [id])
-  bean            Bean        @relation(fields: [beanId], references: [id])
-  method          BrewMethod  @relation(fields: [methodId], references: [id])
-  grinder         Grinder?    @relation(fields: [grinderId], references: [id])
-  equipment       Equipment?  @relation(fields: [equipmentId], references: [id])
-  brewBar         BrewBar?    @relation(fields: [barId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
+  bean      Bean       @relation(fields: [beanId], references: [id])
+  method    BrewMethod @relation(fields: [methodId], references: [id])
+  grinder   Grinder?   @relation(fields: [grinderId], references: [id])
+  equipment Equipment? @relation(fields: [equipmentId], references: [id])
+  brewBar   BrewBar?   @relation(fields: [barId], references: [id])
 
   @@map("brews")
 }
