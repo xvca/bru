@@ -149,7 +149,7 @@ export default function LoginPage() {
 
 						<div className='flex gap-4'>
 							<Button onClick={login} disabled={isLoading} className='grow'>
-								<Spinner />
+								{isLoading && <Spinner />}
 								{isLoading ? 'Loading...' : 'Log in'}
 							</Button>
 							<Button
@@ -158,7 +158,7 @@ export default function LoginPage() {
 								variant='outline'
 								className='grow'
 							>
-								<Spinner />
+								{isLoading && <Spinner />}
 								{isLoading ? 'Loading...' : 'Sign up'}
 							</Button>
 						</div>
