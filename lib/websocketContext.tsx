@@ -62,6 +62,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
 	const isMainPage = router.pathname === '/'
 
+	const isMainPageRef = useRef(isMainPage)
+
 	// Parse WebSocket binary message
 	const parseWsMessage = (buffer: ArrayBuffer) => {
 		const view = new DataView(buffer)
@@ -121,10 +123,15 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		isReconnecting.current = false
 	}
 
+	useEffect(() => {
+		isMainPageRef.current = isMainPage
+	}, [isMainPage])
+
 	// WebSocket connection management
 	useEffect(() => {
 		// Only connect on the main page
 		if (!isMainPage) {
+			console.log('not on main page - skipping connection')
 			cleanupWebSocket()
 			return
 		}
@@ -193,13 +200,19 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 					setIsConnected(false)
 					setBrewData(initialBrewData)
 
+					if (document.visibilityState === 'hidden') {
+						console.log(
+							'Tab hidden, halting auto-reconnect to prevent fighting tabs',
+						)
+						isReconnecting.current = false
+						return
+					}
+
 					if (!isReconnecting.current && isMainPage) {
 						isReconnecting.current = false
 						// Only attempt reconnect if we're on the main page
 						setTimeout(() => {
-							if (isMainPage) {
-								connect()
-							}
+							if (isMainPageRef.current) connect()
 						}, 1000)
 					}
 				}
@@ -244,26 +257,47 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 		connect()
 
-		// Cleanup function
-		return () => {
-			cleanupWebSocket()
-		}
-	}, [isMainPage, wsUrl]) // Only re-establish when router changes
-
-	useEffect(() => {
-		// Check for router changes to handle cleanup
-		const handleRouteChange = () => {
-			if (!isMainPage) {
-				cleanupWebSocket()
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				console.log('Tab is visible again, attempting reconnect...')
+				connect()
 			}
 		}
 
-		router.events.on('routeChangeComplete', handleRouteChange)
+		document.addEventListener('visibilitychange', handleVisibilityChange)
 
 		return () => {
-			router.events.off('routeChangeComplete', handleRouteChange)
+			document.removeEventListener('visibilitychange', handleVisibilityChange)
+			cleanupWebSocket()
 		}
-	}, [router])
+	}, [isMainPage, wsUrl])
+
+	useEffect(() => {
+		const IDLE_LIMIT = 15 * 60 * 1000
+		let idleTimeout: NodeJS.Timeout
+
+		const handleUserActivity = () => {
+			if (idleTimeout) clearTimeout(idleTimeout)
+
+			idleTimeout = setTimeout(() => {
+				console.log('User idle for 15 mins, closing WS to save resources')
+				cleanupWebSocket()
+			}, IDLE_LIMIT)
+		}
+
+		window.addEventListener('mousemove', handleUserActivity)
+		window.addEventListener('keydown', handleUserActivity)
+		window.addEventListener('touchstart', handleUserActivity)
+
+		handleUserActivity()
+
+		return () => {
+			if (idleTimeout) clearTimeout(idleTimeout)
+			window.removeEventListener('mousemove', handleUserActivity)
+			window.removeEventListener('keydown', handleUserActivity)
+			window.removeEventListener('touchstart', handleUserActivity)
+		}
+	}, [])
 
 	useEffect(() => {
 		if (!isConnected) {
