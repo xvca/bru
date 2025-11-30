@@ -32,6 +32,7 @@ model Bean {
   roastLevel      String?   @map("roast_level")
   roastDate       DateTime  @map("roast_date")
   freezeDate      DateTime? @map("freeze_date")
+  thawDate        DateTime? @map("thaw_date")
   initialWeight   Float     @map("initial_weight")
   remainingWeight Float?    @map("remaining_weight")
   notes           String?
