@@ -32,7 +32,7 @@ export default function CoffeeBrewControl() {
 	const [isWaking, setIsWaking] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
 
-	const { brewData, isConnected, isWsConnected } = useWebSocket()
+	const { brewData, isWsConnected } = useWebSocket()
 
 	const ESPUrl =
 		`http://${process.env.NEXT_PUBLIC_ESP_IP}` || 'http://localhost:8080'
@@ -89,7 +89,7 @@ export default function CoffeeBrewControl() {
 	}
 
 	const wakeESP = async () => {
-		if (isConnected) return
+		if (brewData.isActive) return
 		setIsWaking(true)
 		try {
 			const { data } = await api.post('/wake')
@@ -122,11 +122,18 @@ export default function CoffeeBrewControl() {
 	}
 
 	const getConnectionState = () => {
-		if (!isWsConnected && !isConnected)
-			return { label: 'Disconnected', color: 'destructive' }
-		if (isWsConnected && !isConnected)
-			return { label: 'ESP Connected', color: 'warning' }
-		return { label: 'Connected', color: 'success' }
+		// 1. ESP Offline (WebSocket down)
+		if (!isWsConnected) return { label: 'Offline', color: 'destructive' }
+
+		// 2. Scale Connected (We are good to go)
+		// Note: We check this first. If we are connected, we don't care if 'isActive' is true/false.
+		if (brewData.isScaleConnected) return { label: 'Ready', color: 'success' }
+
+		// 3. ESP Online, Scale Missing, Scanning active
+		if (brewData.isActive) return { label: 'Scanning...', color: 'warning' }
+
+		// 4. ESP Online, Scale Missing, Not Scanning
+		return { label: 'Sleeping', color: 'secondary' }
 	}
 
 	const connectionState = getConnectionState()
@@ -146,7 +153,7 @@ export default function CoffeeBrewControl() {
 								</span>
 							</div>
 
-							{isConnected ? (
+							{brewData.isScaleConnected ? (
 								<Badge
 									variant='outline'
 									className='font-mono uppercase tracking-widest'
@@ -156,10 +163,10 @@ export default function CoffeeBrewControl() {
 							) : (
 								<Button
 									onClick={wakeESP}
-									disabled={isConnected || isWaking}
-									variant='secondary'
+									disabled={isWaking || brewData.isActive}
+									variant='outline'
 									size='sm'
-									className='h-8 rounded-full px-4'
+									className='h-8 px-4'
 								>
 									{isWaking ? (
 										<Spinner className='mr-2 h-3 w-3' />
@@ -315,10 +322,10 @@ export default function CoffeeBrewControl() {
 				<div className='fixed bottom-4 left-0 right-0 p-6 flex justify-center z-50 pointer-events-none'>
 					<Button
 						onClick={isBrewing ? stopBrew : startBrew}
-						disabled={!isConnected}
+						disabled={!brewData.isScaleConnected}
 						size='lg'
 						variant={isBrewing ? 'destructive' : 'default'}
-						className='w-9/10 rounded-full h-12 text-lg font-semibold pointer-events-auto transition-all active:scale-95'
+						className='w-9/10 rounded-full h-12 text-lg font-semibold pointer-events-auto transition-all active:scale-95 max-w-2xl'
 					>
 						{isBrewing ? (
 							<>

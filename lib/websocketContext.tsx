@@ -9,7 +9,6 @@ import { useRouter } from 'next/router'
 
 interface WebSocketContextType {
 	ws: WebSocket | null
-	isConnected: boolean
 	isWsConnected: boolean
 	brewData: {
 		weight: number
@@ -17,6 +16,8 @@ interface WebSocketContextType {
 		time: number
 		state: number
 		target: number
+		isActive: boolean
+		isScaleConnected: boolean
 	}
 	sendMessage: (message: string) => void
 }
@@ -27,11 +28,12 @@ const initialBrewData = {
 	time: 0,
 	state: 0,
 	target: 0,
+	isActive: false,
+	isScaleConnected: false,
 }
 
 const WebSocketContext = createContext<WebSocketContextType>({
 	ws: null,
-	isConnected: false,
 	isWsConnected: false,
 	brewData: initialBrewData,
 	sendMessage: () => {},
@@ -47,7 +49,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	children,
 }) => {
 	const [ws, setWs] = useState<WebSocket | null>(null)
-	const [isConnected, setIsConnected] = useState(false)
 	const [isWsConnected, setWsConnected] = useState(false)
 	const [brewData, setBrewData] = useState(initialBrewData)
 
@@ -56,7 +57,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	const router = useRouter()
 	const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 	const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-	const lastScaleMessageTimeRef = useRef<number>(Date.now())
 
 	const wsUrl =
 		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
@@ -68,6 +68,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	const parseWsMessage = (buffer: ArrayBuffer) => {
 		const view = new DataView(buffer)
 		let offset = 0
+
+		console.log(buffer)
 
 		try {
 			const weight = view.getFloat32(offset, true)
@@ -85,7 +87,31 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			const state = view.getUint8(offset)
 			offset += 1
 
-			setBrewData({ weight, flowRate, target, time, state })
+			const isActive = view.getUint8(offset) !== 0
+			offset += 1
+
+			const isScaleConnected = view.getUint8(offset) !== 0
+			offset += 1
+
+			console.log({
+				weight,
+				flowRate,
+				target,
+				time,
+				state,
+				isActive,
+				isScaleConnected,
+			})
+
+			setBrewData({
+				weight,
+				flowRate,
+				target,
+				time,
+				state,
+				isActive,
+				isScaleConnected,
+			})
 		} catch (e) {
 			console.error('Error parsing binary metrics:', e)
 			throw e
@@ -119,7 +145,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 		setWs(null)
 		setWsConnected(false)
-		setIsConnected(false)
 		isReconnecting.current = false
 	}
 
@@ -187,9 +212,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 							wsRef.current.send('ping')
 							heartbeat()
 						}
-						if (lastScaleMessageTimeRef.current + 5000 < Date.now()) {
-							setIsConnected(false)
-						}
 					}, 10000)
 				}
 
@@ -197,7 +219,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 					console.log('ws disconnected:', event.code, event.reason)
 
 					setWsConnected(false)
-					setIsConnected(false)
 					setBrewData(initialBrewData)
 
 					if (document.visibilityState === 'hidden') {
@@ -220,7 +241,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 				newWs.onerror = (error) => {
 					console.log('ws error: ', error)
 					setWsConnected(false)
-					setIsConnected(false)
 					setBrewData(initialBrewData)
 
 					if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -233,7 +253,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 					try {
 						if (typeof event.data === 'string' && event.data === 'pong') {
 							console.log('Pong received')
-							lastScaleMessageTimeRef.current = Date.now()
 							if (pingTimeoutRef.current) {
 								clearTimeout(pingTimeoutRef.current)
 							}
@@ -242,8 +261,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 						if (event.data instanceof ArrayBuffer) {
 							parseWsMessage(event.data)
-							if (!isConnected) setIsConnected(true)
-							lastScaleMessageTimeRef.current = Date.now()
 						}
 					} catch (error) {
 						console.error('Failed to parse WebSocket message:', error)
@@ -299,17 +316,10 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		}
 	}, [])
 
-	useEffect(() => {
-		if (!isConnected) {
-			setBrewData((prev) => ({ ...prev, weight: 0, flowRate: 0, time: 0 }))
-		}
-	}, [isConnected])
-
 	return (
 		<WebSocketContext.Provider
 			value={{
 				ws,
-				isConnected,
 				isWsConnected,
 				brewData,
 				sendMessage,
