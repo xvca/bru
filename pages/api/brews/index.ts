@@ -2,38 +2,7 @@ import { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
 import { z } from 'zod'
-
-// Schema for validating brew data
-const brewSchema = z.object({
-	beanId: z.number({ required_error: 'Bean is required' }),
-	methodId: z.number({ required_error: 'Brew method is required' }),
-	doseWeight: z.number().min(1, 'Dose weight must be at least 1g'),
-	yieldWeight: z
-		.number()
-		.min(1, 'Yield weight must be at least 1g')
-		.optional()
-		.nullable(),
-	brewTime: z
-		.number()
-		.int()
-		.min(1, 'Brew time must be at least 1 second')
-		.optional()
-		.nullable(),
-	grindSize: z.string().optional().nullable(),
-	waterTemperature: z
-		.number()
-		.min(1, 'Temperature must be at least 1°C')
-		.optional()
-		.nullable(),
-	rating: z
-		.number()
-		.int()
-		.min(0)
-		.max(5, 'Rating must be between 0 and 5')
-		.optional()
-		.nullable(),
-	tastingNotes: z.string().optional().nullable(),
-})
+import { brewSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -69,7 +38,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	} else if (req.method === 'POST') {
 		try {
-			// Validate request body
 			const validationResult = brewSchema.safeParse(req.body)
 
 			if (!validationResult.success) {

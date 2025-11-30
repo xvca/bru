@@ -1,14 +1,7 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-// Schema for validating grinder update data
-const grinderUpdateSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	burrType: z.string().optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
+import { grinderSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -20,7 +13,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if user is a member of this brew bar
 	const membership = await prisma.brewBarMember.findFirst({
 		where: {
 			barId: brewBarId,
@@ -33,7 +25,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if the grinder belongs to this brew bar
 	const brewBarGrinder = await prisma.brewBarEquipment.findFirst({
 		where: {
 			barId: brewBarId,
@@ -49,7 +40,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Handle GET request - get grinder details
 	if (req.method === 'GET') {
 		try {
 			res.status(200).json(brewBarGrinder.grinder)
@@ -61,11 +51,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle PUT request - update grinder
 	if (req.method === 'PUT') {
 		try {
-			// Validate request body
-			const validationResult = grinderUpdateSchema.safeParse(req.body)
+			const validationResult = grinderSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
 				res.status(400).json({
@@ -77,11 +65,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const { name, burrType, notes } = validationResult.data
 
-			// Only allow updating grinder if the user created it or is the bar owner
 			const grinder = brewBarGrinder.grinder
 
 			if (grinder.createdBy !== userId) {
-				// Check if the user is the bar owner
 				const isBarOwner = await prisma.brewBar.findFirst({
 					where: {
 						id: brewBarId,
@@ -97,7 +83,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				}
 			}
 
-			// Update the grinder
 			const updatedGrinder = await prisma.grinder.update({
 				where: { id: grinderId },
 				data: {
@@ -116,10 +101,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle DELETE request - remove grinder from brew bar
 	if (req.method === 'DELETE') {
 		try {
-			// First check if the user is the bar owner
 			const isBarOwner = await prisma.brewBar.findFirst({
 				where: {
 					id: brewBarId,
@@ -127,11 +110,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				},
 			})
 
-			// Then check if user is the grinder creator
 			const grinder = brewBarGrinder.grinder
 			const isGrinderCreator = grinder.createdBy === userId
 
-			// Allow deletion if user is either bar owner or grinder creator
 			if (!isBarOwner && !isGrinderCreator) {
 				res
 					.status(403)
@@ -139,7 +120,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				return
 			}
 
-			// Remove the grinder from the brew bar
 			await prisma.brewBarEquipment.deleteMany({
 				where: {
 					barId: brewBarId,

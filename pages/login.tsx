@@ -11,6 +11,7 @@ import axios from 'axios'
 
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { authSchema, type AuthFormData } from '@/lib/validators'
 
 import {
 	Field,
@@ -20,19 +21,12 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
-const authSchema = z.object({
-	username: z.string().min(3, 'Username must be at least 3 characters'),
-	password: z.string().min(6, 'Password must be at least 6 characters'),
-})
-
-type AuthFormValues = z.infer<typeof authSchema>
-
 export default function LoginPage() {
 	const [isLoading, setIsLoading] = useState(false)
 	const router = useRouter()
 	const { login: authLogin } = useAuth()
 
-	const form = useForm<AuthFormValues>({
+	const form = useForm<AuthFormData>({
 		resolver: zodResolver(authSchema),
 		defaultValues: {
 			username: '',
@@ -40,7 +34,7 @@ export default function LoginPage() {
 		},
 	})
 
-	async function onLogin(data: AuthFormValues) {
+	async function onLogin(data: AuthFormData) {
 		try {
 			setIsLoading(true)
 			const response = await axios.post('/api/auth/login', data)
@@ -54,7 +48,7 @@ export default function LoginPage() {
 		}
 	}
 
-	async function onSignup(data: AuthFormValues) {
+	async function onSignup(data: AuthFormData) {
 		try {
 			setIsLoading(true)
 			await axios.post('/api/auth/register', data)

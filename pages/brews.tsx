@@ -21,7 +21,8 @@ import BrewForm from '@/components/BrewForm'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { cn } from '@/lib/utils'
 
-// Shadcn UI Components
+import { Prisma } from '@/generated/prisma/client'
+
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -35,34 +36,16 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 
-interface Bean {
-	name: string
-	roaster: string | null
-}
-
-interface Method {
-	name: string
-}
-
-interface Brew {
-	id: number
-	beanId: number
-	methodId: number
-	doseWeight: number
-	yieldWeight: number | null
-	brewTime: number | null
-	grindSize: string | null
-	waterTemperature: number | null
-	rating: number | null
-	tastingNotes: string | null
-	brewDate: string
-	bean: Bean
-	method: Method
-}
+type BrewWithRelations = Prisma.BrewGetPayload<{
+	include: {
+		bean: true
+		method: true
+	}
+}>
 
 export default function Brews() {
 	const { user } = useAuth()
-	const [brews, setBrews] = useState<Brew[]>([])
+	const [brews, setBrews] = useState<BrewWithRelations[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [selectedBrew, setSelectedBrew] = useState<number | undefined>(
@@ -84,7 +67,7 @@ export default function Brews() {
 	const fetchBrews = async () => {
 		setIsLoading(true)
 		try {
-			const { data } = await axios.get<Brew[]>('/api/brews', {
+			const { data } = await axios.get<BrewWithRelations[]>('/api/brews', {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
 			setBrews(data)
@@ -159,7 +142,7 @@ export default function Brews() {
 				</div>
 
 				{isLoading ? (
-					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+					<div className='grid gap-4 md:grid-cols-2'>
 						{[1, 2, 3, 4, 5, 6].map((i) => (
 							<Card key={i} className='overflow-hidden'>
 								<CardHeader className='pb-2'>
@@ -203,7 +186,7 @@ export default function Brews() {
 						</CardContent>
 					</Card>
 				) : (
-					<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+					<div className='grid gap-4 md:grid-cols-2'>
 						{brews.map((brew) => (
 							<Card
 								key={brew.id}

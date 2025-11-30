@@ -1,6 +1,7 @@
 import { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
+import { beanSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -22,6 +23,15 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	} else if (req.method === 'POST') {
 		try {
+			const validationResult = beanSchema.safeParse(req.body)
+
+			if (!validationResult.success) {
+				return res.status(400).json({
+					error: 'Invalid bean data',
+					details: validationResult.error.flatten().fieldErrors,
+				})
+			}
+
 			const {
 				name,
 				roaster,
@@ -31,7 +41,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				freezeDate,
 				initialWeight,
 				notes,
-			} = req.body
+			} = validationResult.data
 
 			const bean = await prisma.bean.create({
 				data: {

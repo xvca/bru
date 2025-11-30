@@ -1,19 +1,13 @@
 import { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-const brewBarSchema = z.object({
-	name: z.string().min(1, 'Brew bar name is required'),
-	location: z.string().optional().nullable(),
-})
+import { brewBarSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
 
 	if (req.method === 'GET') {
 		try {
-			// Get all brew bars where the user is a member
 			const brewBars = await prisma.brewBar.findMany({
 				where: {
 					members: {
@@ -40,7 +34,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				},
 			})
 
-			// Transform the data to include isOwner and member count
 			const transformedBars = brewBars.map((bar) => ({
 				id: bar.id,
 				name: bar.name,
@@ -48,7 +41,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				createdAt: bar.createdAt.toISOString(),
 				isOwner: bar.createdBy === userId,
 				memberCount: bar.members.length,
-				// Find the current user's role in this bar
 				role: bar.members.find((m) => m.userId === userId)?.role || 'Member',
 			}))
 
@@ -61,7 +53,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 	if (req.method === 'POST') {
 		try {
-			// Validate request data
 			const validationResult = brewBarSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
@@ -73,13 +64,11 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const { name, location } = validationResult.data
 
-			// Create the brew bar
 			const brewBar = await prisma.brewBar.create({
 				data: {
 					name,
 					location,
 					createdBy: userId,
-					// Also add the creator as the first member with 'Owner' role
 					members: {
 						create: {
 							userId,

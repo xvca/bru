@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format, parse } from 'date-fns'
+import { beanSchema, type BeanFormData } from '@/lib/validators'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -38,37 +39,6 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-
-const beanSchema = z
-	.object({
-		name: z.string().min(1, 'Name is required'),
-		roaster: z.string().optional().nullable(),
-		origin: z.string().optional().nullable(),
-		roastLevel: z.string().optional().nullable(),
-		roastDate: z.string().min(1, 'Roast date is required'),
-		freezeDate: z.string().optional().nullable(),
-		initialWeight: z.coerce
-			.number()
-			.min(1, 'Initial weight must be at least 1g'),
-		remainingWeight: z.coerce.number().min(0).optional().nullable(),
-		notes: z.string().optional().nullable(),
-	})
-	.refine(
-		(data) => {
-			if (!data.freezeDate || !data.roastDate) return true
-
-			const roast = new Date(data.roastDate)
-			const freeze = new Date(data.freezeDate)
-
-			return freeze >= roast
-		},
-		{
-			message: 'Freeze date cannot be before roast date',
-			path: ['freezeDate'],
-		},
-	)
-
-type BeanFormData = z.infer<typeof beanSchema>
 
 interface BeanFormModalProps {
 	isOpen: boolean

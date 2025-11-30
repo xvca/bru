@@ -139,7 +139,7 @@ export default function BrewBarsPage() {
 				</div>
 
 				{isLoading ? (
-					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+					<div className='grid gap-4 md:grid-cols-2'>
 						{[1, 2, 3].map((i) => (
 							<Card key={i} className='overflow-hidden'>
 								<CardHeader className='pb-2'>
@@ -178,7 +178,7 @@ export default function BrewBarsPage() {
 						</CardContent>
 					</Card>
 				) : (
-					<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+					<div className='grid gap-4 md:grid-cols-2'>
 						{brewBars.map((bar) => (
 							<Card
 								key={bar.id}

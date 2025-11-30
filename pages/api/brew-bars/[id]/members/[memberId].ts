@@ -11,13 +11,11 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return res.status(400).json({ error: 'Valid IDs required' })
 	}
 
-	// Only allow DELETE method
 	if (req.method !== 'DELETE') {
 		return res.status(405).json({ error: 'Method not allowed' })
 	}
 
 	try {
-		// Verify the requestor is the bar owner
 		const brewBar = await prisma.brewBar.findFirst({
 			where: {
 				id: brewBarId,
@@ -29,7 +27,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 			return res.status(403).json({ error: 'Not authorized to remove members' })
 		}
 
-		// Remove the member
 		await prisma.brewBarMember.delete({
 			where: {
 				barId_userId: {

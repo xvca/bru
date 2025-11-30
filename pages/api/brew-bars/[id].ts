@@ -1,13 +1,7 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-// Schema for validating brew bar update data
-const brewBarUpdateSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	location: z.string().optional().nullable(),
-})
+import { brewBarSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -18,7 +12,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if brew bar exists and if user is a member
 	const brewBar = await prisma.brewBar.findFirst({
 		where: {
 			id: brewBarId,
@@ -45,14 +38,12 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if user is a member and get their role
 	const userMembership = brewBar.members.find(
 		(member) => member.userId === userId,
 	)
 	const isOwner = brewBar.createdBy === userId
 	const userRole = userMembership?.role || 'Member'
 
-	// Handle GET request - get a single brew bar
 	if (req.method === 'GET') {
 		try {
 			const transformedBar = {
@@ -74,9 +65,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle PUT request - update a brew bar (owner only)
 	if (req.method === 'PUT') {
-		// Only owners can update the brew bar
 		if (!isOwner) {
 			res.status(403).json({
 				error: 'You do not have permission to update this brew bar',
@@ -85,8 +74,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 
 		try {
-			// Validate request body
-			const validationResult = brewBarUpdateSchema.safeParse(req.body)
+			const validationResult = brewBarSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
 				res.status(400).json({
@@ -112,9 +100,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle DELETE request - delete a brew bar (owner only)
 	if (req.method === 'DELETE') {
-		// Only owners can delete the brew bar
 		if (!isOwner) {
 			res.status(403).json({
 				error: 'You do not have permission to delete this brew bar',
@@ -123,12 +109,10 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 
 		try {
-			// Delete all members first (to handle foreign key constraints)
 			await prisma.brewBarMember.deleteMany({
 				where: { barId: brewBarId },
 			})
 
-			// Then delete the brew bar
 			await prisma.brewBar.delete({
 				where: { id: brewBarId },
 			})
@@ -142,7 +126,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// If reaching here, method not allowed
 	res.status(405).json({ error: 'Method not allowed' })
 	return
 }

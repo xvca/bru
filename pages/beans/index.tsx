@@ -134,7 +134,7 @@ export default function BeansPage() {
 				</div>
 
 				{isLoading ? (
-					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+					<div className='grid gap-4 md:grid-cols-2'>
 						{[1, 2, 3, 4, 5, 6].map((i) => (
 							<Card key={i} className='overflow-hidden'>
 								<CardHeader className='pb-2'>
@@ -170,7 +170,7 @@ export default function BeansPage() {
 						</CardContent>
 					</Card>
 				) : (
-					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+					<div className='grid gap-4 md:grid-cols-2'>
 						{beans.map((bean) => {
 							const percentRemaining = bean.remainingWeight
 								? Math.min(

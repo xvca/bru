@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { grinderSchema, type GrinderFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -23,14 +24,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-
-const grinderSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	burrType: z.string().optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
-
-type GrinderFormData = z.infer<typeof grinderSchema>
 
 interface GrinderFormModalProps {
 	isOpen: boolean

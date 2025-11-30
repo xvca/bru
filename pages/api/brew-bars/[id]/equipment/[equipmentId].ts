@@ -2,13 +2,7 @@ import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
 import { z } from 'zod'
-
-// Schema for validating equipment update data
-const equipmentUpdateSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	type: z.string().optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
+import { equipmentSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -20,7 +14,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if user is a member of this brew bar
 	const membership = await prisma.brewBarMember.findFirst({
 		where: {
 			barId: brewBarId,
@@ -33,7 +26,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if the equipment belongs to this brew bar
 	const brewBarEquipment = await prisma.brewBarEquipment.findFirst({
 		where: {
 			barId: brewBarId,
@@ -49,7 +41,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Handle GET request - get equipment details
 	if (req.method === 'GET') {
 		try {
 			res.status(200).json(brewBarEquipment.equipment)
@@ -61,11 +52,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle PUT request - update equipment
 	if (req.method === 'PUT') {
 		try {
-			// Validate request body
-			const validationResult = equipmentUpdateSchema.safeParse(req.body)
+			const validationResult = equipmentSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
 				res.status(400).json({
@@ -77,11 +66,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const { name, type, notes } = validationResult.data
 
-			// Only allow updating equipment if the user created it or is the bar owner
 			const equipment = brewBarEquipment.equipment
 
 			if (equipment.createdBy !== userId) {
-				// Check if the user is the bar owner
 				const isBarOwner = await prisma.brewBar.findFirst({
 					where: {
 						id: brewBarId,
@@ -116,10 +103,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle DELETE request - remove equipment from brew bar
 	if (req.method === 'DELETE') {
 		try {
-			// First check if the user is the bar owner
 			const isBarOwner = await prisma.brewBar.findFirst({
 				where: {
 					id: brewBarId,
@@ -127,11 +112,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				},
 			})
 
-			// Then check if user is the equipment creator
 			const equipment = brewBarEquipment.equipment
 			const isEquipmentCreator = equipment.createdBy === userId
 
-			// Allow deletion if user is either bar owner or equipment creator
 			if (!isBarOwner && !isEquipmentCreator) {
 				res.status(403).json({
 					error: 'You do not have permission to delete this equipment',
@@ -139,7 +122,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				return
 			}
 
-			// Remove the equipment from the brew bar
 			await prisma.brewBarEquipment.deleteMany({
 				where: {
 					barId: brewBarId,

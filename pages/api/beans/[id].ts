@@ -1,24 +1,7 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-// Schema for validating bean update data
-const beanUpdateSchema = z.object({
-	name: z.string().min(1, 'Bean name is required'),
-	roaster: z.string().optional().nullable(),
-	origin: z.string().optional().nullable(),
-	roastLevel: z.string().optional().nullable(),
-	roastDate: z.string(), // Date will be parsed in the handler
-	freezeDate: z.string().optional().nullable(),
-	initialWeight: z.number().positive('Weight must be positive'),
-	remainingWeight: z
-		.number()
-		.positive('Weight must be positive')
-		.optional()
-		.nullable(),
-	notes: z.string().optional().nullable(),
-})
+import { beanSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -29,7 +12,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if bean exists and belongs to user
 	const bean = await prisma.bean.findFirst({
 		where: {
 			id: beanId,
@@ -44,7 +26,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Handle GET request - get a single bean
 	if (req.method === 'GET') {
 		try {
 			res.status(200).json(bean)
@@ -56,11 +37,9 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle PUT request - update a bean
 	if (req.method === 'PUT') {
 		try {
-			// Validate request body
-			const validationResult = beanUpdateSchema.safeParse(req.body)
+			const validationResult = beanSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
 				res.status(400).json({
@@ -106,10 +85,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle DELETE request - delete a bean
 	if (req.method === 'DELETE') {
 		try {
-			// Check if bean is used in any brews
 			const brewCount = await prisma.brew.count({
 				where: { beanId },
 			})
@@ -135,7 +112,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// If reaching here, method not allowed
 	res.status(405).json({ message: 'Method not allowed' })
 	return
 }

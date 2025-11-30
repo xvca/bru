@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { equipmentSchema, type EquipmentFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -30,14 +31,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
-
-const equipmentSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	type: z.string().optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
-
-type EquipmentFormData = z.infer<typeof equipmentSchema>
 
 interface EquipmentFormModalProps {
 	isOpen: boolean

@@ -1,14 +1,7 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-// Schema for validating grinder data
-const grinderSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	burrType: z.string().optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
+import { grinderSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -18,7 +11,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return res.status(400).json({ error: 'Valid brew bar ID is required' })
 	}
 
-	// Verify the user is a member of this brew bar
 	const membership = await prisma.brewBarMember.findFirst({
 		where: {
 			barId: brewBarId,
@@ -32,7 +24,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 			.json({ error: 'You do not have access to this brew bar' })
 	}
 
-	// Handle GET request - list all grinders for the brew bar
 	if (req.method === 'GET') {
 		try {
 			const grinderItems = await prisma.brewBarEquipment.findMany({
@@ -56,10 +47,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle POST request - add new grinder to the brew bar
 	if (req.method === 'POST') {
 		try {
-			// Validate request body
 			const validationResult = grinderSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
@@ -71,7 +60,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const { name, burrType, notes } = validationResult.data
 
-			// First create the grinder
 			const grinder = await prisma.grinder.create({
 				data: {
 					name,
@@ -81,7 +69,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				},
 			})
 
-			// Then associate it with the brew bar
 			await prisma.brewBarEquipment.create({
 				data: {
 					barId: brewBarId,

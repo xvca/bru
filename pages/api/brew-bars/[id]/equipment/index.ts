@@ -1,14 +1,7 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-// Schema for validating equipment data
-const equipmentSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	type: z.string().optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
+import { equipmentSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -21,7 +14,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Check if user is a member of this brew bar
 	const membership = await prisma.brewBarMember.findFirst({
 		where: {
 			barId: brewBarId,
@@ -34,7 +26,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	// Handle GET request - list all equipment in the brew bar
 	if (req.method === 'GET') {
 		try {
 			const equipment = await prisma.brewBarEquipment.findMany({
@@ -60,10 +51,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// Handle POST request - add new equipment to the brew bar
 	if (req.method === 'POST') {
 		try {
-			// Validate request body
 			const validationResult = equipmentSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
@@ -76,17 +65,15 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const { name, type, notes } = validationResult.data
 
-			// Create the equipment
 			const equipment = await prisma.equipment.create({
 				data: {
 					name,
 					type,
 					notes,
-					createdBy: userId, // Associate with the current user
+					createdBy: userId,
 				},
 			})
 
-			// Link the equipment to the brew bar
 			await prisma.brewBarEquipment.create({
 				data: {
 					barId: brewBarId,

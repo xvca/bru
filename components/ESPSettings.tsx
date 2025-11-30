@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { espPrefsSchema, type ESPPrefsFormData } from '@/lib/validators'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
 import { Button } from '@/components/ui/button'
@@ -45,17 +46,6 @@ enum PreinfusionMode {
 	SIMPLE = 0,
 	WEIGHT_TRIGGERED = 1,
 }
-
-const prefsSchema = z.object({
-	isEnabled: z.boolean(),
-	regularPreset: z.coerce.number().min(0).max(100),
-	decafPreset: z.coerce.number().min(0).max(100),
-	pMode: z.coerce.number(), // Use number for enum mapping
-	decafStartHour: z.coerce.number(),
-	timezone: z.string(),
-})
-
-type PrefsFormData = z.infer<typeof prefsSchema>
 
 interface Shot {
 	id: number
@@ -104,8 +94,8 @@ export default function ESPSettings() {
 		headers: { 'Content-Type': 'multipart/form-data' },
 	})
 
-	const form = useForm<PrefsFormData>({
-		resolver: zodResolver(prefsSchema),
+	const form = useForm<ESPPrefsFormData>({
+		resolver: zodResolver(espPrefsSchema),
 		defaultValues: {
 			isEnabled: true,
 			regularPreset: 40,
@@ -139,7 +129,7 @@ export default function ESPSettings() {
 		getPrefs()
 	}, [])
 
-	const onSubmit = async (data: PrefsFormData) => {
+	const onSubmit = async (data: ESPPrefsFormData) => {
 		setIsSaving(true)
 		try {
 			const formData = new FormData()

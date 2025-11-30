@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import { z } from 'zod'
 import { useForm, Controller, SubmitHandler } from 'react-hook-form' // 1. Import SubmitHandler
 import { zodResolver } from '@hookform/resolvers/zod'
+import { inviteSchema, type InviteFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -28,13 +29,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
-
-const inviteSchema = z.object({
-	username: z.string().min(1, 'Username is required'),
-	role: z.string(),
-})
-
-type InviteFormData = z.infer<typeof inviteSchema>
 
 interface InviteMemberModalProps {
 	isOpen: boolean

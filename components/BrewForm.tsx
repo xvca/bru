@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { Loader2, Star, X } from 'lucide-react'
 import type { Bean } from 'generated/prisma/client'
+import { brewSchema, type BrewFormData } from '@/lib/validators'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -33,21 +34,6 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-
-const brewSchema = z.object({
-	beanId: z.coerce.number().min(1, 'Bean is required'),
-	methodId: z.coerce.number().min(1, 'Brew method is required'),
-	doseWeight: z.coerce.number().min(1, 'Dose weight must be at least 1g'),
-	yieldWeight: z.coerce.number().optional().nullable(),
-	brewTime: z.coerce.number().optional().nullable(),
-	grindSize: z.string().optional().nullable(),
-	waterTemperature: z.coerce.number().optional().nullable(),
-	rating: z.coerce.number().min(0).max(5).optional().nullable(),
-	tastingNotes: z.string().optional().nullable(),
-	brewDate: z.string().optional(),
-})
-
-type BrewFormData = z.infer<typeof brewSchema>
 
 interface BrewFormProps {
 	isOpen: boolean

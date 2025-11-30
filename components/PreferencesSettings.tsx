@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm, Controller, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import {
+	userPreferencesSchema,
+	type UserPreferencesFormData,
+} from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -15,23 +19,17 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 
-const preferencesSchema = z.object({
-	defaultBrewBar: z.string().optional(),
-})
-
-type PreferencesFormData = z.infer<typeof preferencesSchema>
-
 export default function PreferencesSettings() {
 	const [isSaving, setIsSaving] = useState(false)
 
-	const form = useForm<PreferencesFormData>({
-		resolver: zodResolver(preferencesSchema),
+	const form = useForm<UserPreferencesFormData>({
+		resolver: zodResolver(userPreferencesSchema),
 		defaultValues: {
 			defaultBrewBar: '',
 		},
 	})
 
-	const onSubmit: SubmitHandler<PreferencesFormData> = async (data) => {
+	const onSubmit: SubmitHandler<UserPreferencesFormData> = async (data) => {
 		setIsSaving(true)
 		try {
 			await new Promise((resolve) => setTimeout(resolve, 1000))

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { brewBarSchema, type BrewBarFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -22,13 +22,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-
-const brewBarSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	location: z.string().optional().nullable(),
-})
-
-type BrewBarFormData = z.infer<typeof brewBarSchema>
 
 interface BrewBarFormModalProps {
 	isOpen: boolean

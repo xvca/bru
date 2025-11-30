@@ -22,7 +22,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-// UI Components
+import { Prisma, Equipment, Grinder, BrewBar } from '@/generated/prisma/client'
+
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -42,36 +43,22 @@ import {
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-interface BrewBar {
-	id: number
-	name: string
-	location: string | null
-	createdAt: string
+type BrewBarDetails = Prisma.BrewBarGetPayload<{}> & {
 	role: string
 	isOwner: boolean
 }
 
-interface BrewBarMember {
-	id: number
-	userId: number
-	role: string
-	isCurrentUser: boolean
-	user: {
-		id: number
-		username: string
+type BrewBarMemberWithUser = Prisma.BrewBarMemberGetPayload<{
+	include: {
+		user: {
+			select: {
+				id: true
+				username: true
+			}
+		}
 	}
-}
-
-interface Equipment {
-	id: number
-	name: string
-	type: string | null
-}
-
-interface Grinder {
-	id: number
-	name: string
-	burrType: string | null
+}> & {
+	isCurrentUser: boolean
 }
 
 export default function BrewBarDetailPage() {
@@ -79,11 +66,11 @@ export default function BrewBarDetailPage() {
 	const { id } = router.query
 	const { user } = useAuth()
 
-	const [brewBar, setBrewBar] = useState<BrewBar | null>(null)
+	const [brewBar, setBrewBar] = useState<BrewBarDetails | null>(null)
 	const [isLoading, setIsLoading] = useState(true)
 	const [activeTab, setActiveTab] = useState('members')
 
-	const [members, setMembers] = useState<BrewBarMember[]>([])
+	const [members, setMembers] = useState<BrewBarMemberWithUser[]>([])
 	const [equipment, setEquipment] = useState<Equipment[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 
@@ -118,7 +105,7 @@ export default function BrewBarDetailPage() {
 	const fetchBrewBarDetails = async () => {
 		try {
 			setIsLoading(true)
-			const { data } = await axios.get(`/api/brew-bars/${id}`, {
+			const { data } = await axios.get<BrewBarDetails>(`/api/brew-bars/${id}`, {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
 			setBrewBar(data)
@@ -136,9 +123,12 @@ export default function BrewBarDetailPage() {
 
 	const fetchMembers = async () => {
 		try {
-			const { data } = await axios.get(`/api/brew-bars/${id}/members`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			const { data } = await axios.get<BrewBarMemberWithUser[]>(
+				`/api/brew-bars/${id}/members`,
+				{
+					headers: { Authorization: `Bearer ${user?.token}` },
+				},
+			)
 			setMembers(data)
 		} catch (error) {
 			console.error('Error fetching members:', error)
@@ -147,9 +137,12 @@ export default function BrewBarDetailPage() {
 
 	const fetchGrinders = async () => {
 		try {
-			const { data } = await axios.get(`/api/brew-bars/${id}/grinders`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			const { data } = await axios.get<Grinder[]>(
+				`/api/brew-bars/${id}/grinders`,
+				{
+					headers: { Authorization: `Bearer ${user?.token}` },
+				},
+			)
 			setGrinders(data)
 		} catch (error) {
 			console.error('Error fetching grinders:', error)
@@ -158,9 +151,12 @@ export default function BrewBarDetailPage() {
 
 	const fetchEquipment = async () => {
 		try {
-			const { data } = await axios.get(`/api/brew-bars/${id}/equipment`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			const { data } = await axios.get<Equipment[]>(
+				`/api/brew-bars/${id}/equipment`,
+				{
+					headers: { Authorization: `Bearer ${user?.token}` },
+				},
+			)
 			setEquipment(data)
 		} catch (error) {
 			console.error('Error fetching equipment:', error)

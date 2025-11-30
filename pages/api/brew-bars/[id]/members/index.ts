@@ -1,12 +1,7 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { z } from 'zod'
-
-const inviteSchema = z.object({
-	username: z.string().min(1, 'Username is required'),
-	role: z.string().optional(),
-})
+import { inviteSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
@@ -16,7 +11,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return res.status(400).json({ error: 'Valid brew bar ID is required' })
 	}
 
-	// GET - List members
 	if (req.method === 'GET') {
 		try {
 			const members = await prisma.brewBarMember.findMany({
@@ -43,10 +37,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		}
 	}
 
-	// POST - Add new member
 	if (req.method === 'POST') {
 		try {
-			// Verify the requestor is the bar owner
 			const brewBar = await prisma.brewBar.findFirst({
 				where: {
 					id: brewBarId,
@@ -58,10 +50,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				return res.status(403).json({ error: 'Not authorized to add members' })
 			}
 
-			// Validate request data
 			const validData = inviteSchema.parse(req.body)
 
-			// Find user by username
 			const userToInvite = await prisma.user.findUnique({
 				where: { username: validData.username },
 			})
@@ -70,7 +60,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				return res.status(404).json({ error: 'User not found' })
 			}
 
-			// Check if user is already a member
 			const existingMember = await prisma.brewBarMember.findUnique({
 				where: {
 					barId_userId: {
@@ -84,7 +73,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				return res.status(409).json({ error: 'User is already a member' })
 			}
 
-			// Add member
 			const member = await prisma.brewBarMember.create({
 				data: {
 					barId: brewBarId,
