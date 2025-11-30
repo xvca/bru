@@ -5,105 +5,83 @@ import { Spinner } from '@/components/ui/spinner'
 import { useState } from 'react'
 import { z } from 'zod'
 import { useRouter } from 'next/router'
-import toast, { Toaster } from 'react-hot-toast'
+import { toast } from 'sonner'
 import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 
-// Create a schema for form validation
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+
+import {
+	Field,
+	FieldLabel,
+	FieldError,
+	FieldGroup,
+} from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+
 const authSchema = z.object({
 	username: z.string().min(3, 'Username must be at least 3 characters'),
 	password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
+type AuthFormValues = z.infer<typeof authSchema>
+
 export default function LoginPage() {
 	const [isLoading, setIsLoading] = useState(false)
-	const [errors, setErrors] = useState<{ [key: string]: string }>({})
-	const [formData, setFormData] = useState({
-		username: '',
-		password: '',
-	})
 	const router = useRouter()
 	const { login: authLogin } = useAuth()
 
-	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const { name, value } = e.target
-		setFormData((prev) => ({ ...prev, [name]: value }))
-		// Clear error when user types
-		if (errors[name]) {
-			setErrors((prev) => {
-				const newErrors = { ...prev }
-				delete newErrors[name]
-				return newErrors
-			})
-		}
-	}
+	const form = useForm<AuthFormValues>({
+		resolver: zodResolver(authSchema),
+		defaultValues: {
+			username: '',
+			password: '',
+		},
+	})
 
-	async function login(e: React.FormEvent) {
-		e.preventDefault()
-
+	async function onLogin(data: AuthFormValues) {
 		try {
-			authSchema.parse(formData)
-
 			setIsLoading(true)
-
-			const response = await axios.post('/api/auth/login', formData)
-
+			const response = await axios.post('/api/auth/login', data)
 			authLogin(response.data)
-
 			toast.success('Login successful')
 			router.push('/')
 		} catch (err) {
-			console.error(err)
-			if (err instanceof z.ZodError) {
-				const first = err.errors[0]
-				toast.error(first.message)
-			} else if (err instanceof axios.AxiosError) {
-				toast.error(err.response?.data?.error)
-			} else {
-				toast.error("couldn't log in")
-			}
+			handleError(err)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	async function signup(e: React.FormEvent) {
-		e.preventDefault()
-
+	async function onSignup(data: AuthFormValues) {
 		try {
-			// Validate form data
-			authSchema.parse(formData)
-
 			setIsLoading(true)
+			await axios.post('/api/auth/register', data)
 
-			const response = await axios.post('/api/auth/register', formData)
-
-			// For signup, we also need to login after registration
-			// First get login tokens
-			const loginResponse = await axios.post('/api/auth/login', formData)
-
+			const loginResponse = await axios.post('/api/auth/login', data)
 			authLogin(loginResponse.data)
 
 			toast.success('Account created successfully')
 			router.push('/')
 		} catch (err) {
-			console.error(err)
-			if (err instanceof z.ZodError) {
-				const first = err.errors[0]
-				toast.error(first.message)
-			} else if (err instanceof axios.AxiosError) {
-				toast.error(err.response?.data?.error)
-			} else {
-				toast.error("couldn't sign up")
-			}
+			handleError(err, 'signup')
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
+	const handleError = (err: any, context: 'login' | 'signup' = 'login') => {
+		console.error(err)
+		if (err instanceof axios.AxiosError) {
+			toast.error(err.response?.data?.error || `Failed to ${context}`)
+		} else {
+			toast.error(`Couldn't ${context === 'login' ? 'log in' : 'sign up'}`)
+		}
+	}
+
 	return (
 		<Page title='login'>
-			<Toaster position='top-center' />
 			<Section>
 				<div className='max-w-md mx-auto mt-8'>
 					<h1 className='text-2xl font-bold mb-6 text-center'>
@@ -111,54 +89,68 @@ export default function LoginPage() {
 					</h1>
 
 					<form className='space-y-6'>
-						<div className='space-y-2'>
-							<label htmlFor='username' className='block text-sm font-medium'>
-								Username
-							</label>
-							<input
-								id='username'
+						<FieldGroup>
+							<Controller
 								name='username'
-								type='text'
-								value={formData.username}
-								onChange={handleInputChange}
-								required
-								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-background border-input-border'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='username'>Username</FieldLabel>
+										<Input
+											{...field}
+											id='username'
+											autoComplete='username'
+											placeholder='Enter your username'
+											aria-invalid={fieldState.invalid}
+										/>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
 							/>
-							{errors.username && (
-								<p className='text-error text-sm'>{errors.username}</p>
-							)}
-						</div>
 
-						<div className='space-y-2'>
-							<label htmlFor='password' className='block text-sm font-medium'>
-								Password
-							</label>
-							<input
-								id='password'
+							<Controller
 								name='password'
-								type='password'
-								value={formData.password}
-								onChange={handleInputChange}
-								required
-								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 bg-background border-input-border'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='password'>Password</FieldLabel>
+										<Input
+											{...field}
+											id='password'
+											type='password'
+											autoComplete='current-password'
+											placeholder='Enter your password'
+											aria-invalid={fieldState.invalid}
+										/>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
 							/>
-							{errors.password && (
-								<p className='text-error text-sm'>{errors.password}</p>
-							)}
-						</div>
+						</FieldGroup>
 
-						<div className='flex gap-4'>
-							<Button onClick={login} disabled={isLoading} className='grow'>
-								{isLoading && <Spinner />}
+						<div className='flex gap-4 pt-2'>
+							<Button
+								type='button'
+								onClick={form.handleSubmit(onLogin)}
+								disabled={isLoading}
+								className='grow'
+							>
+								{isLoading && <Spinner className='mr-2' />}
 								{isLoading ? 'Loading...' : 'Log in'}
 							</Button>
+
 							<Button
-								onClick={signup}
+								type='button'
+								onClick={form.handleSubmit(onSignup)}
 								disabled={isLoading}
 								variant='outline'
 								className='grow'
 							>
-								{isLoading && <Spinner />}
+								{isLoading && <Spinner className='mr-2' />}
 								{isLoading ? 'Loading...' : 'Sign up'}
 							</Button>
 						</div>

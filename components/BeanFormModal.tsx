@@ -1,32 +1,79 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import toast from 'react-hot-toast'
-import { Loader2, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { Loader2, Calendar as CalendarIcon } from 'lucide-react'
 import { z } from 'zod'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import { Button } from './ui/button'
-import { Spinner } from './ui/spinner'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { format, parse } from 'date-fns'
 
-// Form validation schema
-const beanSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	roaster: z.string().optional().nullable(),
-	origin: z.string().optional().nullable(),
-	roastLevel: z.string().optional().nullable(),
-	roastDate: z.string().min(1, 'Roast date is required'),
-	freezeDate: z.string().optional().nullable(),
-	initialWeight: z.number().min(1, 'Initial weight must be at least 1g'),
-	remainingWeight: z.number().min(0).optional().nullable(),
-	notes: z.string().optional().nullable(),
-})
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+	Field,
+	FieldLabel,
+	FieldError,
+	FieldGroup,
+} from '@/components/ui/field'
+import { Calendar } from '@/components/ui/calendar'
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select'
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
+
+const beanSchema = z
+	.object({
+		name: z.string().min(1, 'Name is required'),
+		roaster: z.string().optional().nullable(),
+		origin: z.string().optional().nullable(),
+		roastLevel: z.string().optional().nullable(),
+		roastDate: z.string().min(1, 'Roast date is required'),
+		freezeDate: z.string().optional().nullable(),
+		initialWeight: z.coerce
+			.number()
+			.min(1, 'Initial weight must be at least 1g'),
+		remainingWeight: z.coerce.number().min(0).optional().nullable(),
+		notes: z.string().optional().nullable(),
+	})
+	.refine(
+		(data) => {
+			if (!data.freezeDate || !data.roastDate) return true
+
+			const roast = new Date(data.roastDate)
+			const freeze = new Date(data.freezeDate)
+
+			return freeze >= roast
+		},
+		{
+			message: 'Freeze date cannot be before roast date',
+			path: ['freezeDate'],
+		},
+	)
 
 type BeanFormData = z.infer<typeof beanSchema>
 
 interface BeanFormModalProps {
 	isOpen: boolean
 	onClose: () => void
-	beanId?: number // If provided, we're in edit mode
+	beanId?: number
 	onSuccess?: () => void
 }
 
@@ -40,45 +87,52 @@ export default function BeanFormModal({
 	const isEditMode = !!beanId
 
 	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(isEditMode)
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [isFetching, setIsFetching] = useState(false)
 
-	const [formData, setFormData] = useState<BeanFormData>({
-		name: '',
-		roaster: '',
-		origin: '',
-		roastLevel: '',
-		roastDate: new Date().toISOString().split('T')[0], // Today as default
-		freezeDate: '',
-		initialWeight: 250, // Default weight
-		remainingWeight: 250, // Default weight
-		notes: '',
+	const [isRoastDateOpen, setIsRoastDateOpen] = useState(false)
+	const [isFreezeDateOpen, setIsFreezeDateOpen] = useState(false)
+
+	const roastDateRef = useRef<HTMLButtonElement>(null)
+	const freezeDateRef = useRef<HTMLButtonElement>(null)
+
+	const form = useForm<BeanFormData>({
+		resolver: zodResolver(beanSchema),
+		defaultValues: {
+			name: '',
+			roaster: '',
+			origin: '',
+			roastLevel: '',
+			roastDate: new Date().toISOString().split('T')[0],
+			freezeDate: '',
+			initialWeight: 250,
+			remainingWeight: 250,
+			notes: '',
+		},
 	})
 
-	// Reset form when modal opens
-	useEffect(() => {
-		if (isOpen && !isEditMode) {
-			setFormData({
-				name: '',
-				roaster: '',
-				origin: '',
-				roastLevel: '',
-				roastDate: new Date().toISOString().split('T')[0], // Today as default
-				freezeDate: '',
-				initialWeight: 250, // Default weight
-				remainingWeight: 250, // Default weight
-				notes: '',
-			})
-			setErrors({})
-		}
-	}, [isOpen, isEditMode])
+	const roastDateWatcher = form.watch('roastDate')
 
-	// Fetch bean data if in edit mode
 	useEffect(() => {
-		if (isOpen && isEditMode && beanId) {
-			fetchBean()
+		if (isOpen) {
+			if (!isEditMode) {
+				form.reset({
+					name: '',
+					roaster: '',
+					origin: '',
+					roastLevel: '',
+					roastDate: new Date().toISOString().split('T')[0],
+					freezeDate: '',
+					initialWeight: 250,
+					remainingWeight: 250,
+					notes: '',
+				})
+			} else if (beanId) {
+				fetchBean()
+			}
+		} else {
+			form.reset()
 		}
-	}, [isOpen, beanId, isEditMode])
+	}, [isOpen, isEditMode, beanId])
 
 	const fetchBean = async () => {
 		try {
@@ -89,8 +143,7 @@ export default function BeanFormModal({
 				headers: { Authorization: `Bearer ${user.token}` },
 			})
 
-			// Format dates for form inputs
-			setFormData({
+			form.reset({
 				...data,
 				roastDate: new Date(data.roastDate).toISOString().split('T')[0],
 				freezeDate: data.freezeDate
@@ -100,58 +153,25 @@ export default function BeanFormModal({
 		} catch (error) {
 			console.error('Error fetching bean:', error)
 			toast.error('Failed to load coffee bean data')
+			onClose()
 		} finally {
 			setIsFetching(false)
 		}
 	}
 
-	const handleInputChange = (
-		e: React.ChangeEvent<
-			HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-		>,
-	) => {
-		const { name, value, type } = e.target as HTMLInputElement
-
-		// Handle different input types
-		if (type === 'number') {
-			setFormData({
-				...formData,
-				[name]: value === '' ? '' : parseFloat(value),
-			})
-		} else {
-			setFormData({
-				...formData,
-				[name]: value,
-			})
-		}
-
-		// Clear error when field is edited
-		if (errors[name]) {
-			const newErrors = { ...errors }
-			delete newErrors[name]
-			setErrors(newErrors)
-		}
-	}
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+	const onSubmit = async (data: BeanFormData) => {
 		setIsLoading(true)
 
 		try {
-			// Validate form data
-			const validData = beanSchema.parse(formData)
-
 			if (!user?.token) return
 
 			if (isEditMode) {
-				// Update existing bean
-				await axios.put(`/api/beans/${beanId}`, validData, {
+				await axios.put(`/api/beans/${beanId}`, data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Coffee bean updated successfully')
 			} else {
-				// Create new bean
-				await axios.post('/api/beans', validData, {
+				await axios.post('/api/beans', data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Coffee bean added successfully')
@@ -160,254 +180,349 @@ export default function BeanFormModal({
 			onSuccess?.()
 			onClose()
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				// Handle validation errors
-				const fieldErrors: Record<string, string> = {}
-				error.errors.forEach((err) => {
-					if (err.path.length > 0) {
-						fieldErrors[err.path[0]] = err.message
-					}
-				})
-				setErrors(fieldErrors)
-			} else {
-				console.error('Error saving bean:', error)
-				toast.error(`Failed to ${isEditMode ? 'update' : 'add'} coffee bean`)
-			}
+			console.error('Error saving bean:', error)
+			// Handle potential Zod/Server errors here if needed
+			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} coffee bean`)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	if (!isOpen) return null
-
 	return (
-		<Dialog open={isOpen} onClose={onClose} className='relative z-50'>
-			<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
-
-			<div className='fixed inset-0 flex items-center justify-center p-4'>
-				<DialogPanel className='mx-auto max-w-xl w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out] overflow-y-auto max-h-[90vh]'>
-					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
-						<span>
-							{isEditMode ? 'Edit Coffee Bean' : 'Add New Coffee Bean'}
-						</span>
-						<Button onClick={onClose} variant='ghost'>
-							<X size={20} />
-							<span className='sr-only'>Close</span>
-						</Button>
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent
+				className='max-w-xl max-h-[90vh] overflow-y-auto'
+				onEscapeKeyDown={(e) => {
+					if (isRoastDateOpen) {
+						e.preventDefault()
+						setIsRoastDateOpen(false)
+					} else if (isFreezeDateOpen) {
+						e.preventDefault()
+						setIsFreezeDateOpen(false)
+					}
+				}}
+			>
+				<DialogHeader>
+					<DialogTitle>
+						{isEditMode ? 'Edit Coffee Bean' : 'Add New Coffee Bean'}
 					</DialogTitle>
+				</DialogHeader>
 
-					{isFetching ? (
-						<div className='flex justify-center items-center py-8'>
-							<Loader2 className='w-8 h-8 animate-spin' />
-						</div>
-					) : (
-						<form onSubmit={handleSubmit} className='space-y-6'>
-							{/* Name */}
-							<div>
-								<label
-									htmlFor='name'
-									className='block text-sm font-medium mb-1'
-								>
-									Name <span className='text-error'>*</span>
-								</label>
-								<input
-									type='text'
-									id='name'
-									name='name'
-									value={formData.name}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='e.g., Ethiopia Yirgacheffe'
-								/>
-								{errors.name && (
-									<p className='mt-1 text-sm text-error'>{errors.name}</p>
+				{isFetching ? (
+					<div className='flex justify-center items-center py-8'>
+						<Loader2 className='w-8 h-8 animate-spin' />
+					</div>
+				) : (
+					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+						<FieldGroup>
+							<Controller
+								name='name'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='name'>
+											Name <span className='text-error'>*</span>
+										</FieldLabel>
+										<Input
+											{...field}
+											id='name'
+											placeholder='e.g., Ethiopia Yirgacheffe'
+										/>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
 								)}
-							</div>
+							/>
 
-							{/* Roaster */}
-							<div>
-								<label
-									htmlFor='roaster'
-									className='block text-sm font-medium mb-1'
-								>
-									Roaster
-								</label>
-								<input
-									type='text'
-									id='roaster'
-									name='roaster'
-									value={formData.roaster || ''}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='e.g., Heart Coffee Roasters'
-								/>
-							</div>
+							<Controller
+								name='roaster'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='roaster'>Roaster</FieldLabel>
+										<Input
+											{...field}
+											value={field.value || ''}
+											id='roaster'
+											placeholder='e.g., Heart Coffee Roasters'
+										/>
+									</Field>
+								)}
+							/>
 
-							{/* Origin */}
-							<div>
-								<label
-									htmlFor='origin'
-									className='block text-sm font-medium mb-1'
-								>
-									Origin
-								</label>
-								<input
-									type='text'
-									id='origin'
-									name='origin'
-									value={formData.origin || ''}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='e.g., Ethiopia'
-								/>
-							</div>
+							<Controller
+								name='origin'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='origin'>Origin</FieldLabel>
+										<Input
+											{...field}
+											value={field.value || ''}
+											id='origin'
+											placeholder='e.g., Ethiopia'
+										/>
+									</Field>
+								)}
+							/>
 
-							{/* Roast Level */}
-							<div>
-								<label
-									htmlFor='roastLevel'
-									className='block text-sm font-medium mb-1'
-								>
-									Roast Level
-								</label>
-								<select
-									id='roastLevel'
-									name='roastLevel'
-									value={formData.roastLevel || ''}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								>
-									<option value=''>Select Roast Level</option>
-									<option value='Light'>Light</option>
-									<option value='Medium-Light'>Medium-Light</option>
-									<option value='Medium'>Medium</option>
-									<option value='Medium-Dark'>Medium-Dark</option>
-									<option value='Dark'>Dark</option>
-								</select>
-							</div>
+							<Controller
+								name='roastLevel'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='roastLevel'>Roast Level</FieldLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value || ''}
+											value={field.value || ''}
+										>
+											<SelectTrigger id='roastLevel' className='w-full'>
+												<SelectValue placeholder='Select Roast Level' />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value='Light'>Light</SelectItem>
+												<SelectItem value='Medium-Light'>
+													Medium-Light
+												</SelectItem>
+												<SelectItem value='Medium'>Medium</SelectItem>
+												<SelectItem value='Medium-Dark'>Medium-Dark</SelectItem>
+												<SelectItem value='Dark'>Dark</SelectItem>
+											</SelectContent>
+										</Select>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
 
-							{/* Dates */}
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<div>
-									<label
-										htmlFor='roastDate'
-										className='block text-sm font-medium mb-1'
-									>
-										Roast Date <span className='text-error'>*</span>
-									</label>
-									<input
-										type='date'
-										id='roastDate'
-										name='roastDate'
-										value={formData.roastDate}
-										onChange={handleInputChange}
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-									{errors.roastDate && (
-										<p className='mt-1 text-sm text-error'>
-											{errors.roastDate}
-										</p>
-									)}
-								</div>
+								<Controller
+									name='roastDate'
+									control={form.control}
+									render={({ field, fieldState }) => {
+										const dateValue = field.value
+											? parse(field.value, 'yyyy-MM-dd', new Date())
+											: undefined
+										return (
+											<Field
+												data-invalid={fieldState.invalid}
+												className='flex flex-col'
+											>
+												<FieldLabel htmlFor='roastDate'>
+													Roast Date <span className='text-error'>*</span>
+												</FieldLabel>
+												<Popover
+													modal={true}
+													open={isRoastDateOpen}
+													onOpenChange={setIsRoastDateOpen}
+												>
+													<PopoverTrigger asChild>
+														<Button
+															variant={'outline'}
+															className={cn(
+																'w-full pl-3 text-left font-normal border-input-border bg-background hover:bg-background/90',
+																!field.value && 'text-muted-foreground',
+															)}
+															ref={roastDateRef}
+														>
+															{dateValue ? (
+																format(dateValue, 'PPP')
+															) : (
+																<span>Pick a date</span>
+															)}
+															<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+														</Button>
+													</PopoverTrigger>
+													<PopoverContent
+														className='min-w-80 p-0'
+														onPointerDownOutside={(e) => {
+															if (
+																roastDateRef.current?.contains(e.target as Node)
+															) {
+																e.preventDefault()
+															}
+														}}
+													>
+														<Calendar
+															mode='single'
+															selected={dateValue}
+															onSelect={(date) => {
+																field.onChange(
+																	date ? format(date, 'yyyy-MM-dd') : '',
+																)
+																setIsRoastDateOpen(false)
+															}}
+															disabled={(date) =>
+																date > new Date() ||
+																date < new Date('1900-01-01')
+															}
+															className='w-full'
+														/>
+													</PopoverContent>
+												</Popover>
+												{fieldState.invalid && (
+													<FieldError errors={[fieldState.error]} />
+												)}
+											</Field>
+										)
+									}}
+								/>
 
-								<div>
-									<label
-										htmlFor='freezeDate'
-										className='block text-sm font-medium mb-1'
-									>
-										Freeze Date (optional)
-									</label>
-									<input
-										type='date'
-										id='freezeDate'
-										name='freezeDate'
-										value={formData.freezeDate || ''}
-										onChange={handleInputChange}
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-								</div>
-							</div>
+								<Controller
+									name='freezeDate'
+									control={form.control}
+									render={({ field, fieldState }) => {
+										const dateValue = field.value
+											? parse(field.value, 'yyyy-MM-dd', new Date())
+											: undefined
 
-							{/* Weights */}
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<div>
-									<label
-										htmlFor='initialWeight'
-										className='block text-sm font-medium mb-1'
-									>
-										Initial Weight (g) <span className='text-error'>*</span>
-									</label>
-									<input
-										type='number'
-										id='initialWeight'
-										name='initialWeight'
-										value={formData.initialWeight || ''}
-										onChange={handleInputChange}
-										min='1'
-										step='1'
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-									{errors.initialWeight && (
-										<p className='mt-1 text-sm text-error'>
-											{errors.initialWeight}
-										</p>
-									)}
-								</div>
-
-								<div>
-									<label
-										htmlFor='remainingWeight'
-										className='block text-sm font-medium mb-1'
-									>
-										Remaining Weight (g)
-									</label>
-									<input
-										type='number'
-										id='remainingWeight'
-										name='remainingWeight'
-										value={formData.remainingWeight || ''}
-										onChange={handleInputChange}
-										min='0'
-										step='1'
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-								</div>
-							</div>
-
-							{/* Notes */}
-							<div>
-								<label
-									htmlFor='notes'
-									className='block text-sm font-medium mb-1'
-								>
-									Notes
-								</label>
-								<textarea
-									id='notes'
-									name='notes'
-									value={formData.notes || ''}
-									onChange={handleInputChange}
-									rows={4}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='Tasting notes, brewing recommendations, etc.'
+										const minDate = roastDateWatcher
+											? parse(roastDateWatcher, 'yyyy-MM-dd', new Date())
+											: null
+										return (
+											<Field
+												data-invalid={fieldState.invalid}
+												className='flex flex-col'
+											>
+												<FieldLabel htmlFor='freezeDate'>
+													Freeze Date (optional)
+												</FieldLabel>
+												<Popover
+													modal={true}
+													open={isFreezeDateOpen}
+													onOpenChange={setIsFreezeDateOpen}
+												>
+													<PopoverTrigger asChild>
+														<Button
+															variant={'outline'}
+															className={cn(
+																'w-full pl-3 text-left font-normal border-input-border bg-background hover:bg-background/90',
+																!field.value && 'text-muted-foreground',
+															)}
+															ref={freezeDateRef}
+														>
+															{dateValue ? (
+																format(dateValue, 'PPP')
+															) : (
+																<span>Pick a date</span>
+															)}
+															<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
+														</Button>
+													</PopoverTrigger>
+													<PopoverContent
+														className='min-w-80 p-0'
+														onPointerDownOutside={(e) => {
+															if (
+																freezeDateRef.current?.contains(
+																	e.target as Node,
+																)
+															) {
+																e.preventDefault()
+															}
+														}}
+													>
+														<Calendar
+															mode='single'
+															selected={dateValue}
+															onSelect={(date) => {
+																field.onChange(
+																	date ? format(date, 'yyyy-MM-dd') : '',
+																)
+																setIsFreezeDateOpen(false)
+															}}
+															disabled={(date) =>
+																date > new Date() ||
+																date < new Date('1900-01-01') ||
+																(minDate ? date < minDate : false)
+															}
+															className='w-full'
+														/>
+													</PopoverContent>
+												</Popover>
+											</Field>
+										)
+									}}
 								/>
 							</div>
 
-							{/* Form Actions */}
-							<div className='flex justify-end gap-3'>
-								<Button onClick={onClose} variant='outline'>
-									Cancel
-								</Button>
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+								<Controller
+									name='initialWeight'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='initialWeight'>
+												Initial Weight (g) <span className='text-error'>*</span>
+											</FieldLabel>
+											<Input
+												{...field}
+												id='initialWeight'
+												type='number'
+												min='1'
+												step='1'
+											/>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
+								/>
 
-								<Button type='submit' disabled={isLoading}>
-									{isLoading && <Spinner />}
-									{isEditMode ? 'Update Bean' : 'Add Bean'}
-								</Button>
+								<Controller
+									name='remainingWeight'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='remainingWeight'>
+												Remaining Weight (g)
+											</FieldLabel>
+											<Input
+												{...field}
+												value={field.value || ''}
+												id='remainingWeight'
+												type='number'
+												min='0'
+												step='1'
+											/>
+										</Field>
+									)}
+								/>
 							</div>
-						</form>
-					)}
-				</DialogPanel>
-			</div>
+
+							<Controller
+								name='notes'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='notes'>Notes</FieldLabel>
+										<Textarea
+											{...field}
+											value={field.value || ''}
+											id='notes'
+											rows={4}
+											placeholder='Tasting notes, brewing recommendations, etc.'
+										/>
+									</Field>
+								)}
+							/>
+						</FieldGroup>
+
+						<div className='flex justify-end gap-3'>
+							<Button onClick={onClose} variant='outline' type='button'>
+								Cancel
+							</Button>
+
+							<Button type='submit' disabled={isLoading}>
+								{isLoading && <Spinner className='mr-2' />}
+								{isEditMode ? 'Update Bean' : 'Add Bean'}
+							</Button>
+						</div>
+					</form>
+				)}
+			</DialogContent>
 		</Dialog>
 	)
 }

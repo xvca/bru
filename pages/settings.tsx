@@ -1,40 +1,28 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import Page from '@/components/Page'
 import Section from '@/components/Section'
-import {
-	Tab,
-	Listbox,
-	TabGroup,
-	ListboxButton,
-	ListboxOptions,
-	ListboxOption,
-	TabList,
-	TabPanels,
-	TabPanel,
-} from '@headlessui/react'
 import { useAuth } from '@/lib/authContext'
 import {
 	User,
 	Coffee,
 	Settings as SettingsIcon,
 	ChevronRight,
-	ChevronDown,
 } from 'lucide-react'
 import ESPSettings from '@/components/ESPSettings'
-import toast, { Toaster } from 'react-hot-toast'
 import AccountSettings from '@/components/AccountSettings'
 import PreferencesSettings from '@/components/PreferencesSettings'
 
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select'
+
 export default function Settings() {
 	const { user } = useAuth()
-	const [selectedTab, setSelectedTab] = useState(0)
-
-	const [accountForm, setAccountForm] = useState({
-		username: user?.username || '',
-		currentPassword: '',
-		newPassword: '',
-		confirmPassword: '',
-	})
 
 	const tabs = useMemo(() => {
 		const items = []
@@ -63,102 +51,85 @@ export default function Settings() {
 		})
 
 		return items
-	}, [user, accountForm])
+	}, [user])
+
+	const [activeTab, setActiveTab] = useState(tabs[0]?.id || 'esp')
 
 	useEffect(() => {
-		setSelectedTab(0)
-	}, [user])
+		const exists = tabs.find((t) => t.id === activeTab)
+		if (!exists && tabs.length > 0) {
+			setActiveTab(tabs[0].id)
+		}
+	}, [user, tabs, activeTab])
 
 	return (
 		<Page title='Settings'>
-			<Toaster position='top-center' />
 			<Section>
-				<div className='max-w-2xl mx-auto'>
+				<div className='max-w-4xl mx-auto'>
 					<h1 className='text-2xl font-bold mb-6'>Settings</h1>
 
-					<TabGroup selectedIndex={selectedTab} onChange={setSelectedTab}>
-						<div className='flex flex-col lg:flex-row gap-6'>
-							{/* Mobile Dropdown */}
-							<div className='lg:hidden w-full'>
-								<Listbox value={selectedTab} onChange={setSelectedTab}>
-									<div className='relative'>
-										<ListboxButton className='flex items-center justify-between w-full px-4 py-2 rounded-lg bg-input-border/20 text-text'>
-											<div className='flex items-center gap-2'>
-												{tabs[selectedTab]?.icon && (
-													<div>
-														{React.createElement(tabs[selectedTab].icon, {
-															size: 18,
-														})}
-													</div>
+					<Tabs
+						value={activeTab}
+						onValueChange={setActiveTab}
+						orientation='vertical'
+						className='flex flex-col lg:flex-row gap-6'
+					>
+						<div className='lg:hidden w-full'>
+							<Select value={activeTab} onValueChange={setActiveTab}>
+								<SelectTrigger className='w-full'>
+									<SelectValue placeholder='Select setting'>
+										<div className='flex items-center gap-2'>
+											{tabs.find((t) => t.id === activeTab)?.icon &&
+												React.createElement(
+													tabs.find((t) => t.id === activeTab)!.icon,
+													{ size: 16 },
 												)}
-												<span>{tabs[selectedTab]?.name}</span>
-											</div>
-											<ChevronDown size={18} />
-										</ListboxButton>
-										<ListboxOptions className='absolute z-10 mt-1 w-full py-1 bg-background shadow-lg rounded-lg border border-input-border'>
-											{tabs.map((tab, index) => (
-												<ListboxOption
-													key={tab.id}
-													value={index}
-													className={({ focus }) =>
-														`flex items-center px-4 py-2 cursor-pointer ${
-															focus
-																? 'bg-input-border/50 text-text'
-																: 'text-text-secondary'
-														}`
-													}
-												>
-													<div className='flex items-center gap-2'>
-														{tab.icon &&
-															React.createElement(tab.icon, { size: 18 })}
-														<span>{tab.name}</span>
-													</div>
-												</ListboxOption>
-											))}
-										</ListboxOptions>
-									</div>
-								</Listbox>
-							</div>
-
-							{/* Desktop Sidebar Navigation */}
-							<div className='hidden lg:block lg:w-64'>
-								<TabList className='flex flex-col gap-1'>
+											<span>{tabs.find((t) => t.id === activeTab)?.name}</span>
+										</div>
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent>
 									{tabs.map((tab) => (
-										<Tab
-											key={tab.id}
-											className={({ selected }) =>
-												`flex items-center justify-between w-full px-4 py-2 text-left rounded-lg transition-colors
-                                                ${
-																									selected
-																										? 'bg-input-border text-text'
-																										: 'text-text-secondary hover:bg-input-border/50'
-																								}`
-											}
-										>
+										<SelectItem key={tab.id} value={tab.id}>
 											<div className='flex items-center gap-2'>
-												{tab.icon &&
-													React.createElement(tab.icon, { size: 18 })}
+												{tab.icon && <tab.icon size={16} />}
 												<span>{tab.name}</span>
 											</div>
-											<ChevronRight size={18} />
-										</Tab>
+										</SelectItem>
 									))}
-								</TabList>
-							</div>
-
-							{/* Content Panels - Dynamic Rendering */}
-							<div className='flex-1'>
-								<TabPanels>
-									{tabs.map((tab) => (
-										<TabPanel key={tab.id}>
-											{/* Render the content defined in the array */}
-											{tab.content}
-										</TabPanel>
-									))}
-								</TabPanels>
-							</div>
+								</SelectContent>
+							</Select>
 						</div>
-					</TabGroup>
+
+						<TabsList className='hidden lg:flex flex-col justify-start h-auto w-64 bg-transparent p-0 space-y-1 shrink-0'>
+							{tabs.map((tab) => (
+								<TabsTrigger
+									key={tab.id}
+									value={tab.id}
+									className='w-full justify-start px-4 py-2 h-auto data-[state=active]:bg-secondary data-[state=active]:text-foreground data-[state=active]:shadow-none font-medium'
+								>
+									<div className='flex items-center gap-2 w-full'>
+										{tab.icon && <tab.icon size={18} />}
+										<span className='flex-1 text-left'>{tab.name}</span>
+										{activeTab === tab.id && (
+											<ChevronRight
+												size={16}
+												className='text-muted-foreground'
+											/>
+										)}
+									</div>
+								</TabsTrigger>
+							))}
+						</TabsList>
+
+						<div className='flex-1'>
+							{tabs.map((tab) => (
+								<TabsContent key={tab.id} value={tab.id} className='mt-0'>
+									{tab.content}
+								</TabsContent>
+							))}
+						</div>
+					</Tabs>
 				</div>
 			</Section>
 		</Page>

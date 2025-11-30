@@ -1,17 +1,37 @@
 import { useState } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
-import { X } from 'lucide-react'
-import { Spinner } from './ui/spinner'
-import { Button } from './ui/button'
+import { useForm, Controller, SubmitHandler } from 'react-hook-form' // 1. Import SubmitHandler
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 
-// Form validation schema
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
+import {
+	Field,
+	FieldLabel,
+	FieldError,
+	FieldGroup,
+} from '@/components/ui/field'
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select'
+
 const inviteSchema = z.object({
 	username: z.string().min(1, 'Username is required'),
-	role: z.string().optional(),
+	role: z.string(),
 })
 
 type InviteFormData = z.infer<typeof inviteSchema>
@@ -31,145 +51,117 @@ export default function InviteMemberModal({
 }: InviteMemberModalProps) {
 	const { user } = useAuth()
 	const [isLoading, setIsLoading] = useState(false)
-	const [errors, setErrors] = useState<Record<string, string>>({})
 
-	const [formData, setFormData] = useState<InviteFormData>({
-		username: '',
-		role: 'Member',
+	const form = useForm<InviteFormData>({
+		resolver: zodResolver(inviteSchema),
+		defaultValues: {
+			username: '',
+			role: 'Member',
+		},
 	})
 
-	const handleInputChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-	) => {
-		const { name, value } = e.target
-
-		setFormData({
-			...formData,
-			[name]: value,
-		})
-
-		// Clear error when field is edited
-		if (errors[name]) {
-			const newErrors = { ...errors }
-			delete newErrors[name]
-			setErrors(newErrors)
-		}
-	}
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+	const onSubmit: SubmitHandler<InviteFormData> = async (data) => {
 		setIsLoading(true)
 
 		try {
-			// Validate form data
-			const validData = inviteSchema.parse(formData)
-
 			if (!user?.token) return
 
-			// Send invitation
-			await axios.post(`/api/brew-bars/${brewBarId}/members`, validData, {
+			await axios.post(`/api/brew-bars/${brewBarId}/members`, data, {
 				headers: { Authorization: `Bearer ${user.token}` },
 			})
 
 			toast.success('Member added successfully')
+			form.reset()
 			onSuccess?.()
 			onClose()
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				// Handle validation errors
-				const fieldErrors: Record<string, string> = {}
-				error.errors.forEach((err) => {
-					if (err.path.length > 0) {
-						fieldErrors[err.path[0]] = err.message
-					}
-				})
-				setErrors(fieldErrors)
-			} else if (axios.isAxiosError(error)) {
+			if (axios.isAxiosError(error)) {
 				if (error.response?.status === 404) {
 					toast.error('User not found')
+					form.setError('username', { message: 'User not found' })
 				} else if (error.response?.status === 409) {
 					toast.error('User is already a member')
+					form.setError('username', { message: 'User is already a member' })
 				} else {
 					toast.error('Failed to add member')
 				}
+			} else {
+				console.error('Error adding member:', error)
+				toast.error('An unexpected error occurred')
 			}
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	if (!isOpen) return null
-
 	return (
-		<Dialog open={isOpen} onClose={onClose} className='relative z-50'>
-			<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className='max-w-sm'>
+				<DialogHeader>
+					<DialogTitle>Add Member</DialogTitle>
+				</DialogHeader>
 
-			<div className='fixed inset-0 flex items-center justify-center p-4'>
-				<DialogPanel className='mx-auto max-w-sm w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
-					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
-						<span>Add Member</span>
-						<Button
-							onClick={onClose}
-							variant='ghost'
-							size='icon'
-							className='rounded-full'
-						>
-							<X />
-						</Button>
-					</DialogTitle>
-
-					<form onSubmit={handleSubmit} className='space-y-4'>
-						{/* Username */}
-						<div>
-							<label
-								htmlFor='username'
-								className='block text-sm font-medium mb-1'
-							>
-								Username <span className='text-error'>*</span>
-							</label>
-							<input
-								type='text'
-								id='username'
-								name='username'
-								value={formData.username}
-								onChange={handleInputChange}
-								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								placeholder='Enter username'
-							/>
-							{errors.username && (
-								<p className='mt-1 text-sm text-error'>{errors.username}</p>
+				<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+					<FieldGroup>
+						<Controller
+							name='username'
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor='username'>
+										Username <span className='text-error'>*</span>
+									</FieldLabel>
+									<Input
+										{...field}
+										id='username'
+										placeholder='Enter username'
+									/>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
 							)}
-						</div>
+						/>
 
-						{/* Role */}
-						<div>
-							<label htmlFor='role' className='block text-sm font-medium mb-1'>
-								Role
-							</label>
-							<select
-								id='role'
-								name='role'
-								value={formData.role || 'Member'}
-								onChange={handleInputChange}
-								className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-							>
-								<option value='Member'>Member</option>
-								<option value='Admin'>Admin</option>
-							</select>
-						</div>
+						<Controller
+							name='role'
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor='role'>Role</FieldLabel>
+									<Select
+										onValueChange={field.onChange}
+										defaultValue={field.value}
+										value={field.value}
+									>
+										<SelectTrigger id='role' className='w-full'>
+											<SelectValue placeholder='Select Role' />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value='Member'>Member</SelectItem>
+											<SelectItem value='Admin'>Admin</SelectItem>
+										</SelectContent>
+									</Select>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
+							)}
+						/>
+					</FieldGroup>
 
-						<div className='flex justify-end gap-3 pt-2'>
-							<Button type='button' onClick={onClose} variant='outline'>
-								Cancel
-							</Button>
-							<Button type='submit' disabled={isLoading}>
-								{isLoading && <Spinner />}
-								Add Member
-							</Button>
-						</div>
-					</form>
-				</DialogPanel>
-			</div>
+					<div className='flex justify-end gap-3 pt-2'>
+						<Button onClick={onClose} variant='outline' type='button'>
+							Cancel
+						</Button>
+
+						<Button type='submit' disabled={isLoading}>
+							{isLoading && <Spinner className='mr-2' />}
+							Add Member
+						</Button>
+					</div>
+				</form>
+			</DialogContent>
 		</Dialog>
 	)
 }

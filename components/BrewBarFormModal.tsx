@@ -1,12 +1,27 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
-import { X } from 'lucide-react'
-import { Spinner } from './ui/spinner'
-import { Button } from './ui/button'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
+import {
+	Field,
+	FieldLabel,
+	FieldError,
+	FieldGroup,
+} from '@/components/ui/field'
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
 
 const brewBarSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
@@ -15,10 +30,10 @@ const brewBarSchema = z.object({
 
 type BrewBarFormData = z.infer<typeof brewBarSchema>
 
-interface BrewBarFormProps {
+interface BrewBarFormModalProps {
 	isOpen: boolean
 	onClose: () => void
-	brewBarId?: number // If provided, we're in edit mode
+	brewBarId?: number
 	onSuccess?: () => void
 }
 
@@ -27,95 +42,71 @@ export default function BrewBarFormModal({
 	onClose,
 	brewBarId,
 	onSuccess,
-}: BrewBarFormProps) {
+}: BrewBarFormModalProps) {
 	const { user } = useAuth()
-	const isEditMode = Boolean(brewBarId)
+	const isEditMode = !!brewBarId
 
 	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(isEditMode)
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [isFetching, setIsFetching] = useState(false)
 
-	const [formData, setFormData] = useState<BrewBarFormData>({
-		name: '',
-		location: '',
+	const form = useForm<BrewBarFormData>({
+		resolver: zodResolver(brewBarSchema),
+		defaultValues: {
+			name: '',
+			location: '',
+		},
 	})
 
-	// Reset form when modal opens
 	useEffect(() => {
-		if (isOpen && !isEditMode) {
-			setFormData({
-				name: '',
-				location: '',
-			})
-			setErrors({})
-		}
-	}, [isOpen, isEditMode])
-
-	// Fetch brew bar data if in edit mode
-	useEffect(() => {
-		const fetchBrewBar = async () => {
-			try {
-				setIsFetching(true)
-				if (!user?.token) return
-
-				const { data } = await axios.get(`/api/brew-bars/${brewBarId}`, {
-					headers: { Authorization: `Bearer ${user.token}` },
+		if (isOpen) {
+			if (!isEditMode) {
+				form.reset({
+					name: '',
+					location: '',
 				})
-
-				setFormData({
-					name: data.name,
-					location: data.location,
-				})
-			} catch (error) {
-				console.error('Error fetching brew bar:', error)
-				toast.error('Failed to load brew bar data')
-			} finally {
-				setIsFetching(false)
+			} else if (brewBarId) {
+				fetchBrewBar()
 			}
+		} else {
+			form.reset()
 		}
+	}, [isOpen, isEditMode, brewBarId])
 
-		if (isOpen && isEditMode && brewBarId && user) {
-			fetchBrewBar()
-		}
-	}, [isOpen, brewBarId, isEditMode, user])
+	const fetchBrewBar = async () => {
+		try {
+			setIsFetching(true)
+			if (!user?.token) return
 
-	const handleInputChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-	) => {
-		const { name, value } = e.target
+			const { data } = await axios.get(`/api/brew-bars/${brewBarId}`, {
+				headers: { Authorization: `Bearer ${user.token}` },
+			})
 
-		setFormData({
-			...formData,
-			[name]: value,
-		})
-
-		// Clear error when field is edited
-		if (errors[name]) {
-			const newErrors = { ...errors }
-			delete newErrors[name]
-			setErrors(newErrors)
+			form.reset({
+				name: data.name,
+				location: data.location || '',
+			})
+		} catch (error) {
+			console.error('Error fetching brew bar:', error)
+			toast.error('Failed to load brew bar data')
+			onClose()
+		} finally {
+			setIsFetching(false)
 		}
 	}
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+	const onSubmit = async (data: BrewBarFormData) => {
 		setIsLoading(true)
 
 		try {
-			// Validate form data
-			const validData = brewBarSchema.parse(formData)
-
 			if (!user?.token) return
 
 			if (isEditMode) {
-				// Update existing brew bar
-				await axios.put(`/api/brew-bars/${brewBarId}`, validData, {
+				await axios.put(`/api/brew-bars/${brewBarId}`, data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Brew bar updated successfully')
 			} else {
-				// Create new brew bar
-				await axios.post('/api/brew-bars', validData, {
+				await axios.post('/api/brew-bars', data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Brew bar created successfully')
@@ -124,104 +115,79 @@ export default function BrewBarFormModal({
 			onSuccess?.()
 			onClose()
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				// Handle validation errors
-				const fieldErrors: Record<string, string> = {}
-				error.errors.forEach((err) => {
-					if (err.path.length > 0) {
-						fieldErrors[err.path[0]] = err.message
-					}
-				})
-				setErrors(fieldErrors)
-			} else {
-				console.error('Error saving brew bar:', error)
-				toast.error(`Failed to ${isEditMode ? 'update' : 'create'} brew bar`)
-			}
+			console.error('Error saving brew bar:', error)
+			toast.error(`Failed to ${isEditMode ? 'update' : 'create'} brew bar`)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	if (!isOpen) return null
-
 	return (
-		<Dialog open={isOpen} onClose={onClose} className='relative z-50'>
-			<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
-
-			<div className='fixed inset-0 flex items-center justify-center p-4'>
-				<DialogPanel className='mx-auto max-w-md w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
-					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
-						<span>{isEditMode ? 'Edit Brew Bar' : 'Create New Brew Bar'}</span>
-						<button
-							onClick={onClose}
-							className='text-text-secondary hover:text-text'
-						>
-							<X size={20} />
-							<span className='sr-only'>Close</span>
-						</button>
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className='max-w-md'>
+				<DialogHeader>
+					<DialogTitle>
+						{isEditMode ? 'Edit Brew Bar' : 'Create New Brew Bar'}
 					</DialogTitle>
+				</DialogHeader>
 
-					{isFetching ? (
-						<div className='flex justify-center items-center py-8'>
-							<Spinner />
-						</div>
-					) : (
-						<form onSubmit={handleSubmit} className='space-y-4'>
-							{/* Name */}
-							<div>
-								<label
-									htmlFor='name'
-									className='block text-sm font-medium mb-1'
-								>
-									Name <span className='text-error'>*</span>
-								</label>
-								<input
-									type='text'
-									id='name'
-									name='name'
-									value={formData.name}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='e.g., Home Coffee Lab'
-								/>
-								{errors.name && (
-									<p className='mt-1 text-sm text-error'>{errors.name}</p>
+				{isFetching ? (
+					<div className='flex justify-center items-center py-8'>
+						<Loader2 className='w-8 h-8 animate-spin' />
+					</div>
+				) : (
+					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+						<FieldGroup>
+							<Controller
+								name='name'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='name'>
+											Name <span className='text-error'>*</span>
+										</FieldLabel>
+										<Input
+											{...field}
+											id='name'
+											placeholder='e.g., Home Coffee Lab'
+										/>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
 								)}
-							</div>
+							/>
 
-							{/* Location */}
-							<div>
-								<label
-									htmlFor='location'
-									className='block text-sm font-medium mb-1'
-								>
-									Location
-								</label>
-								<input
-									type='text'
-									id='location'
-									name='location'
-									value={formData.location || ''}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='e.g., Kitchen, Office'
-								/>
-							</div>
+							<Controller
+								name='location'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='location'>Location</FieldLabel>
+										<Input
+											{...field}
+											value={field.value || ''}
+											id='location'
+											placeholder='e.g., Kitchen, Office'
+										/>
+									</Field>
+								)}
+							/>
+						</FieldGroup>
 
-							{/* Buttons */}
-							<div className='flex justify-end gap-3 pt-2'>
-								<Button type='button' onClick={onClose} variant='outline'>
-									Cancel
-								</Button>
-								<Button type='submit' disabled={isLoading}>
-									{isLoading && <Spinner />}
-									{isEditMode ? 'Update' : 'Create'}
-								</Button>
-							</div>
-						</form>
-					)}
-				</DialogPanel>
-			</div>
+						<div className='flex justify-end gap-3 pt-2'>
+							<Button onClick={onClose} variant='outline' type='button'>
+								Cancel
+							</Button>
+
+							<Button type='submit' disabled={isLoading}>
+								{isLoading && <Spinner className='mr-2' />}
+								{isEditMode ? 'Update' : 'Create'}
+							</Button>
+						</div>
+					</form>
+				)}
+			</DialogContent>
 		</Dialog>
 	)
 }

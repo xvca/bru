@@ -1,14 +1,36 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
-import { X } from 'lucide-react'
-import { Spinner } from './ui/spinner'
-import { Button } from './ui/button'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
-// Form validation schema
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+	Field,
+	FieldLabel,
+	FieldError,
+	FieldGroup,
+} from '@/components/ui/field'
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select'
+
 const equipmentSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	type: z.string().optional().nullable(),
@@ -21,7 +43,7 @@ interface EquipmentFormModalProps {
 	isOpen: boolean
 	onClose: () => void
 	brewBarId: number
-	equipmentId?: number // If provided, we're in edit mode
+	equipmentId?: number
 	onSuccess?: () => void
 }
 
@@ -33,105 +55,79 @@ export default function EquipmentFormModal({
 	onSuccess,
 }: EquipmentFormModalProps) {
 	const { user } = useAuth()
-	const isEditMode = Boolean(equipmentId)
+	const isEditMode = !!equipmentId
 
 	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(isEditMode)
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [isFetching, setIsFetching] = useState(false)
 
-	const [formData, setFormData] = useState<EquipmentFormData>({
-		name: '',
-		type: '',
-		notes: '',
+	const form = useForm<EquipmentFormData>({
+		resolver: zodResolver(equipmentSchema),
+		defaultValues: {
+			name: '',
+			type: '',
+			notes: '',
+		},
 	})
 
-	// Reset form when modal opens
 	useEffect(() => {
-		if (isOpen && !isEditMode) {
-			setFormData({
-				name: '',
-				type: '',
-				notes: '',
-			})
-			setErrors({})
-		}
-	}, [isOpen, isEditMode])
-
-	// Fetch equipment data if in edit mode
-	useEffect(() => {
-		const fetchEquipment = async () => {
-			try {
-				setIsFetching(true)
-				if (!user?.token || !equipmentId) return
-
-				const { data } = await axios.get(
-					`/api/brew-bars/${brewBarId}/equipment/${equipmentId}`,
-					{
-						headers: { Authorization: `Bearer ${user.token}` },
-					},
-				)
-
-				setFormData({
-					name: data.name,
-					type: data.type || '',
-					notes: data.notes || '',
+		if (isOpen) {
+			if (!isEditMode) {
+				form.reset({
+					name: '',
+					type: '',
+					notes: '',
 				})
-			} catch (error) {
-				console.error('Error fetching equipment:', error)
-				toast.error('Failed to load equipment data')
-			} finally {
-				setIsFetching(false)
+			} else if (equipmentId) {
+				fetchEquipment()
 			}
+		} else {
+			form.reset()
 		}
+	}, [isOpen, isEditMode, equipmentId])
 
-		if (isOpen && isEditMode && equipmentId) {
-			fetchEquipment()
-		}
-	}, [isOpen, equipmentId, isEditMode, brewBarId, user])
+	const fetchEquipment = async () => {
+		try {
+			setIsFetching(true)
+			if (!user?.token) return
 
-	const handleInputChange = (
-		e: React.ChangeEvent<
-			HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-		>,
-	) => {
-		const { name, value } = e.target
+			const { data } = await axios.get(
+				`/api/brew-bars/${brewBarId}/equipment/${equipmentId}`,
+				{
+					headers: { Authorization: `Bearer ${user.token}` },
+				},
+			)
 
-		setFormData({
-			...formData,
-			[name]: value,
-		})
-
-		// Clear error when field is edited
-		if (errors[name]) {
-			const newErrors = { ...errors }
-			delete newErrors[name]
-			setErrors(newErrors)
+			form.reset({
+				name: data.name,
+				type: data.type || '',
+				notes: data.notes || '',
+			})
+		} catch (error) {
+			console.error('Error fetching equipment:', error)
+			toast.error('Failed to load equipment data')
+			onClose()
+		} finally {
+			setIsFetching(false)
 		}
 	}
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+	const onSubmit = async (data: EquipmentFormData) => {
 		setIsLoading(true)
 
 		try {
-			// Validate form data
-			const validData = equipmentSchema.parse(formData)
-
 			if (!user?.token) return
 
 			if (isEditMode && equipmentId) {
-				// Update existing equipment
 				await axios.put(
 					`/api/brew-bars/${brewBarId}/equipment/${equipmentId}`,
-					validData,
+					data,
 					{
 						headers: { Authorization: `Bearer ${user.token}` },
 					},
 				)
 				toast.success('Equipment updated successfully')
 			} else {
-				// Create new equipment
-				await axios.post(`/api/brew-bars/${brewBarId}/equipment`, validData, {
+				await axios.post(`/api/brew-bars/${brewBarId}/equipment`, data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Equipment added successfully')
@@ -140,133 +136,117 @@ export default function EquipmentFormModal({
 			onSuccess?.()
 			onClose()
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				// Handle validation errors
-				const fieldErrors: Record<string, string> = {}
-				error.errors.forEach((err) => {
-					if (err.path.length > 0) {
-						fieldErrors[err.path[0]] = err.message
-					}
-				})
-				setErrors(fieldErrors)
-			} else {
-				console.error('Error saving equipment:', error)
-				toast.error(`Failed to ${isEditMode ? 'update' : 'add'} equipment`)
-			}
+			console.error('Error saving equipment:', error)
+			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} equipment`)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	if (!isOpen) return null
-
 	return (
-		<Dialog open={isOpen} onClose={onClose} className='relative z-50'>
-			<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
-
-			<div className='fixed inset-0 flex items-center justify-center p-4'>
-				<DialogPanel className='mx-auto max-w-md w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out]'>
-					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
-						<span>{isEditMode ? 'Edit Equipment' : 'Add Equipment'}</span>
-						<Button
-							onClick={onClose}
-							variant='ghost'
-							size='icon'
-							className='rounded-full'
-						>
-							<X size={20} />
-						</Button>
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className='max-w-md'>
+				<DialogHeader>
+					<DialogTitle>
+						{isEditMode ? 'Edit Equipment' : 'Add Equipment'}
 					</DialogTitle>
+				</DialogHeader>
 
-					{isFetching ? (
-						<div className='flex justify-center items-center py-8'>
-							<Spinner />
-						</div>
-					) : (
-						<form onSubmit={handleSubmit} className='space-y-4'>
-							{/* Name */}
-							<div>
-								<label
-									htmlFor='name'
-									className='block text-sm font-medium mb-1'
-								>
-									Name <span className='text-error'>*</span>
-								</label>
-								<input
-									type='text'
-									id='name'
-									name='name'
-									value={formData.name}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='e.g., Breville Dual Boiler'
-								/>
-								{errors.name && (
-									<p className='mt-1 text-sm text-error'>{errors.name}</p>
+				{isFetching ? (
+					<div className='flex justify-center items-center py-8'>
+						<Loader2 className='w-8 h-8 animate-spin' />
+					</div>
+				) : (
+					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+						<FieldGroup>
+							<Controller
+								name='name'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='name'>
+											Name <span className='text-error'>*</span>
+										</FieldLabel>
+										<Input
+											{...field}
+											id='name'
+											placeholder='e.g., Breville Dual Boiler'
+										/>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
 								)}
-							</div>
+							/>
 
-							{/* Type */}
-							<div>
-								<label
-									htmlFor='type'
-									className='block text-sm font-medium mb-1'
-								>
-									Type
-								</label>
-								<select
-									id='type'
-									name='type'
-									value={formData.type || ''}
-									onChange={handleInputChange}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								>
-									<option value=''>Select Equipment Type</option>
-									<option value='Espresso Machine'>Espresso Machine</option>
-									<option value='Pour Over'>Pour Over</option>
-									<option value='French Press'>French Press</option>
-									<option value='AeroPress'>AeroPress</option>
-									<option value='Moka Pot'>Moka Pot</option>
-									<option value='Cold Brew'>Cold Brew</option>
-									<option value='Scale'>Scale</option>
-									<option value='Kettle'>Kettle</option>
-									<option value='Other'>Other</option>
-								</select>
-							</div>
+							<Controller
+								name='type'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='type'>Type</FieldLabel>
+										<Select
+											onValueChange={field.onChange}
+											value={field.value || ''}
+											defaultValue={field.value || ''}
+										>
+											<SelectTrigger id='type' className='w-full'>
+												<SelectValue placeholder='Select Equipment Type' />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value='Espresso Machine'>
+													Espresso Machine
+												</SelectItem>
+												<SelectItem value='Pour Over'>Pour Over</SelectItem>
+												<SelectItem value='French Press'>
+													French Press
+												</SelectItem>
+												<SelectItem value='AeroPress'>AeroPress</SelectItem>
+												<SelectItem value='Moka Pot'>Moka Pot</SelectItem>
+												<SelectItem value='Cold Brew'>Cold Brew</SelectItem>
+												<SelectItem value='Scale'>Scale</SelectItem>
+												<SelectItem value='Kettle'>Kettle</SelectItem>
+												<SelectItem value='Other'>Other</SelectItem>
+											</SelectContent>
+										</Select>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
 
-							{/* Notes */}
-							<div>
-								<label
-									htmlFor='notes'
-									className='block text-sm font-medium mb-1'
-								>
-									Notes
-								</label>
-								<textarea
-									id='notes'
-									name='notes'
-									value={formData.notes || ''}
-									onChange={handleInputChange}
-									rows={3}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='Additional notes about this equipment'
-								/>
-							</div>
+							<Controller
+								name='notes'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='notes'>Notes</FieldLabel>
+										<Textarea
+											{...field}
+											value={field.value || ''}
+											id='notes'
+											rows={3}
+											placeholder='Additional notes about this equipment'
+										/>
+									</Field>
+								)}
+							/>
+						</FieldGroup>
 
-							{/* Buttons */}
-							<div className='flex justify-end gap-3 pt-2'>
-								<Button type='button' onClick={onClose} variant='outline'>
-									Cancel
-								</Button>
-								<Button type='submit' disabled={isLoading}>
-									{isLoading && <Spinner />}
-									{isEditMode ? 'Update' : 'Add'}
-								</Button>
-							</div>
-						</form>
-					)}
-				</DialogPanel>
-			</div>
+						<div className='flex justify-end gap-3 pt-2'>
+							<Button onClick={onClose} variant='outline' type='button'>
+								Cancel
+							</Button>
+
+							<Button type='submit' disabled={isLoading}>
+								{isLoading && <Spinner className='mr-2' />}
+								{isEditMode ? 'Update' : 'Add'}
+							</Button>
+						</div>
+					</form>
+				)}
+			</DialogContent>
 		</Dialog>
 	)
 }

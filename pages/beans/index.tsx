@@ -5,19 +5,31 @@ import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import type { Bean } from 'generated/prisma/client'
 import {
-	Loader2,
 	Plus,
 	Coffee,
 	Calendar,
 	Star,
 	Edit,
 	Trash,
+	Package,
+	Snowflake,
 } from 'lucide-react'
-import toast, { Toaster } from 'react-hot-toast'
-import { format } from 'date-fns'
+import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BeanFormModal from '@/components/BeanFormModal'
+import { cn } from '@/lib/utils'
+
 import { Button } from '@/components/ui/button'
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+} from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export default function BeansPage() {
 	const { user } = useAuth()
@@ -29,13 +41,11 @@ export default function BeansPage() {
 		beanName: '',
 	})
 
-	// Bean form modal state
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [selectedBeanId, setSelectedBeanId] = useState<number | undefined>(
 		undefined,
 	)
 
-	// Fetch beans on component mount
 	useEffect(() => {
 		if (user) {
 			fetchBeans()
@@ -45,11 +55,9 @@ export default function BeansPage() {
 	const fetchBeans = async () => {
 		try {
 			setIsLoading(true)
-
 			const { data } = await axios.get('/api/beans', {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
-
 			setBeans(data)
 		} catch (error) {
 			console.error('Error fetching beans:', error)
@@ -80,7 +88,6 @@ export default function BeansPage() {
 			setModalData({ ...modalData, isOpen: false })
 		} catch (error) {
 			console.error('Error deleting bean:', error)
-
 			if (axios.isAxiosError(error) && error.response?.status === 409) {
 				toast.error('Cannot delete a bean that is used in brews')
 			} else {
@@ -97,145 +104,179 @@ export default function BeansPage() {
 		})
 	}
 
-	// Helper function to format dates
-	const formatDate = (date: Date | string | null) => {
-		if (!date) return 'N/A'
-		return format(new Date(date), 'MMM d, yyyy')
-	}
+	const calculateDaysSinceRoast = (
+		roastDateStr: Date | string,
+		freezeDateStr?: Date | string | null,
+	): number => {
+		const roast = new Date(roastDateStr)
+		const endPoint = freezeDateStr ? new Date(freezeDateStr) : new Date()
 
-	// Calculate freshness indicator
-	const getFreshnessClass = (roastDate: Date | string) => {
-		const now = new Date()
-		const roasted = new Date(roastDate)
-		const daysDifference = Math.floor(
-			(now.getTime() - roasted.getTime()) / (1000 * 60 * 60 * 24),
-		)
+		const diffTime = endPoint.getTime() - roast.getTime()
+		const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
-		if (daysDifference <= 7) return 'bg-success'
-		if (daysDifference <= 21) return 'bg-warning'
-		return 'bg-destructive'
+		return Math.max(0, diffDays)
 	}
 
 	return (
 		<ProtectedPage title='Coffee Beans'>
-			<Toaster position='top-center' />
 			<Section>
-				<div className='flex justify-between items-center mb-6'>
-					<h1 className='text-2xl font-bold'>Coffee Beans</h1>
+				<div className='flex justify-between items-center mb-8'>
+					<div>
+						<h1 className='text-3xl font-bold tracking-tight'>Coffee Beans</h1>
+						<p className='text-muted-foreground mt-1'>
+							Manage your coffee inventory.
+						</p>
+					</div>
 					<Button onClick={handleAddNew}>
-						<Plus size={18} />
-						<span>Add Bean</span>
+						<Plus className='mr-2 h-4 w-4' />
+						Add Bean
 					</Button>
 				</div>
 
 				{isLoading ? (
-					<div className='flex justify-center items-center h-40'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+						{[1, 2, 3, 4, 5, 6].map((i) => (
+							<Card key={i} className='overflow-hidden'>
+								<CardHeader className='pb-2'>
+									<Skeleton className='h-6 w-3/4' />
+									<Skeleton className='h-4 w-1/2' />
+								</CardHeader>
+								<CardContent>
+									<div className='flex gap-2 mb-4'>
+										<Skeleton className='h-5 w-16' />
+										<Skeleton className='h-5 w-16' />
+									</div>
+									<Skeleton className='h-2 w-full mt-4' />
+								</CardContent>
+							</Card>
+						))}
 					</div>
 				) : beans.length === 0 ? (
-					<div className='text-center py-12 space-y-4 border border-dashed border-border rounded-lg'>
-						<Coffee size={48} className='mx-auto opacity-30' />
-						<p>No coffee beans added yet</p>
-						<Button onClick={handleAddNew} variant='link'>
-							Add your first coffee bean
-						</Button>
-					</div>
-				) : (
-					<div className='space-y-4'>
-						{beans.map((bean) => (
-							<div
-								key={bean.id}
-								className='border border-border rounded-lg p-4 relative'
-							>
-								{/* Freshness indicator dot */}
-								{/*<div
-									className={`w-3 h-3 rounded-full absolute right-4 top-4 ${getFreshnessClass(bean.roastDate)}`}
-									title={`Roasted ${formatDate(bean.roastDate)}`}
-								/>*/}
-
-								<div className='flex flex-col gap-1'>
-									<div className='flex justify-between'>
-										<h3 className='text-lg font-medium'>{bean.name}</h3>
-										<div className='flex gap-2'>
-											<Button
-												onClick={() => handleEdit(bean.id)}
-												variant='ghost'
-												size='icon'
-												className='rounded-full'
-											>
-												<Edit size={16} />
-											</Button>
-											<Button
-												onClick={() => confirmDelete(bean.id, bean.name)}
-												variant='ghost'
-												size='icon'
-												className='rounded-full'
-											>
-												<Trash size={16} />
-											</Button>
-										</div>
-									</div>
-
-									{bean.roaster && (
-										<div className='text-text-secondary text-sm'>
-											{bean.roaster}
-										</div>
-									)}
-
-									<div className='flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm text-text-secondary'>
-										{bean.origin && (
-											<div className='flex items-center gap-1'>
-												<Coffee size={14} />
-												<span>{bean.origin}</span>
-											</div>
-										)}
-
-										<div className='flex items-center gap-1'>
-											<Calendar size={14} />
-											<span>{formatDate(bean.roastDate)}</span>
-										</div>
-
-										{bean.roastLevel && (
-											<div className='flex items-center gap-1'>
-												<Star size={14} />
-												<span>{bean.roastLevel}</span>
-											</div>
-										)}
-									</div>
-
-									<div className='mt-3 flex items-center gap-x-4'>
-										<div className='text-sm'>
-											<div className='text-text-secondary'>Remaining</div>
-											<div className='font-medium'>
-												{bean.remainingWeight
-													? `${bean.remainingWeight}g`
-													: 'N/A'}
-												<span className='text-text-secondary text-xs ml-1'>
-													/ {bean.initialWeight}g
-												</span>
-											</div>
-										</div>
-
-										{/* Progress bar for remaining weight */}
-										{bean.remainingWeight !== null && (
-											<div className='flex-1 h-2 bg-input-border rounded-full overflow-hidden'>
-												<div
-													className='h-2 bg-primary transition-all'
-													style={{
-														width: `${Math.min(100, (bean.remainingWeight / bean.initialWeight) * 100)}%`,
-													}}
-												/>
-											</div>
-										)}
-									</div>
-								</div>
+					<Card className='border-dashed'>
+						<CardContent className='flex flex-col items-center justify-center py-16 space-y-4'>
+							<div className='p-4 rounded-full bg-secondary/50'>
+								<Package className='h-12 w-12 text-muted-foreground/50' />
 							</div>
-						))}
+							<div className='text-center'>
+								<h3 className='text-lg font-semibold'>No beans found</h3>
+								<p className='text-muted-foreground text-sm max-w-sm mt-1'>
+									You haven&apos;t added any coffee beans yet. Start by adding
+									your first bag to track your inventory.
+								</p>
+							</div>
+							<Button onClick={handleAddNew} variant='outline' className='mt-4'>
+								Add your first coffee bean
+							</Button>
+						</CardContent>
+					</Card>
+				) : (
+					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+						{beans.map((bean) => {
+							const percentRemaining = bean.remainingWeight
+								? Math.min(
+										100,
+										(bean.remainingWeight / bean.initialWeight) * 100,
+									)
+								: 0
+
+							const isFrozen = !!bean.freezeDate
+							const daysOld = calculateDaysSinceRoast(
+								bean.roastDate,
+								bean.freezeDate,
+							)
+
+							return (
+								<Card
+									key={bean.id}
+									className='flex flex-col justify-between hover:border-primary/50 transition-colors'
+								>
+									<CardHeader className='pb-3'>
+										<div className='flex justify-between items-start gap-2'>
+											<div className='space-y-1'>
+												<CardTitle className='text-lg leading-tight'>
+													{bean.name}
+												</CardTitle>
+												<CardDescription>{bean.roaster}</CardDescription>
+											</div>
+											<div className='flex gap-1 -mr-2 -mt-1'>
+												<Button
+													onClick={() => handleEdit(bean.id)}
+													variant='ghost'
+													size='icon'
+													className='h-8 w-8 text-muted-foreground hover:text-foreground'
+												>
+													<Edit size={14} />
+												</Button>
+												<Button
+													onClick={() => confirmDelete(bean.id, bean.name)}
+													variant='ghost'
+													size='icon'
+													className='h-8 w-8 text-muted-foreground hover:text-destructive'
+												>
+													<Trash size={14} />
+												</Button>
+											</div>
+										</div>
+									</CardHeader>
+
+									<CardContent className='space-y-4'>
+										{/* Badges Row */}
+										<div className='flex flex-wrap gap-2'>
+											{bean.origin && (
+												<Badge variant='secondary' className='font-normal'>
+													<Coffee className='mr-1 h-3 w-3' />
+													{bean.origin}
+												</Badge>
+											)}
+
+											<Badge
+												variant={isFrozen ? 'secondary' : 'outline'}
+												className={cn(
+													'font-normal',
+													isFrozen &&
+														'bg-blue-50 text-blue-700 hover:bg-blue-50/80 border-blue-100 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900',
+												)}
+											>
+												{isFrozen ? (
+													<Snowflake className='mr-1 h-3 w-3' />
+												) : (
+													<Calendar className='mr-1 h-3 w-3' />
+												)}
+												{daysOld === 0
+													? 'Roasted today'
+													: `${daysOld} day${daysOld === 1 ? '' : 's'} off roast`}
+											</Badge>
+
+											{bean.roastLevel && (
+												<Badge variant='outline' className='font-normal'>
+													<Star className='mr-1 h-3 w-3' />
+													{bean.roastLevel}
+												</Badge>
+											)}
+										</div>
+
+										{bean.remainingWeight !== null && (
+											<div className='space-y-2'>
+												<div className='flex justify-between text-xs text-muted-foreground'>
+													<span>Remaining</span>
+													<span className='font-medium text-foreground'>
+														{bean.remainingWeight}g{' '}
+														<span className='text-muted-foreground/60'>
+															/ {bean.initialWeight}g
+														</span>
+													</span>
+												</div>
+												<Progress value={percentRemaining} className='h-2' />
+											</div>
+										)}
+									</CardContent>
+								</Card>
+							)
+						})}
 					</div>
 				)}
 			</Section>
 
-			{/* Bean Form Modal */}
 			<BeanFormModal
 				isOpen={isFormOpen}
 				onClose={() => setIsFormOpen(false)}
@@ -243,7 +284,6 @@ export default function BeansPage() {
 				onSuccess={fetchBeans}
 			/>
 
-			{/* Delete Confirmation Modal */}
 			<ConfirmModal
 				open={modalData.isOpen}
 				onClose={() => setModalData({ ...modalData, isOpen: false })}

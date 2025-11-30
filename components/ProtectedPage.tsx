@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { useAuth } from '@/lib/authContext'
 import Page from '@/components/Page'
-import { Loader2 } from 'lucide-react'
+import { Spinner } from '@/components/ui/spinner'
 
 interface ProtectedPageProps {
 	title?: string
@@ -21,16 +21,16 @@ const ProtectedPage = ({ title, children }: ProtectedPageProps) => {
 
 	if (isLoading) {
 		return (
-			<Page title='Loading'>
-				<div className='flex justify-center items-center h-40'>
-					<Loader2 className='w-8 h-8 animate-spin' />
+			<Page title='Loading...'>
+				<div className='flex h-[50vh] w-full items-center justify-center'>
+					<Spinner className='h-8 w-8 text-muted-foreground' />
 				</div>
 			</Page>
 		)
 	}
 
 	if (!user) {
-		return null // Don't render anything while redirecting
+		return null
 	}
 
 	return <Page title={title}>{children}</Page>

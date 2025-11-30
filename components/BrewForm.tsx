@@ -1,43 +1,50 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { z } from 'zod'
-import toast from 'react-hot-toast'
-import { Spinner } from './ui/spinner'
-import { Button } from './ui/button'
-import { X } from 'lucide-react'
+import { useForm, Controller, useWatch } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
+import { Loader2, Star, X } from 'lucide-react'
+import type { Bean } from 'generated/prisma/client'
 
-// Form validation schema
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { BeanSelect } from '@/components/BeanSelect'
+import {
+	Field,
+	FieldLabel,
+	FieldError,
+	FieldGroup,
+} from '@/components/ui/field'
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from '@/components/ui/select'
+import { cn } from '@/lib/utils'
+
 const brewSchema = z.object({
-	beanId: z.number({ required_error: 'Bean is required' }),
-	methodId: z.number({ required_error: 'Brew method is required' }),
-	doseWeight: z.number().min(1, 'Dose weight must be at least 1g'),
-	yieldWeight: z
-		.number()
-		.min(1, 'Yield weight must be at least 1g')
-		.optional()
-		.nullable(),
-	brewTime: z
-		.number()
-		.int()
-		.min(1, 'Brew time must be at least 1 second')
-		.optional()
-		.nullable(),
+	beanId: z.coerce.number().min(1, 'Bean is required'),
+	methodId: z.coerce.number().min(1, 'Brew method is required'),
+	doseWeight: z.coerce.number().min(1, 'Dose weight must be at least 1g'),
+	yieldWeight: z.coerce.number().optional().nullable(),
+	brewTime: z.coerce.number().optional().nullable(),
 	grindSize: z.string().optional().nullable(),
-	waterTemperature: z
-		.number()
-		.min(1, 'Temperature must be at least 1°C')
-		.optional()
-		.nullable(),
-	rating: z
-		.number()
-		.int()
-		.min(0)
-		.max(5, 'Rating must be between 0 and 5')
-		.optional()
-		.nullable(),
+	waterTemperature: z.coerce.number().optional().nullable(),
+	rating: z.coerce.number().min(0).max(5).optional().nullable(),
 	tastingNotes: z.string().optional().nullable(),
+	brewDate: z.string().optional(),
 })
 
 type BrewFormData = z.infer<typeof brewSchema>
@@ -45,7 +52,7 @@ type BrewFormData = z.infer<typeof brewSchema>
 interface BrewFormProps {
 	isOpen: boolean
 	onClose: () => void
-	brewId?: number // If provided, we're in edit mode
+	brewId?: number
 	onSuccess?: () => void
 }
 
@@ -56,546 +63,455 @@ export default function BrewForm({
 	onSuccess,
 }: BrewFormProps) {
 	const { user } = useAuth()
-	const isEditMode = Boolean(brewId)
+	const isEditMode = !!brewId
 
 	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(isEditMode)
-	const [errors, setErrors] = useState<Record<string, string>>({})
+	const [isFetching, setIsFetching] = useState(false)
 
-	const [beans, setBeans] = useState<Array<{ id: number; name: string }>>([])
+	const [beans, setBeans] = useState<Bean[]>([])
 	const [methods, setMethods] = useState<Array<{ id: number; name: string }>>(
 		[],
 	)
-	const [beansLoading, setBeansLoading] = useState(true)
-	const [methodsLoading, setMethodsLoading] = useState(true)
 
-	const [formData, setFormData] = useState<
-		BrewFormData & {
-			brewDate?: string
-		}
-	>({
-		beanId: 0,
-		methodId: 0,
-		doseWeight: 18,
-		yieldWeight: 36,
-		brewTime: 30,
-		grindSize: '',
-		waterTemperature: 93,
-		rating: 0,
-		tastingNotes: '',
-		brewDate: new Date().toISOString().split('T')[0],
+	const form = useForm<BrewFormData>({
+		resolver: zodResolver(brewSchema),
+		defaultValues: {
+			beanId: 0,
+			methodId: 0,
+			doseWeight: 18,
+			yieldWeight: 36,
+			brewTime: 0,
+			grindSize: '',
+			waterTemperature: 93,
+			rating: 0,
+			tastingNotes: '',
+			brewDate: new Date().toISOString().split('T')[0],
+		},
 	})
 
-	const [timeInput, setTimeInput] = useState({
-		minutes: formData.brewTime
-			? Math.floor(formData.brewTime / 60).toString()
-			: '',
-		seconds: formData.brewTime
-			? (formData.brewTime % 60).toString().padStart(2, '0')
-			: '',
-	})
-
-	console.log({ isLoading })
+	const watchedBeanId = useWatch({ control: form.control, name: 'beanId' })
+	const watchedMethodId = useWatch({ control: form.control, name: 'methodId' })
 
 	useEffect(() => {
-		const fetchBeans = async () => {
-			try {
-				const { data } = await axios.get('/api/beans', {
-					headers: { Authorization: `Bearer ${user?.token}` },
-				})
-				setBeans(data)
-			} catch (error) {
-				console.error('Error fetching beans:', error)
-				toast.error('Failed to load beans')
-			} finally {
-				setBeansLoading(false)
-			}
-		}
-
 		if (isOpen && user) {
-			fetchBeans()
+			const fetchData = async () => {
+				try {
+					const [beansRes, methodsRes] = await Promise.all([
+						axios.get('/api/beans', {
+							headers: { Authorization: `Bearer ${user.token}` },
+						}),
+						axios.get('/api/brew-methods', {
+							headers: { Authorization: `Bearer ${user.token}` },
+						}),
+					])
+					console.log({ methodsRes })
+					setBeans(beansRes.data)
+					setMethods(methodsRes.data)
+				} catch (error) {
+					console.error('Error loading form data:', error)
+					toast.error('Failed to load beans or methods')
+				}
+			}
+			fetchData()
 		}
 	}, [isOpen, user])
 
-	// Fetch brew methods
 	useEffect(() => {
-		const fetchMethods = async () => {
-			try {
-				const { data } = await axios.get('/api/brew-methods', {
-					headers: { Authorization: `Bearer ${user?.token}` },
-				})
-				setMethods(data)
-			} catch (error) {
-				console.error('Error fetching brew methods:', error)
-				toast.error('Failed to load brew methods')
-			} finally {
-				setMethodsLoading(false)
+		if (isOpen && isEditMode && brewId && user) {
+			const fetchBrew = async () => {
+				setIsFetching(true)
+				try {
+					const { data } = await axios.get(`/api/brews/${brewId}`, {
+						headers: { Authorization: `Bearer ${user.token}` },
+					})
+					form.reset({
+						...data,
+						beanId: data.beanId,
+						methodId: data.methodId,
+						brewDate: data.brewDate
+							? new Date(data.brewDate).toISOString().split('T')[0]
+							: new Date().toISOString().split('T')[0],
+					})
+				} catch (error) {
+					console.error('Error fetching brew:', error)
+					toast.error('Failed to load brew data')
+					onClose()
+				} finally {
+					setIsFetching(false)
+				}
 			}
-		}
-
-		if (isOpen && user) {
-			fetchMethods()
-		}
-	}, [isOpen, user])
-
-	// Fetch brew data if in edit mode
-	useEffect(() => {
-		const fetchBrew = async () => {
-			try {
-				if (!brewId) return
-
-				const { data } = await axios.get(`/api/brews/${brewId}`, {
-					headers: { Authorization: `Bearer ${user?.token}` },
-				})
-
-				setFormData({
-					...data,
-					brewDate: data.brewDate
-						? new Date(data.brewDate).toISOString().split('T')[0]
-						: undefined,
-				})
-			} catch (error) {
-				console.error('Error fetching brew:', error)
-				toast.error('Failed to load brew data')
-			} finally {
-				setIsFetching(false)
-			}
-		}
-
-		if (isOpen && isEditMode && user) {
 			fetchBrew()
+		} else if (isOpen && !isEditMode) {
+			form.reset({
+				beanId: 0,
+				methodId: 0,
+				doseWeight: 18,
+				yieldWeight: 36,
+				brewTime: 0,
+				grindSize: '',
+				waterTemperature: 93,
+				rating: 0,
+				tastingNotes: '',
+				brewDate: new Date().toISOString().split('T')[0],
+			})
 		}
-	}, [isOpen, brewId, isEditMode, user])
+	}, [isOpen, isEditMode, brewId])
 
 	useEffect(() => {
 		const fetchLastBrew = async () => {
-			try {
-				// Only proceed if we have both bean and method selected, and we're not in edit mode
-				if (!formData.beanId || !formData.methodId || isEditMode) {
-					return
-				}
+			if (!watchedBeanId || !watchedMethodId || isEditMode || !user) return
 
+			try {
 				const response = await axios.get(`/api/brews/last-parameters`, {
 					params: {
-						beanId: formData.beanId,
-						methodId: formData.methodId,
+						beanId: watchedBeanId,
+						methodId: watchedMethodId,
 					},
-					headers: { Authorization: `Bearer ${user?.token}` },
-					// Don't let axios throw on 404s
+					headers: { Authorization: `Bearer ${user.token}` },
 					validateStatus: (status) => status < 500,
 				})
 
-				// Only update form if we found previous brew data (status 200)
 				if (response.status === 200 && response.data) {
-					// Update form with last brew parameters for this bean+method combination
-					const lastBrewData = {
-						...formData, // Keep the current bean and method IDs
+					const currentValues = form.getValues()
+					form.reset({
+						...currentValues,
 						doseWeight: response.data.doseWeight,
 						yieldWeight: response.data.yieldWeight,
 						brewTime: response.data.brewTime,
 						grindSize: response.data.grindSize,
 						waterTemperature: response.data.waterTemperature,
-					}
-
-					setFormData(lastBrewData)
-
-					// Update time input fields
-					if (response.data.brewTime) {
-						setTimeInput({
-							minutes: Math.floor(response.data.brewTime / 60).toString(),
-							seconds: (response.data.brewTime % 60)
-								.toString()
-								.padStart(2, '0'),
-						})
-					}
+					})
+					toast.success('Loaded settings from last brew')
 				}
-				// If status is 404, that's fine - it just means no previous brews with this combination
 			} catch (error) {
-				// Only log server errors or unexpected issues
-				if (!axios.isAxiosError(error) || error.response?.status !== 404) {
-					console.error('Error fetching last brew parameters:', error)
-				}
+				console.error('Error fetching last params:', error)
 			}
 		}
 
-		if (isOpen && !isEditMode && formData.beanId && formData.methodId && user) {
+		const timer = setTimeout(() => {
 			fetchLastBrew()
-		}
-	}, [formData.beanId, formData.methodId, isOpen, isEditMode, user])
+		}, 100)
+		return () => clearTimeout(timer)
+	}, [watchedBeanId, watchedMethodId, isEditMode])
 
-	const handleInputChange = (
-		e: React.ChangeEvent<
-			HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-		>,
-	) => {
-		const { name, value, type } = e.target as HTMLInputElement
-
-		if (type === 'number' || name === 'beanId' || name === 'methodId') {
-			setFormData({
-				...formData,
-				[name]: value === '' ? '' : Number(value),
-			})
-		} else {
-			setFormData({
-				...formData,
-				[name]: value,
-			})
-		}
-
-		// Clear error when field is edited
-		if (errors[name]) {
-			const newErrors = { ...errors }
-			delete newErrors[name]
-			setErrors(newErrors)
-		}
-	}
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+	const onSubmit = async (data: BrewFormData) => {
 		setIsLoading(true)
-
 		try {
-			// Validate form data
-			const validData = brewSchema.parse(formData)
+			if (!user?.token) return
 
 			if (isEditMode) {
-				// Update existing brew
-				await axios.put(`/api/brews/${brewId}`, validData, {
-					headers: { Authorization: `Bearer ${user?.token}` },
+				await axios.put(`/api/brews/${brewId}`, data, {
+					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Brew updated successfully')
 			} else {
-				// Create new brew
-				await axios.post('/api/brews', validData, {
-					headers: { Authorization: `Bearer ${user?.token}` },
+				await axios.post('/api/brews', data, {
+					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Brew added successfully')
 			}
-
 			onSuccess?.()
 			onClose()
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				// Handle validation errors
-				const fieldErrors: Record<string, string> = {}
-				error.errors.forEach((err) => {
-					if (err.path.length > 0) {
-						fieldErrors[err.path[0]] = err.message
-					}
-				})
-				setErrors(fieldErrors)
-			} else {
-				console.error('Error saving brew:', error)
-				toast.error(`Failed to ${isEditMode ? 'update' : 'add'} brew`)
-			}
+			console.error('Error saving brew:', error)
+			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} brew`)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	const handleTimeInputChange = (
-		field: 'minutes' | 'seconds',
-		value: string,
-	) => {
-		// Allow only numbers
-		if (value !== '' && !/^\d+$/.test(value)) return
-
-		let newMinutes = field === 'minutes' ? value : timeInput.minutes
-		let newSeconds = field === 'seconds' ? value : timeInput.seconds
-
-		// Convert to numbers for calculations
-		const mins = newMinutes === '' ? 0 : parseInt(newMinutes, 10)
-		const secs = newSeconds === '' ? 0 : parseInt(newSeconds, 10)
-
-		// Validate seconds (0-59)
-		if (field === 'seconds' && secs > 59) {
-			newSeconds = '59'
-		}
-
-		// Update local state
-		setTimeInput({
-			minutes: newMinutes,
-			seconds: newSeconds,
-		})
-
-		// Calculate total seconds for the main form data
-		const totalSeconds =
-			mins * 60 + (newSeconds === '' ? 0 : parseInt(newSeconds, 10))
-		setFormData({
-			...formData,
-			brewTime: totalSeconds > 0 ? totalSeconds : null,
-		})
-	}
-
-	if (!isOpen) return null
-
 	return (
-		<Dialog open={isOpen} onClose={onClose} className='relative z-50'>
-			<div className='fixed inset-0 bg-black/30' aria-hidden='true' />
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className='max-w-xl max-h-[90vh] overflow-y-auto'>
+				<DialogHeader>
+					<DialogTitle>{isEditMode ? 'Edit Brew' : 'Add New Brew'}</DialogTitle>
+				</DialogHeader>
 
-			<div className='fixed inset-0 flex items-center justify-center p-4'>
-				<DialogPanel className='mx-auto max-w-xl w-full rounded-lg bg-background p-6 shadow-xl motion-safe:animate-[popIn_0.2s_ease-out] overflow-y-auto max-h-[90vh]'>
-					<DialogTitle className='text-xl font-semibold mb-4 flex justify-between items-center'>
-						<span>{isEditMode ? 'Edit Brew' : 'Add New Brew'}</span>
-						<Button onClick={onClose} variant='ghost'>
-							<X size={20} />
-							<span className='sr-only'>Close</span>
-						</Button>
-					</DialogTitle>
+				{isFetching ? (
+					<div className='flex justify-center items-center py-8'>
+						<Loader2 className='w-8 h-8 animate-spin' />
+					</div>
+				) : (
+					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+						<FieldGroup>
+							<Controller
+								name='beanId'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='beanId'>
+											Coffee Bean <span className='text-error'>*</span>
+										</FieldLabel>
 
-					{isFetching || beansLoading || methodsLoading ? (
-						<div className='flex justify-center items-center py-8'>
-							<Spinner />
-						</div>
-					) : (
-						<form onSubmit={handleSubmit} className='space-y-4'>
-							{/* Bean Selection */}
-							<div>
-								<label
-									htmlFor='beanId'
-									className='block text-sm font-medium mb-1'
-								>
-									Coffee Bean <span className='text-error'>*</span>
-								</label>
-								<select
-									id='beanId'
-									name='beanId'
-									value={formData.beanId || ''}
-									onChange={handleInputChange}
-									required
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								>
-									<option value=''>Select a coffee bean</option>
-									{beans.map((bean) => (
-										<option key={bean.id} value={bean.id}>
-											{bean.name}
-										</option>
-									))}
-								</select>
-								{errors.beanId && (
-									<p className='mt-1 text-sm text-error'>{errors.beanId}</p>
-								)}
-							</div>
-
-							{/* Method Selection */}
-							<div>
-								<label
-									htmlFor='methodId'
-									className='block text-sm font-medium mb-1'
-								>
-									Brew Method <span className='text-error'>*</span>
-								</label>
-								<select
-									id='methodId'
-									name='methodId'
-									value={formData.methodId || ''}
-									onChange={handleInputChange}
-									required
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								>
-									<option value=''>Select a brew method</option>
-									{methods.map((method) => (
-										<option key={method.id} value={method.id}>
-											{method.name}
-										</option>
-									))}
-								</select>
-								{errors.methodId && (
-									<p className='mt-1 text-sm text-error'>{errors.methodId}</p>
-								)}
-							</div>
-
-							{/* Dose and Yield */}
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<div>
-									<label
-										htmlFor='doseWeight'
-										className='block text-sm font-medium mb-1'
-									>
-										Dose Weight (g) <span className='text-error'>*</span>
-									</label>
-									<input
-										type='number'
-										id='doseWeight'
-										name='doseWeight'
-										value={formData.doseWeight || ''}
-										onChange={handleInputChange}
-										min='1'
-										step='0.1'
-										required
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-									{errors.doseWeight && (
-										<p className='mt-1 text-sm text-error'>
-											{errors.doseWeight}
-										</p>
-									)}
-								</div>
-								<div>
-									<label
-										htmlFor='yieldWeight'
-										className='block text-sm font-medium mb-1'
-									>
-										Yield Weight (g)
-									</label>
-									<input
-										type='number'
-										id='yieldWeight'
-										name='yieldWeight'
-										value={formData.yieldWeight || ''}
-										onChange={handleInputChange}
-										min='1'
-										step='0.1'
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-									{errors.yieldWeight && (
-										<p className='mt-1 text-sm text-error'>
-											{errors.yieldWeight}
-										</p>
-									)}
-								</div>
-							</div>
-
-							{/* Time and Temperature */}
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<div>
-									<label className='block text-sm font-medium mb-1'>
-										Brew Time
-									</label>
-									<div className='flex items-center space-x-2'>
-										<input
-											type='text'
-											value={timeInput.minutes}
-											onChange={(e) =>
-												handleTimeInputChange('minutes', e.target.value)
-											}
-											placeholder='0'
-											className='w-16 px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border text-center'
-											aria-label='Minutes'
+										<BeanSelect
+											beans={beans}
+											value={field.value?.toString() || ''}
+											onChange={(val) => field.onChange(Number(val))}
 										/>
-										<span className='text-text-secondary'>:</span>
-										<input
-											type='text'
-											value={timeInput.seconds}
-											onChange={(e) =>
-												handleTimeInputChange('seconds', e.target.value)
-											}
-											placeholder='00'
-											maxLength={2}
-											className='w-16 px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border text-center'
-											aria-label='Seconds'
-										/>
-										<span className='ml-2 text-text-secondary'>min:sec</span>
-									</div>
-									{errors.brewTime && (
-										<p className='mt-1 text-sm text-error'>{errors.brewTime}</p>
-									)}
-								</div>
-								<div>
-									<label
-										htmlFor='waterTemperature'
-										className='block text-sm font-medium mb-1'
-									>
-										Water Temperature (°C)
-									</label>
-									<input
-										type='number'
-										id='waterTemperature'
-										name='waterTemperature'
-										value={formData.waterTemperature || ''}
-										onChange={handleInputChange}
-										min='1'
-										max='100'
-										className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									/>
-									{errors.waterTemperature && (
-										<p className='mt-1 text-sm text-error'>
-											{errors.waterTemperature}
-										</p>
-									)}
-								</div>
-							</div>
 
-							{/* Grind Size */}
-							<div>
-								<label
-									htmlFor='grindSize'
-									className='block text-sm font-medium mb-1'
-								>
-									Grind Size
-								</label>
-								<input
-									type='text'
-									id='grindSize'
-									name='grindSize'
-									value={formData.grindSize || ''}
-									onChange={handleInputChange}
-									placeholder='e.g., Fine, Medium, Coarse, or a number'
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-								/>
-							</div>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
 
-							{/* Rating */}
-							<div>
-								<label
-									htmlFor='rating'
-									className='block text-sm font-medium mb-1'
-								>
-									Rating (0-5)
-								</label>
-								<div className='flex items-center space-x-1'>
-									{[1, 2, 3, 4, 5].map((rating) => (
-										<Button
-											key={rating}
-											type='button'
-											onClick={() => setFormData({ ...formData, rating })}
-											className={`rounded-full hover:bg-background hover:text-warning ${
-												(formData.rating ?? 0) >= rating
-													? 'text-warning'
-													: 'text-text-secondary'
-											}`}
-											size='icon'
-											variant='ghost'
+							<Controller
+								name='methodId'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='methodId'>
+											Brew Method <span className='text-error'>*</span>
+										</FieldLabel>
+										<Select
+											onValueChange={(val) => field.onChange(Number(val))}
+											value={field.value?.toString() || ''}
 										>
-											{rating === 0 ? '☆' : '★'}
-										</Button>
-									))}
-								</div>
-							</div>
+											<SelectTrigger id='methodId' className='w-full'>
+												<SelectValue placeholder='Select a brew method' />
+											</SelectTrigger>
+											<SelectContent>
+												{methods.map((method) => (
+													<SelectItem
+														key={method.id}
+														value={method.id.toString()}
+													>
+														{method.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
 
-							{/* Tasting Notes */}
-							<div>
-								<label
-									htmlFor='tastingNotes'
-									className='block text-sm font-medium mb-1'
-								>
-									Tasting Notes
-								</label>
-								<textarea
-									id='tastingNotes'
-									name='tastingNotes'
-									value={formData.tastingNotes || ''}
-									onChange={handleInputChange}
-									rows={3}
-									className='w-full px-3 py-2 border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-primary bg-background border-input-border'
-									placeholder='Flavor notes, acidity, body, etc.'
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+								<Controller
+									name='doseWeight'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='doseWeight'>
+												Dose Weight (g) <span className='text-error'>*</span>
+											</FieldLabel>
+											<Input
+												{...field}
+												id='doseWeight'
+												type='number'
+												min='0.1'
+												step='0.1'
+											/>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
+								/>
+
+								<Controller
+									name='yieldWeight'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='yieldWeight'>
+												Yield Weight (g)
+											</FieldLabel>
+											<Input
+												{...field}
+												value={field.value || ''}
+												id='yieldWeight'
+												type='number'
+												min='0.1'
+												step='0.1'
+											/>
+										</Field>
+									)}
 								/>
 							</div>
 
-							{/* Buttons */}
-							<div className='flex justify-end gap-3 pt-2'>
-								<Button type='button' onClick={onClose} variant='outline'>
-									Cancel
-								</Button>
-								<Button variant='default' disabled={isLoading}>
-									{isLoading && <Spinner />}
-									{isEditMode ? 'Update Brew' : 'Add Brew'}
-								</Button>
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+								<Controller
+									name='brewTime'
+									control={form.control}
+									render={({ field, fieldState }) => {
+										const totalSeconds = field.value || 0
+										const minutes = Math.floor(totalSeconds / 60)
+										const seconds = totalSeconds % 60
+
+										const handleTimeChange = (
+											type: 'min' | 'sec',
+											val: string,
+										) => {
+											const num = parseInt(val) || 0
+											let newTotal = 0
+											if (type === 'min') {
+												newTotal = num * 60 + seconds
+											} else {
+												const cappedSec = Math.min(num, 59)
+												newTotal = minutes * 60 + cappedSec
+											}
+											field.onChange(newTotal > 0 ? newTotal : null)
+										}
+
+										return (
+											<Field data-invalid={fieldState.invalid}>
+												<FieldLabel>Brew Time</FieldLabel>
+												<div className='flex items-center space-x-2'>
+													<Input
+														type='number'
+														min='0'
+														value={minutes || ''}
+														onChange={(e) =>
+															handleTimeChange('min', e.target.value)
+														}
+														placeholder='0'
+														className='text-center'
+													/>
+													<span className='text-muted-foreground'>:</span>
+													<Input
+														type='number'
+														min='0'
+														max='59'
+														value={seconds || ''}
+														onChange={(e) =>
+															handleTimeChange('sec', e.target.value)
+														}
+														placeholder='00'
+														className='text-center'
+													/>
+													<span className='text-sm text-muted-foreground ml-2'>
+														min:sec
+													</span>
+												</div>
+												{fieldState.invalid && (
+													<FieldError errors={[fieldState.error]} />
+												)}
+											</Field>
+										)
+									}}
+								/>
+
+								<Controller
+									name='waterTemperature'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='waterTemperature'>
+												Temperature (°C)
+											</FieldLabel>
+											<Input
+												{...field}
+												value={field.value || ''}
+												id='waterTemperature'
+												type='number'
+												min='1'
+												max='100'
+											/>
+										</Field>
+									)}
+								/>
 							</div>
-						</form>
-					)}
-				</DialogPanel>
-			</div>
+
+							<Controller
+								name='grindSize'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='grindSize'>Grind Size</FieldLabel>
+										<Input
+											{...field}
+											value={field.value || ''}
+											id='grindSize'
+											placeholder='e.g., Fine, Medium, or a number'
+										/>
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='rating'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel>Rating</FieldLabel>
+										<div className='flex items-center space-x-1'>
+											{[1, 2, 3, 4, 5].map((star) => (
+												<Button
+													key={star}
+													type='button'
+													variant='ghost'
+													size='icon'
+													className={cn(
+														'rounded-full hover:bg-secondary',
+														(field.value || 0) >= star
+															? 'text-yellow-500 hover:text-yellow-600'
+															: 'text-muted-foreground',
+													)}
+													onClick={() => field.onChange(star)}
+												>
+													<Star
+														className={cn(
+															'w-6 h-6',
+															(field.value || 0) >= star ? 'fill-current' : '',
+														)}
+													/>
+												</Button>
+											))}
+											{/* Clear rating button if needed */}
+											{(field.value || 0) > 0 && (
+												<Button
+													type='button'
+													variant='ghost'
+													size='icon'
+													className='rounded-full ml-2 text-muted-foreground hover:text-destructive'
+													onClick={() => field.onChange(0)}
+													title='Clear rating'
+												>
+													<X className='w-4 h-4' />
+												</Button>
+											)}
+										</div>
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='tastingNotes'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='tastingNotes'>
+											Tasting Notes
+										</FieldLabel>
+										<Textarea
+											{...field}
+											value={field.value || ''}
+											id='tastingNotes'
+											rows={3}
+											placeholder='Flavor notes, acidity, body, etc.'
+										/>
+									</Field>
+								)}
+							/>
+						</FieldGroup>
+
+						<div className='flex justify-end gap-3 pt-2'>
+							<Button onClick={onClose} variant='outline' type='button'>
+								Cancel
+							</Button>
+
+							<Button type='submit' disabled={isLoading}>
+								{isLoading && <Spinner className='mr-2' />}
+								{isEditMode ? 'Update Brew' : 'Add Brew'}
+							</Button>
+						</div>
+					</form>
+				)}
+			</DialogContent>
 		</Dialog>
 	)
 }

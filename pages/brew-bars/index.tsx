@@ -3,23 +3,35 @@ import ProtectedPage from '@/components/ProtectedPage'
 import Section from '@/components/Section'
 import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
-import toast, { Toaster } from 'react-hot-toast'
+import { toast } from 'sonner'
 import {
 	Plus,
 	Users,
-	Coffee,
 	Settings,
 	Edit,
 	Trash,
 	UserPlus,
+	MapPin,
+	Store,
+	ArrowRight,
 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewBarFormModal from '@/components/BrewBarFormModal'
 import { useRouter } from 'next/router'
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
 
-// Types
+import { Button } from '@/components/ui/button'
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Separator } from '@/components/ui/separator'
+
 type BrewBar = {
 	id: number
 	name: string
@@ -43,7 +55,6 @@ export default function BrewBarsPage() {
 		name: string
 	} | null>(null)
 
-	// Fetch brew bars when component mounts
 	useEffect(() => {
 		if (user) {
 			fetchBrewBars()
@@ -113,129 +124,154 @@ export default function BrewBarsPage() {
 
 	return (
 		<ProtectedPage title='Brew Bars'>
-			<Toaster position='top-center' />
 			<Section>
-				<div className='flex justify-between items-center mb-6'>
-					<h1 className='text-2xl font-bold'>Brew Bars</h1>
+				<div className='flex justify-between items-center mb-8'>
+					<div>
+						<h1 className='text-3xl font-bold tracking-tight'>Brew Bars</h1>
+						<p className='text-muted-foreground mt-1'>
+							Manage shared coffee spaces, equipment, and members.
+						</p>
+					</div>
 					<Button onClick={handleCreateNewBar}>
-						<Plus size={18} />
-						<span>New Brew Bar</span>
+						<Plus className='mr-2 h-4 w-4' />
+						New Brew Bar
 					</Button>
 				</div>
 
 				{isLoading ? (
-					<div className='flex justify-center items-center h-40'>
-						<Spinner />
+					<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+						{[1, 2, 3].map((i) => (
+							<Card key={i} className='overflow-hidden'>
+								<CardHeader className='pb-2'>
+									<Skeleton className='h-6 w-3/4' />
+									<Skeleton className='h-4 w-1/2' />
+								</CardHeader>
+								<CardContent>
+									<Skeleton className='h-10 w-full' />
+								</CardContent>
+								<CardFooter className='bg-muted/50 p-3'>
+									<Skeleton className='h-8 w-full' />
+								</CardFooter>
+							</Card>
+						))}
 					</div>
 				) : brewBars.length === 0 ? (
-					<div className='text-center py-12 space-y-4 border border-dashed border-border rounded-lg'>
-						<Users size={48} className='mx-auto opacity-30' />
-						<p>No brew bars created yet</p>
-						<Button onClick={handleCreateNewBar} variant='link'>
-							Create your first brew bar
-						</Button>
-					</div>
+					<Card className='border-dashed'>
+						<CardContent className='flex flex-col items-center justify-center py-16 space-y-4'>
+							<div className='p-4 rounded-full bg-secondary/50'>
+								<Store className='h-12 w-12 text-muted-foreground/50' />
+							</div>
+							<div className='text-center'>
+								<h3 className='text-lg font-semibold'>No brew bars found</h3>
+								<p className='text-muted-foreground text-sm max-w-sm mt-1'>
+									Create a shared space to track equipment and collaborate with
+									other coffee enthusiasts.
+								</p>
+							</div>
+							<Button
+								onClick={handleCreateNewBar}
+								variant='outline'
+								className='mt-4'
+							>
+								Create your first brew bar
+							</Button>
+						</CardContent>
+					</Card>
 				) : (
-					<div className='space-y-4'>
+					<div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
 						{brewBars.map((bar) => (
-							<div key={bar.id} className='border border-border rounded-lg p-4'>
-								<div className='flex justify-between'>
-									<div>
-										<h3 className='text-lg font-medium'>{bar.name}</h3>
-
-										{bar.location && (
-											<p className='text-sm text-text-secondary'>
-												{bar.location}
-											</p>
-										)}
-
-										<div className='mt-1 flex items-center gap-2 text-sm text-text-secondary'>
-											<Users size={16} />
-											<span>
-												{bar.memberCount}{' '}
-												{bar.memberCount === 1 ? 'Member' : 'Members'}
-											</span>
-
-											{bar.isOwner && (
-												<span className='text-primary'>Owner</span>
-											)}
-
-											{!bar.isOwner && bar.role && (
-												<span className='bg-text-secondary text-white text-xs px-2 py-0.5 rounded-full'>
-													{bar.role}
-												</span>
+							<Card
+								key={bar.id}
+								className='flex flex-col justify-between hover:border-primary/50 transition-colors'
+							>
+								<CardHeader className='pb-3'>
+									<div className='flex justify-between items-start gap-2'>
+										<div className='space-y-1'>
+											<CardTitle className='text-lg leading-tight'>
+												{bar.name}
+											</CardTitle>
+											{bar.location && (
+												<CardDescription className='flex items-center gap-1'>
+													<MapPin className='h-3 w-3' />
+													{bar.location}
+												</CardDescription>
 											)}
 										</div>
-									</div>
-
-									<div className='flex gap-2'>
-										<Button
-											onClick={() => {
-												navigateToMembers(bar.id)
-											}}
-											title='Manage Members'
-											variant='ghost'
-											size='icon'
-											className='rounded-full'
-										>
-											<UserPlus size={16} />
-										</Button>
-
-										<Button
-											onClick={() => {
-												navigateToEquipment(bar.id)
-											}}
-											variant='ghost'
-											size='icon'
-											className='rounded-full'
-											title='Manage Equipment'
-										>
-											<Settings size={16} />
-										</Button>
-
 										{bar.isOwner && (
-											<>
+											<div className='flex gap-1 -mr-2 -mt-1'>
 												<Button
 													onClick={() => handleEditBar(bar.id)}
 													variant='ghost'
 													size='icon'
-													className='rounded-full'
+													className='h-8 w-8 text-muted-foreground hover:text-foreground'
 													title='Edit Brew Bar'
 												>
-													<Edit size={16} />
+													<Edit className='h-4 w-4' />
 												</Button>
-
 												<Button
 													onClick={() => confirmDelete(bar.id, bar.name)}
 													variant='ghost'
 													size='icon'
-													className='rounded-full'
+													className='h-8 w-8 text-muted-foreground hover:text-destructive'
 													title='Delete Brew Bar'
 												>
-													<Trash size={16} />
+													<Trash className='h-4 w-4' />
 												</Button>
-											</>
+											</div>
 										)}
 									</div>
-								</div>
+								</CardHeader>
 
-								<div className='mt-4 flex justify-end'>
+								<CardContent className='space-y-4'>
+									<div className='flex items-center gap-2'>
+										<Badge variant={bar.isOwner ? 'default' : 'secondary'}>
+											{bar.isOwner ? 'Owner' : bar.role || 'Member'}
+										</Badge>
+										<span className='text-sm text-muted-foreground flex items-center gap-1'>
+											<Users className='h-4 w-4' />
+											{bar.memberCount}{' '}
+											{bar.memberCount === 1 ? 'Member' : 'Members'}
+										</span>
+									</div>
+								</CardContent>
+
+								<CardFooter className='flex flex-col gap-2 bg-muted/30 border-t p-3'>
+									<div className='flex w-full gap-2'>
+										<Button
+											variant='outline'
+											size='sm'
+											className='flex-1 text-xs'
+											onClick={() => navigateToMembers(bar.id)}
+										>
+											<UserPlus className='mr-2 h-3.5 w-3.5' />
+											Members
+										</Button>
+										<Button
+											variant='outline'
+											size='sm'
+											className='flex-1 text-xs'
+											onClick={() => navigateToEquipment(bar.id)}
+										>
+											<Settings className='mr-2 h-3.5 w-3.5' />
+											Equipment
+										</Button>
+									</div>
 									<Button
-										onClick={() => {
-											router.push(`/brew-bars/${bar.id}`)
-										}}
-										variant='link'
+										variant='ghost'
+										size='sm'
+										className='w-full text-xs hover:bg-background'
+										onClick={() => router.push(`/brew-bars/${bar.id}`)}
 									>
-										View Details →
+										View Dashboard
+										<ArrowRight className='ml-2 h-3.5 w-3.5' />
 									</Button>
-								</div>
-							</div>
+								</CardFooter>
+							</Card>
 						))}
 					</div>
 				)}
 			</Section>
 
-			{/* Create/Edit Modal */}
 			<BrewBarFormModal
 				isOpen={isCreateModalOpen}
 				onClose={() => setIsCreateModalOpen(false)}
@@ -243,7 +279,6 @@ export default function BrewBarsPage() {
 				onSuccess={fetchBrewBars}
 			/>
 
-			{/* Delete Confirmation Modal */}
 			<ConfirmModal
 				open={isConfirmDeleteOpen}
 				onClose={() => setIsConfirmDeleteOpen(false)}

@@ -2,21 +2,16 @@ import Page from '@/components/Page'
 import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
 import CountUp from 'react-countup'
-import {
-	Play,
-	Square,
-	ArrowUp,
-	ArrowDown,
-	PowerIcon,
-	LoaderCircle,
-	Ghost,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Play, Square, ArrowUp, ArrowDown, Power } from 'lucide-react'
 import axios from 'axios'
-import toast, { Toaster } from 'react-hot-toast'
+import { toast } from 'sonner'
 import { Gauge } from '@/components/Gauge'
 import { useWebSocket } from '@/lib/websocketContext'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { Badge } from '@/components/ui/badge'
 
 enum BrewStates {
 	IDLE,
@@ -37,7 +32,6 @@ export default function CoffeeBrewControl() {
 	const [isWaking, setIsWaking] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
 
-	// Use the WebSocket context instead of creating our own
 	const { brewData, isConnected, isWsConnected } = useWebSocket()
 
 	const ESPUrl =
@@ -51,12 +45,10 @@ export default function CoffeeBrewControl() {
 	})
 
 	useEffect(() => {
-		// Store target weight in localStorage when it changes
 		localStorage.setItem('targetWeight', targetWeight.toString())
 	}, [targetWeight])
 
 	useEffect(() => {
-		// Update brewing state based on data from context
 		if (brewData.state === BrewStates.IDLE) {
 			setIsBrewing(false)
 		} else {
@@ -66,7 +58,7 @@ export default function CoffeeBrewControl() {
 		if (isBrewing) {
 			setTargetWeight(brewData.target)
 		}
-	}, [brewData])
+	}, [brewData, isBrewing])
 
 	const startBrew = async () => {
 		try {
@@ -74,7 +66,6 @@ export default function CoffeeBrewControl() {
 			formData.append('weight', targetWeight.toString())
 
 			const { data } = await api.post('/start', formData)
-
 			console.log('Brew started:', data)
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
@@ -83,11 +74,6 @@ export default function CoffeeBrewControl() {
 					error.response?.data?.message || error.message,
 				)
 				toast.error(error.response?.data?.error || 'Failed to start brew')
-				if (error.response?.status === 409) {
-					console.error('A brew is already running')
-				} else if (error.response?.status === 403) {
-					console.error('Brewing is currently disabled')
-				}
 			}
 		}
 	}
@@ -98,12 +84,7 @@ export default function CoffeeBrewControl() {
 			console.log('Brew stopped:', data)
 			setIsBrewing(false)
 		} catch (error) {
-			if (axios.isAxiosError(error)) {
-				console.error(
-					'Failed to stop brew:',
-					error.response?.data?.message || error.message,
-				)
-			}
+			console.error('Failed to stop brew')
 		}
 	}
 
@@ -113,15 +94,12 @@ export default function CoffeeBrewControl() {
 		try {
 			const { data } = await api.post('/wake')
 			console.log('ESP now active: ', data)
+			toast.success('Waking up ESP...')
 		} catch (error) {
-			console.log(error)
 			if (axios.isAxiosError(error)) {
-				const message = String(
-					`Failed to wake ESP:
-            ${error.response?.data?.error || error.message}`,
+				toast.error(
+					`Failed to wake ESP: ${error.response?.data?.error || error.message}`,
 				)
-				console.error(message)
-				toast.error(message, { duration: 1000 })
 			}
 		} finally {
 			setIsWaking(false)
@@ -143,51 +121,53 @@ export default function CoffeeBrewControl() {
 		}
 	}
 
-	const getConnectionStateText = () => {
-		if (!isWsConnected && !isConnected) return 'Disconnected'
-		if (isWsConnected && !isConnected) return 'ESP Connected'
-		else return 'Connected'
+	const getConnectionState = () => {
+		if (!isWsConnected && !isConnected)
+			return { label: 'Disconnected', color: 'destructive' }
+		if (isWsConnected && !isConnected)
+			return { label: 'ESP Connected', color: 'warning' }
+		return { label: 'Connected', color: 'success' }
 	}
+
+	const connectionState = getConnectionState()
 
 	return (
 		<Page title='Autobru'>
-			<Toaster position='top-center' toastOptions={{ duration: 2000 }} />
 			<div className='flex flex-col'>
-				{/* Main content area */}
 				<Section>
-					<div className='mx-auto space-y-6 relative'>
-						{/* Status Bar */}
-						<div className='flex justify-between items-center'>
-							<div className='flex items-center space-x-2'>
-								<span
-									className={`w-3 h-3 rounded-full ${
-										isConnected ? 'bg-success' : 'bg-destructive'
-									}`}
+					<div className='mx-auto space-y-8 relative'>
+						<div className='flex justify-between items-center rounded-lg z-10 mb-0'>
+							<div className='flex items-center gap-2'>
+								<div
+									className={`w-2.5 h-2.5 rounded-full ${'bg-' + connectionState.color} animate-pulse`}
 								/>
-								<span className='text-sm text-text-secondary'>
-									{getConnectionStateText()}
+								<span className='text-sm font-medium text-muted-foreground'>
+									{connectionState.label}
 								</span>
 							</div>
+
 							{isConnected ? (
-								<span className='text-sm font-medium'>
-									{isConnected && getBrewStateText(brewData.state)}
-								</span>
+								<Badge
+									variant='outline'
+									className='font-mono uppercase tracking-widest'
+								>
+									{getBrewStateText(brewData.state)}
+								</Badge>
 							) : (
-								<span className='text-sm'>
-									<Button
-										onClick={wakeESP}
-										disabled={isConnected || isWaking}
-										className='rounded-full'
-										variant='ghost'
-										size='sm'
-									>
-										{/* Button content */}
-										<div className='relative z-10 flex items-center justify-center space-x-2'>
-											{isWaking ? <Spinner /> : <PowerIcon size={16} />}
-											<span>Wake</span>
-										</div>
-									</Button>
-								</span>
+								<Button
+									onClick={wakeESP}
+									disabled={isConnected || isWaking}
+									variant='secondary'
+									size='sm'
+									className='h-8 rounded-full px-4'
+								>
+									{isWaking ? (
+										<Spinner className='mr-2 h-3 w-3' />
+									) : (
+										<Power className='mr-2 h-3 w-3' />
+									)}
+									Wake
+								</Button>
 							)}
 						</div>
 
@@ -202,72 +182,67 @@ export default function CoffeeBrewControl() {
 								max={100}
 								arcSize={250}
 								gaugePrimaryColor={
-									isBrewing ? 'var(--destructive)' : 'var(--border)'
-								}
-								gaugePrimaryEndColor={isBrewing ? 'var(--success)' : ''}
-								gaugeSecondaryColor='var(--muted)'
+									isBrewing ? '#b54a35' : 'var(--muted-foreground)'
+								} // var(--destructive) in hex
+								gaugePrimaryEndColor={isBrewing ? '#43694b' : ''} // var(--success) in hex
+								gaugeSecondaryColor='var(--secondary)'
+								className='mx-auto max-w-[90vw] sm:max-w-[80vw] md:max-w-lg'
 							/>
 
-							{/* Centered Content */}
-							<div className='absolute inset-0 flex flex-col items-center justify-center gap-4'>
-								{/* Timer */}
-								<div className='text-4xl font-bold tabular-nums'>
-									<CountUp
-										end={brewData.time / 1000}
-										decimals={1}
-										duration={0.5}
-										preserveValue={true}
-										suffix={'s'}
-										delay={100}
-									/>
-								</div>
-
-								{/* Weight Display */}
-								<div className='text-6xl font-bold tabular-nums'>
-									<CountUp
-										end={brewData.weight}
-										decimals={1}
-										duration={0.5}
-										preserveValue={true}
-										suffix={'g'}
-									/>
-								</div>
-
-								{/* Flow Rate */}
-								{isBrewing && (
-									<div className='text-2xl font-bold tabular-nums'>
+							<div className='absolute inset-0 flex flex-col items-center justify-center pt-4'>
+								<div className='flex flex-col items-center gap-1 mb-4'>
+									<div className='text-3xl sm:text-4xl font-mono font-bold tabular-nums tracking-tighter text-muted-foreground'>
 										<CountUp
-											end={brewData.flowRate}
+											end={brewData.time / 1000}
 											decimals={1}
 											duration={0.5}
 											preserveValue={true}
-											suffix={'g/s'}
-											delay={100}
+											suffix='s'
 										/>
 									</div>
-								)}
 
-								{/* Target Weight Selector */}
+									<div className='text-5xl sm:text-7xl font-bold tabular-nums tracking-tighter leading-none'>
+										<CountUp
+											end={brewData.weight}
+											decimals={1}
+											duration={0.5}
+											preserveValue={true}
+											suffix='g'
+										/>
+									</div>
+
+									{isBrewing && (
+										<div className='h-8 text-xl font-medium tabular-nums text-muted-foreground'>
+											<CountUp
+												end={brewData.flowRate}
+												decimals={1}
+												duration={0.5}
+												preserveValue={true}
+												suffix=' g/s'
+											/>
+										</div>
+									)}
+								</div>
+
 								{!isBrewing && (
-									<div className='flex justify-center items-center space-x-4'>
-										<div className='flex justify-center items-center space-x-4'>
-											<div>
-												<Button
-													onClick={() =>
-														setTargetWeight((prev) => Math.max(prev - 1, 1))
-													}
-													variant='ghost'
-													size='icon'
-													className='rounded-full [&_svg]:size-6'
-												>
-													<ArrowDown />
-												</Button>
-											</div>
-											<div className='w-24 text-center'>
+									<div className='flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-500'>
+										<div className='flex items-center justify-center gap-4'>
+											<Button
+												onClick={() =>
+													setTargetWeight((prev) => Math.max(prev - 1, 1))
+												}
+												variant='ghost'
+												size='icon'
+												className=''
+											>
+												<ArrowDown />
+											</Button>
+
+											<div className='flex-col justify-center'>
 												<div className='text-2xl font-bold tabular-nums'>
 													<div className='flex justify-center items-center gap-1'>
 														<div className='w-16 flex justify-end'>
-															<input
+															<Input
 																inputMode='decimal'
 																type='number'
 																min='1'
@@ -284,44 +259,50 @@ export default function CoffeeBrewControl() {
 																	setTargetWeight(value)
 																}}
 																onFocus={(e) => e.target.select()}
-																className='w-full bg-transparent focus:outline-hidden text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+																className='h-auto w-16 border-none bg-transparent p-0 text-center text-3xl md:text-3xl font-bold shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 															/>
 														</div>
 													</div>
 												</div>
-												<div className='text-xs text-gray-500'>
+												<div className='text-xs text-primary'>
 													target weight (g)
 												</div>
-												<div className='flex justify-center gap-2 mt-2'>
-													<Button
-														size='sm'
-														onClick={() =>
-															setTargetWeight((prev) => Math.max(prev / 2, 1))
-														}
-														variant='outline'
-													>
-														½×
-													</Button>
-													<Button
-														size='sm'
-														onClick={() =>
-															setTargetWeight((prev) => Math.min(prev * 2, 100))
-														}
-														variant='outline'
-													>
-														2×
-													</Button>
-												</div>
 											</div>
+
 											<Button
 												onClick={() =>
 													setTargetWeight((prev) => Math.min(prev + 1, 100))
 												}
-												size='icon'
 												variant='ghost'
-												className='rounded-full [&_svg]:size-6'
+												size='icon'
+												className='rounded-full'
 											>
-												<ArrowUp />
+												<ArrowUp size={48} />
+											</Button>
+										</div>
+
+										<div className='flex gap-2 mt-2'>
+											<Button
+												size='sm'
+												variant='outline'
+												onClick={() =>
+													setTargetWeight((prev) =>
+														Math.max(Math.floor(prev / 2), 1),
+													)
+												}
+												className='text-xs font-mono h-7 px-2.5'
+											>
+												½×
+											</Button>
+											<Button
+												size='sm'
+												variant='outline'
+												onClick={() =>
+													setTargetWeight((prev) => Math.min(prev * 2, 100))
+												}
+												className='text-xs font-mono h-7 px-2.5'
+											>
+												2×
 											</Button>
 										</div>
 									</div>
@@ -331,31 +312,25 @@ export default function CoffeeBrewControl() {
 					</div>
 				</Section>
 
-				{/* Fixed bottom button */}
-				<div className='fixed bottom-8 left-0 right-0 p-4 text-center'>
+				<div className='fixed bottom-4 left-0 right-0 p-6 flex justify-center z-50 pointer-events-none'>
 					<Button
 						onClick={isBrewing ? stopBrew : startBrew}
 						disabled={!isConnected}
 						size='lg'
-						className='w-[80%] rounded-full mx-auto'
+						variant={isBrewing ? 'destructive' : 'default'}
+						className='w-9/10 rounded-full h-12 text-lg font-semibold pointer-events-auto transition-all active:scale-95'
 					>
-						{/* Button content */}
-						<div className='relative z-10 flex items-center justify-center space-x-2'>
-							{isBrewing ? (
-								<>
-									<Square size={24} />
-									<span>Stop Brew</span>
-								</>
-							) : (
-								<>
-									<Play size={24} />
-									<span>Start Brew</span>
-								</>
-							)}
-						</div>
-
-						{/* Base color */}
-						<div className={`absolute inset-0 bg-text`} style={{ zIndex: 1 }} />
+						{isBrewing ? (
+							<>
+								<Square className='mr-3 h-6 w-6 fill-current' />
+								Stop Brew
+							</>
+						) : (
+							<>
+								<Play className='mr-3 h-6 w-6 fill-current' />
+								Start Brew
+							</>
+						)}
 					</Button>
 				</div>
 			</div>

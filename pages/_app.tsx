@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app'
 import { ThemeProvider } from 'next-themes'
 import { WebSocketProvider } from '@/lib/websocketContext'
 import { AuthProvider } from '@/lib/authContext'
+import { Toaster } from '@/components/ui/sonner'
 import '@/styles/globals.css'
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -36,6 +37,7 @@ export default function App({ Component, pageProps }: AppProps) {
 			<AuthProvider>
 				<WebSocketProvider>
 					<Component {...pageProps} />
+					<Toaster position='top-center' />
 				</WebSocketProvider>
 			</AuthProvider>
 		</ThemeProvider>
