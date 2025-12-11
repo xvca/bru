@@ -2,14 +2,14 @@
 
 This is the web interface / sidecar software for [Autobru](https://github.com/xvca/autobru).
 
-While Autobru handles the hardware side (connecting the ESP32 to your Bookoo scale and Breville Dual Boiler), **Bru** gives you a nice UI to interact with it. It visualizes your shot in real-time, lets you manage settings, and now includes a full database to track your coffee journey.
+While Autobru handles the hardware side (connecting the ESP32 to your Bookoo scale and Breville Dual Boiler), **Bru** gives you a nice UI to interact with it. It visualizes your shot in real-time, lets you manage settings, and now includes a full database to track brews and gear.
 
 ## How it works
 
 You can use this app in two ways:
 
 1.  **Just the Control Panel:** If you don't care about tracking data, you can just use the main dashboard to monitor weight/flow rate and start/stop brews. No account needed.
-2.  **Full Tracking:** Create an account to unlock the database features. You can track your bean inventory, log your brews, and manage equipment.
+2.  **Full Tracking:** Create an account to unlock the database features. You can track your bean inventory, log your brews, and manage equipment. This is all done locally if you're self-hosting.
 
 ### Features
 
@@ -58,6 +58,7 @@ docker build -t bru .
 
 **2. Run the container**
 We give it the name `bru` so it's easy to manage later.
+
 *Note: We mount the `/prisma` folder so your database persists even if you delete the container.*
 
 ```bash
@@ -82,6 +83,7 @@ docker start bru
 ```
 
 **4. Updating to the latest version**
+
 When you pull new changes from git, you'll need to rebuild the container:
 
 ```bash
