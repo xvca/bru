@@ -2,19 +2,23 @@
 
 This is the web interface / sidecar software for [Autobru](https://github.com/xvca/autobru).
 
-While Autobru handles the hardware side (connecting the ESP32 to your Bookoo scale and Breville Dual Boiler), **Bru** gives you a nice UI to interact with it. It visualizes your shot in real-time, lets you manage settings, and now includes a full database to track your coffee journey.
+While Autobru handles the hardware side (connecting the ESP32 to your Bookoo scale and Breville Dual Boiler), **Bru** gives you a nice UI to interact with it. It visualizes your shot in real-time, lets you manage settings, and now includes a full database to track brews and gear.
+
+Since this frontend is essentially just sending HTTP requests to the ESP, you don't actually *need* to use the app to control the machine.
+
+You can set up iOS Shortcuts (or Android alternatives) to send requests directly to the ESP's IP address. This is great if you want to set a target weight or start a shot via Siri/voice control without opening the web interface.
 
 ## How it works
 
 You can use this app in two ways:
 
-1.  **Just the Control Panel:** If you don't care about tracking data, you can just use the main dashboard to monitor weight/flow rate and start/stop brews. No account needed.
-2.  **Full Tracking:** Create an account to unlock the database features. You can track your bean inventory, log your brews, and manage equipment.
+1.  **Just the Control Panel:** If you don't care about tracking data, you can just use the main dashboard to monitor weight/flow rate, start/stop brews and the settings page to update your ESP settings (weight presets, preinfusion mode, etc.) No account needed.
+2.  **Full Tracking:** Create an account to use the database features. You can track your bean inventory, log your brews, and manage equipment. This is all done locally if you're self-hosting.
 
 ### Features
 
 **Control & Monitoring**
-*   Real-time WebSocket connection to the ESP32.
+*   WebSocket connection to the ESP32.
 *   Visualizes weight, flow rate, and brew states (Pre-infusion, Brewing, Dripping).
 *   Toggle machine settings remotely.
 
@@ -23,12 +27,6 @@ You can use this app in two ways:
 *   **Brew Logging:** Record your recipes, ratio, time, and tasting notes.
 *   **Brew Bars:** Create shared spaces (like "Office" or "Home") to share inventory and logs with other members.
 *   **Equipment Manager:** Keep track of your grinders and brewers.
-
-## Automation & Shortcuts
-
-Since this frontend is essentially just sending HTTP requests to the ESP, you don't actually *need* to use the app to control the machine.
-
-You can set up iOS Shortcuts (or Android alternatives) to send requests directly to the ESP's IP address. This is great if you want to set a target weight or start a shot via Siri/voice control without opening the web interface.
 
 ## Hosting
 
@@ -58,6 +56,7 @@ docker build -t bru .
 
 **2. Run the container**
 We give it the name `bru` so it's easy to manage later.
+
 *Note: We mount the `/prisma` folder so your database persists even if you delete the container.*
 
 ```bash
@@ -82,6 +81,7 @@ docker start bru
 ```
 
 **4. Updating to the latest version**
+
 When you pull new changes from git, you'll need to rebuild the container:
 
 ```bash
