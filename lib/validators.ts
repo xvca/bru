@@ -20,6 +20,7 @@ export const beanSchema = z
 		initialWeight: z.coerce.number().positive('Weight must be positive'),
 		remainingWeight: z.coerce.number().min(0).optional().nullable(),
 		notes: z.string().optional().nullable(),
+		barId: z.coerce.number().optional().nullable(),
 	})
 	.refine(
 		(data) => {
@@ -48,24 +49,29 @@ export const brewSchema = z.object({
 	rating: z.coerce.number().min(0).max(5).optional().nullable(),
 	tastingNotes: z.string().optional().nullable(),
 	brewDate: z.string().optional(),
+	barId: z.coerce.number().optional().nullable(),
+	brewerId: z.coerce.number().optional().nullable(),
+	grinderId: z.coerce.number().optional().nullable(),
 })
 
 export type BrewFormData = z.infer<typeof brewSchema>
 
-// Equipment
-export const equipmentSchema = z.object({
+// Brewers
+export const brewerSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	type: z.string().optional().nullable(),
 	notes: z.string().optional().nullable(),
+	barId: z.coerce.number().optional().nullable(),
 })
 
-export type EquipmentFormData = z.infer<typeof equipmentSchema>
+export type BrewerFormData = z.infer<typeof brewerSchema>
 
 // Grinders
 export const grinderSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	burrType: z.string().optional().nullable(),
 	notes: z.string().optional().nullable(),
+	barId: z.coerce.number().optional().nullable(),
 })
 
 export type GrinderFormData = z.infer<typeof grinderSchema>
