@@ -8,18 +8,52 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 	if (req.method === 'GET') {
 		try {
+			const { barId } = req.query
+
+			console.log({ barId })
+
+			if (barId && barId !== 'undefined' && barId !== 'null') {
+				const targetBarId = parseInt(barId as string)
+
+				const membership = await prisma.brewBarMember.findFirst({
+					where: {
+						barId: targetBarId,
+						userId: userId,
+					},
+				})
+
+				if (!membership) {
+					return res.status(403).json({ error: 'Not a member of this bar' })
+				}
+
+				const beans = await prisma.bean.findMany({
+					where: {
+						barId: targetBarId,
+					},
+					orderBy: {
+						createdAt: 'desc',
+					},
+					include: {
+						user: { select: { username: true } },
+					},
+				})
+
+				return res.status(200).json(beans)
+			}
+
 			const beans = await prisma.bean.findMany({
 				where: {
 					createdBy: userId,
+					barId: null,
 				},
 				orderBy: {
 					createdAt: 'desc',
 				},
 			})
-			res.status(200).json(beans)
+			return res.status(200).json(beans)
 		} catch (error) {
 			console.error('Error fetching beans:', error)
-			res.status(500).json({ error: 'Failed to fetch beans' })
+			return res.status(500).json({ error: 'Failed to fetch beans' })
 		}
 	} else if (req.method === 'POST') {
 		try {
@@ -41,7 +75,17 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				freezeDate,
 				initialWeight,
 				notes,
+				barId,
 			} = validationResult.data
+
+			if (barId) {
+				const membership = await prisma.brewBarMember.findFirst({
+					where: { barId, userId },
+				})
+				if (!membership) {
+					return res.status(403).json({ error: 'Not a member of this bar' })
+				}
+			}
 
 			const bean = await prisma.bean.create({
 				data: {
@@ -55,6 +99,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					remainingWeight: initialWeight,
 					notes,
 					createdBy: userId,
+					barId: barId || null,
 				},
 			})
 

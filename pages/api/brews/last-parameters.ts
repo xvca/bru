@@ -7,21 +7,20 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 	if (req.method === 'GET') {
 		const beanId = parseInt(req.query.beanId as string)
-		const methodId = parseInt(req.query.methodId as string)
+		const brewerId = parseInt(req.query.brewerId as string)
 
-		if (isNaN(beanId) || isNaN(methodId)) {
+		if (isNaN(beanId) || isNaN(brewerId)) {
 			return res
 				.status(400)
 				.json({ error: 'Valid bean and method IDs are required' })
 		}
 
 		try {
-			// Find the most recent brew with the given bean and method combination
 			const lastBrew = await prisma.brew.findFirst({
 				where: {
 					userId,
 					beanId,
-					methodId,
+					brewerId,
 				},
 				orderBy: {
 					brewDate: 'desc',
@@ -32,6 +31,8 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					brewTime: true,
 					grindSize: true,
 					waterTemperature: true,
+					grinderId: true,
+					brewerId: true,
 				},
 			})
 

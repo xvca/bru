@@ -1,20 +1,23 @@
 import type { NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { withAuth, AuthRequest } from '@/lib/auth'
-import { grinderSchema } from '@/lib/validators'
+import { brewerSchema } from '@/lib/validators'
 
 async function handler(req: AuthRequest, res: NextApiResponse) {
 	const userId = req.user!.id
 	const brewBarId = parseInt(req.query.id as string)
-	const grinderId = parseInt(req.query.grinderId as string)
+	const brewerId = parseInt(req.query.brewerId as string)
 
-	if (isNaN(brewBarId) || isNaN(grinderId)) {
+	if (isNaN(brewBarId) || isNaN(brewerId)) {
 		res.status(400).json({ error: 'Valid IDs are required' })
 		return
 	}
 
 	const membership = await prisma.brewBarMember.findFirst({
-		where: { barId: brewBarId, userId },
+		where: {
+			barId: brewBarId,
+			userId,
+		},
 	})
 
 	if (!membership) {
@@ -22,56 +25,59 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	const grinder = await prisma.grinder.findFirst({
-		where: { id: grinderId, barId: brewBarId },
+	const brewer = await prisma.brewer.findFirst({
+		where: {
+			id: brewerId,
+			barId: brewBarId,
+		},
 	})
 
-	if (!grinder) {
-		res.status(404).json({ error: 'Grinder not found in this brew bar' })
+	if (!brewer) {
+		res.status(404).json({ error: 'Brewer not found in this brew bar' })
 		return
 	}
 
 	if (req.method === 'GET') {
-		res.status(200).json(grinder)
+		res.status(200).json(brewer)
 		return
 	}
 
 	if (req.method === 'PUT') {
 		try {
-			const validationResult = grinderSchema.safeParse(req.body)
+			const validationResult = brewerSchema.safeParse(req.body)
 
 			if (!validationResult.success) {
 				res.status(400).json({
-					error: 'Invalid grinder data',
+					error: 'Invalid brewer data',
 					details: validationResult.error.flatten().fieldErrors,
 				})
 				return
 			}
 
-			const { name, burrType, notes } = validationResult.data
+			const { name, type, notes } = validationResult.data
 
-			if (grinder.createdBy !== userId) {
+			if (brewer.createdBy !== userId) {
 				const isBarOwner = await prisma.brewBar.findFirst({
 					where: { id: brewBarId, createdBy: userId },
 				})
 				if (!isBarOwner) {
 					res.status(403).json({
-						error: 'You do not have permission to update this grinder',
+						error: 'You do not have permission to update this brewer',
 					})
 					return
 				}
 			}
 
-			const updatedGrinder = await prisma.grinder.update({
-				where: { id: grinderId },
-				data: { name, burrType, notes },
+			const updatedBrewer = await prisma.brewer.update({
+				where: { id: brewerId },
+				data: { name, type, notes },
 			})
 
-			res.status(200).json(updatedGrinder)
+			res.status(200).json(updatedBrewer)
 			return
 		} catch (error) {
-			console.error('Error updating grinder:', error)
-			res.status(500).json({ error: 'Failed to update grinder' })
+			console.error('Error updating brewer:', error)
+			res.status(500).json({ error: 'Failed to update brewer' })
 			return
 		}
 	}
@@ -81,24 +87,24 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 			const isBarOwner = await prisma.brewBar.findFirst({
 				where: { id: brewBarId, createdBy: userId },
 			})
-			const isCreator = grinder.createdBy === userId
+			const isCreator = brewer.createdBy === userId
 
 			if (!isBarOwner && !isCreator) {
-				res
-					.status(403)
-					.json({ error: 'You do not have permission to delete this grinder' })
+				res.status(403).json({
+					error: 'You do not have permission to delete this brewer',
+				})
 				return
 			}
 
-			await prisma.grinder.delete({
-				where: { id: grinderId },
+			await prisma.brewer.delete({
+				where: { id: brewerId },
 			})
 
 			res.status(204).end()
 			return
 		} catch (error) {
-			console.error('Error removing grinder:', error)
-			res.status(500).json({ error: 'Failed to remove grinder' })
+			console.error('Error deleting brewer:', error)
+			res.status(500).json({ error: 'Failed to delete brewer' })
 			return
 		}
 	}

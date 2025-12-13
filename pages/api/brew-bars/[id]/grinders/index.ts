@@ -12,10 +12,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 	}
 
 	const membership = await prisma.brewBarMember.findFirst({
-		where: {
-			barId: brewBarId,
-			userId: userId,
-		},
+		where: { barId: brewBarId, userId: userId },
 	})
 
 	if (!membership) {
@@ -26,20 +23,10 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 	if (req.method === 'GET') {
 		try {
-			const grinderItems = await prisma.brewBarEquipment.findMany({
-				where: {
-					barId: brewBarId,
-					grinderId: {
-						not: null,
-					},
-				},
-				include: {
-					grinder: true,
-				},
+			const grinders = await prisma.grinder.findMany({
+				where: { barId: brewBarId },
+				orderBy: { name: 'asc' },
 			})
-
-			const grinders = grinderItems.map((item) => item.grinder).filter(Boolean)
-
 			return res.status(200).json(grinders)
 		} catch (error) {
 			console.error('Error fetching grinders:', error)
@@ -66,13 +53,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					burrType,
 					notes,
 					createdBy: userId,
-				},
-			})
-
-			await prisma.brewBarEquipment.create({
-				data: {
 					barId: brewBarId,
-					grinderId: grinder.id,
 				},
 			})
 

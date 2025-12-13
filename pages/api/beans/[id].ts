@@ -12,17 +12,43 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	const bean = await prisma.bean.findFirst({
-		where: {
-			id: beanId,
-			createdBy: userId,
-		},
+	const bean = await prisma.bean.findUnique({
+		where: { id: beanId },
 	})
 
 	if (!bean) {
-		res.status(404).json({
-			message: "Bean not found or you don't have permission to access it",
+		res.status(404).json({ message: 'Bean not found' })
+		return
+	}
+
+	let canRead = false
+	let canWrite = false
+
+	if (bean.barId) {
+		const membership = await prisma.brewBarMember.findFirst({
+			where: {
+				barId: bean.barId,
+				userId: userId,
+			},
 		})
+
+		if (membership) {
+			if (
+				bean.createdBy === userId ||
+				['Owner', 'Admin'].includes(membership.role || '')
+			) {
+				canWrite = true
+			}
+		}
+	} else {
+		if (bean.createdBy === userId) {
+			canRead = true
+			canWrite = true
+		}
+	}
+
+	if (!canRead) {
+		res.status(404).json({ message: 'Bean not found' })
 		return
 	}
 
@@ -35,6 +61,13 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 			res.status(500).json({ message: 'Internal server error' })
 			return
 		}
+	}
+
+	if (!canWrite) {
+		res.status(403).json({
+			message: 'You do not have permission to modify this bean',
+		})
+		return
 	}
 
 	if (req.method === 'PUT') {

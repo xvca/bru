@@ -12,14 +12,14 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	const brew = await prisma.brew.findFirst({
+	const existingBrew = await prisma.brew.findFirst({
 		where: {
 			id: brewId,
 			userId: userId,
 		},
 	})
 
-	if (!brew) {
+	if (!existingBrew) {
 		res.status(404).json({
 			error: "Brew not found or you don't have permission to access it",
 		})
@@ -29,12 +29,13 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 	if (req.method === 'GET') {
 		try {
 			const brewWithDetails = await prisma.brew.findUnique({
-				where: {
-					id: brewId,
-				},
+				where: { id: brewId },
 				include: {
 					bean: true,
 					method: true,
+					brewer: true,
+					grinder: true,
+					brewBar: true,
 				},
 			})
 
@@ -43,7 +44,10 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 			console.error('Error fetching brew:', error)
 			res.status(500).json({ error: 'Failed to fetch brew' })
 		}
-	} else if (req.method === 'PUT') {
+	}
+
+	// Handle PUT request
+	else if (req.method === 'PUT') {
 		try {
 			const validationResult = brewSchema.safeParse(req.body)
 
@@ -66,22 +70,71 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				rating,
 				tastingNotes,
 				brewDate,
+				barId,
+				brewerId,
+				grinderId,
 			} = validationResult.data
 
-			const updatedBrew = await prisma.brew.update({
-				where: { id: brewId },
-				data: {
-					beanId,
-					methodId,
-					doseWeight,
-					yieldWeight,
-					brewTime,
-					grindSize,
-					waterTemperature,
-					rating,
-					tastingNotes,
-					brewDate: brewDate ? new Date(brewDate) : undefined,
-				},
+			const updatedBrew = await prisma.$transaction(async (tx) => {
+				if (existingBrew.beanId === beanId) {
+					const weightDiff = doseWeight - existingBrew.doseWeight
+
+					if (weightDiff !== 0) {
+						const bean = await tx.bean.findUnique({ where: { id: beanId } })
+						if (bean && bean.remainingWeight !== null) {
+							const newWeight = Math.max(0, bean.remainingWeight - weightDiff)
+							await tx.bean.update({
+								where: { id: beanId },
+								data: { remainingWeight: newWeight },
+							})
+						}
+					}
+				} else {
+					const oldBean = await tx.bean.findUnique({
+						where: { id: existingBrew.beanId },
+					})
+					if (oldBean && oldBean.remainingWeight !== null) {
+						await tx.bean.update({
+							where: { id: existingBrew.beanId },
+							data: {
+								remainingWeight:
+									oldBean.remainingWeight + existingBrew.doseWeight,
+							},
+						})
+					}
+
+					const newBean = await tx.bean.findUnique({ where: { id: beanId } })
+					if (newBean && newBean.remainingWeight !== null) {
+						await tx.bean.update({
+							where: { id: beanId },
+							data: {
+								remainingWeight: Math.max(
+									0,
+									newBean.remainingWeight - doseWeight,
+								),
+							},
+						})
+					}
+				}
+
+				return await tx.brew.update({
+					where: { id: brewId },
+					data: {
+						beanId,
+						methodId,
+						doseWeight,
+						yieldWeight,
+						brewTime,
+						grindSize,
+						waterTemperature,
+						rating,
+						tastingNotes,
+						brewDate: brewDate ? new Date(brewDate) : undefined,
+						barId,
+						brewerId,
+						grinderId,
+					},
+				})
 			})
 
 			res.status(200).json(updatedBrew)
