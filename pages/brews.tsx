@@ -1,6 +1,7 @@
 import ProtectedPage from '@/components/ProtectedPage'
 import Section from '@/components/Section'
 import { useAuth } from '@/lib/authContext'
+import { useBrewBar } from '@/lib/brewBarContext'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
@@ -13,14 +14,14 @@ import {
 	Star,
 	Edit,
 	Trash,
-	Droplets,
 	Scale,
 	Settings2,
+	Store,
+	User,
 } from 'lucide-react'
 import BrewForm from '@/components/BrewForm'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { cn } from '@/lib/utils'
-
 import { Prisma } from '@/generated/prisma/client'
 
 import { Button } from '@/components/ui/button'
@@ -30,21 +31,29 @@ import {
 	CardHeader,
 	CardTitle,
 	CardDescription,
-	CardFooter,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
+// Updated Type Definition
 type BrewWithRelations = Prisma.BrewGetPayload<{
 	include: {
 		bean: true
 		method: true
+		user: {
+			select: { id: true; username: true }
+		}
+		brewBar: {
+			select: { id: true; name: true }
+		}
 	}
 }>
 
 export default function Brews() {
 	const { user } = useAuth()
+	const { activeBarId, availableBars } = useBrewBar()
 	const [brews, setBrews] = useState<BrewWithRelations[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [isFormOpen, setIsFormOpen] = useState(false)
@@ -62,13 +71,14 @@ export default function Brews() {
 		if (user) {
 			fetchBrews()
 		}
-	}, [user])
+	}, [user, activeBarId])
 
 	const fetchBrews = async () => {
 		setIsLoading(true)
 		try {
 			const { data } = await axios.get<BrewWithRelations[]>('/api/brews', {
 				headers: { Authorization: `Bearer ${user?.token}` },
+				params: { barId: activeBarId },
 			})
 			setBrews(data)
 		} catch (error) {
@@ -125,6 +135,12 @@ export default function Brews() {
 		return `1:${(yieldWt / dose).toFixed(1)}`
 	}
 
+	const getInitials = (name: string) => name.slice(0, 2).toUpperCase()
+
+	const currentBarName = activeBarId
+		? availableBars.find((b) => b.id === activeBarId)?.name
+		: 'Personal'
+
 	return (
 		<ProtectedPage title='Brew Logs'>
 			<Section>
@@ -132,7 +148,10 @@ export default function Brews() {
 					<div>
 						<h1 className='text-3xl font-bold tracking-tight'>Brew Logs</h1>
 						<p className='text-muted-foreground mt-1'>
-							Track your daily extractions and tasting notes.
+							Viewing logs for:{' '}
+							<span className='font-medium text-foreground'>
+								{currentBarName}
+							</span>
 						</p>
 					</div>
 					<Button onClick={handleAddBrew}>
@@ -142,23 +161,15 @@ export default function Brews() {
 				</div>
 
 				{isLoading ? (
-					<div className='grid gap-4 md:grid-cols-2'>
-						{[1, 2, 3, 4, 5, 6].map((i) => (
+					<div className='grid gap-4 md:grid-cols-2 '>
+						{[1, 2, 3].map((i) => (
 							<Card key={i} className='overflow-hidden'>
 								<CardHeader className='pb-2'>
-									<div className='flex justify-between'>
-										<Skeleton className='h-5 w-1/2' />
-										<Skeleton className='h-5 w-16' />
-									</div>
-									<Skeleton className='h-4 w-1/3 mt-2' />
+									<Skeleton className='h-6 w-3/4' />
+									<Skeleton className='h-4 w-1/2' />
 								</CardHeader>
 								<CardContent>
-									<div className='flex gap-4 mb-4'>
-										<Skeleton className='h-8 w-16' />
-										<Skeleton className='h-8 w-16' />
-										<Skeleton className='h-8 w-16' />
-									</div>
-									<Skeleton className='h-12 w-full' />
+									<Skeleton className='h-20 w-full' />
 								</CardContent>
 							</Card>
 						))}
@@ -187,152 +198,184 @@ export default function Brews() {
 					</Card>
 				) : (
 					<div className='grid gap-4 md:grid-cols-2'>
-						{brews.map((brew) => (
-							<Card
-								key={brew.id}
-								className='flex flex-col h-full hover:border-primary/50 transition-colors'
-							>
-								<CardHeader className='pb-3'>
-									<div className='flex justify-between items-start gap-2'>
-										<div className='space-y-1'>
-											<div className='flex items-center gap-2'>
-												<CardTitle className='text-lg leading-tight'>
-													{brew.bean.name}
-												</CardTitle>
-												<Badge
-													variant='secondary'
-													className='font-normal text-xs'
-												>
-													{brew.method.name}
-												</Badge>
-											</div>
-											<CardDescription className='flex items-center gap-1'>
-												{brew.bean.roaster || 'Unknown Roaster'}
-												<span>•</span>
-												{format(new Date(brew.brewDate), 'MMM d, h:mm a')}
-											</CardDescription>
-										</div>
-										<div className='flex gap-1 -mr-2 -mt-1'>
-											<Button
-												onClick={() => handleEditBrew(brew.id)}
-												variant='ghost'
-												size='icon'
-												className='h-8 w-8 text-muted-foreground hover:text-foreground'
-											>
-												<Edit size={14} />
-											</Button>
-											<Button
-												onClick={() =>
-													confirmDeleteBrew(brew.id, brew.bean.name)
-												}
-												variant='ghost'
-												size='icon'
-												className='h-8 w-8 text-muted-foreground hover:text-destructive'
-											>
-												<Trash size={14} />
-											</Button>
-										</div>
-									</div>
-								</CardHeader>
+						{brews.map((brew) => {
+							const isMyBrew = brew.userId === user?.id
 
-								<CardContent className='flex-1 pb-3'>
-									<div className='grid grid-cols-2 gap-4 mb-4'>
-										<div className='flex flex-col p-2 bg-secondary/30 rounded-md'>
-											<div className='flex items-center gap-1.5 text-xs text-muted-foreground mb-1'>
-												<Scale size={12} />
-												<span>Ratio</span>
-											</div>
-											<div className='text-sm font-medium'>
-												{brew.doseWeight}g
-												{brew.yieldWeight && (
-													<>
-														{' → '}
-														<span className='text-foreground'>
-															{brew.yieldWeight}g
-														</span>
-														<div className='text-xs text-muted-foreground font-normal mt-0.5'>
-															(
-															{calculateRatio(
-																brew.doseWeight,
-																brew.yieldWeight,
-															)}
-															)
-														</div>
-													</>
-												)}
-											</div>
-										</div>
-
-										<div className='flex flex-col gap-1.5'>
-											{brew.brewTime && (
-												<div className='flex items-center justify-between text-sm'>
-													<div className='flex items-center gap-1.5 text-muted-foreground'>
-														<Clock size={13} />
-														<span className='text-xs'>Time</span>
-													</div>
-													<span className='font-medium font-mono'>
-														{formatBrewTime(brew.brewTime)}
-													</span>
-												</div>
-											)}
-											{brew.waterTemperature && (
-												<div className='flex items-center justify-between text-sm'>
-													<div className='flex items-center gap-1.5 text-muted-foreground'>
-														<Thermometer size={13} />
-														<span className='text-xs'>Temp</span>
-													</div>
-													<span className='font-medium'>
-														{brew.waterTemperature}°C
-													</span>
-												</div>
-											)}
-											{brew.grindSize && (
-												<div className='flex items-center justify-between text-sm'>
-													<div className='flex items-center gap-1.5 text-muted-foreground'>
-														<Settings2 size={13} />
-														<span className='text-xs'>Grind</span>
-													</div>
-													<span
-														className='font-medium truncate max-w-20 text-right'
-														title={brew.grindSize}
+							return (
+								<Card
+									key={brew.id}
+									className='flex flex-col h-full hover:border-primary/50 transition-colors'
+								>
+									<CardHeader className='pb-3'>
+										<div className='flex justify-between items-start gap-2'>
+											<div className='space-y-1'>
+												<div className='flex items-center gap-2 flex-wrap'>
+													<CardTitle className='text-lg leading-tight'>
+														{brew.bean.name}
+													</CardTitle>
+													<Badge
+														variant='secondary'
+														className='font-normal text-xs'
 													>
-														{brew.grindSize}
-													</span>
+														{brew.method.name}
+													</Badge>
+													{brew.brewBar && (
+														<Badge
+															variant='outline'
+															className='font-normal text-xs flex items-center gap-1'
+														>
+															<Store size={10} />
+															{brew.brewBar.name}
+														</Badge>
+													)}
+												</div>
+												<CardDescription className='flex items-center gap-1'>
+													{brew.bean.roaster || 'Unknown Roaster'}
+													<span>•</span>
+													{format(new Date(brew.brewDate), 'MMM d, h:mm a')}
+												</CardDescription>
+											</div>
+
+											{isMyBrew && (
+												<div className='flex gap-1 -mr-2 -mt-1'>
+													<Button
+														onClick={() => handleEditBrew(brew.id)}
+														variant='ghost'
+														size='icon'
+														className='h-8 w-8 text-muted-foreground hover:text-foreground'
+													>
+														<Edit size={14} />
+													</Button>
+													<Button
+														onClick={() =>
+															confirmDeleteBrew(brew.id, brew.bean.name)
+														}
+														variant='ghost'
+														size='icon'
+														className='h-8 w-8 text-muted-foreground hover:text-destructive'
+													>
+														<Trash size={14} />
+													</Button>
 												</div>
 											)}
 										</div>
-									</div>
+									</CardHeader>
 
-									{(brew.rating !== null || brew.tastingNotes) && (
-										<>
-											<Separator className='mb-3' />
-											<div className='space-y-2'>
-												{brew.rating !== null && (
-													<div className='flex gap-0.5'>
-														{[1, 2, 3, 4, 5].map((star) => (
-															<Star
-																key={star}
-																size={14}
-																className={cn(
-																	brew.rating! >= star
-																		? 'fill-amber-400 text-amber-400'
-																		: 'fill-muted/20 text-muted-foreground/30',
+									<CardContent className='flex-1 pb-3'>
+										{!isMyBrew && (
+											<div className='flex items-center gap-2 mb-4 p-2 bg-muted/50 rounded-md'>
+												<Avatar className='h-6 w-6'>
+													<AvatarFallback className='text-[10px]'>
+														{getInitials(brew.user.username)}
+													</AvatarFallback>
+												</Avatar>
+												<span className='text-xs text-muted-foreground'>
+													Brewed by{' '}
+													<span className='font-medium text-foreground'>
+														{brew.user.username}
+													</span>
+												</span>
+											</div>
+										)}
+
+										<div className='grid grid-cols-2 gap-4 mb-4'>
+											<div className='flex flex-col p-2 bg-secondary/30 rounded-md'>
+												<div className='flex items-center gap-1.5 text-xs text-muted-foreground mb-1'>
+													<Scale size={12} />
+													<span>Ratio</span>
+												</div>
+												<div className='text-sm font-medium'>
+													{brew.doseWeight}g
+													{brew.yieldWeight && (
+														<>
+															{' → '}
+															<span className='text-foreground'>
+																{brew.yieldWeight}g
+															</span>
+															<div className='text-xs text-muted-foreground font-normal mt-0.5'>
+																(
+																{calculateRatio(
+																	brew.doseWeight,
+																	brew.yieldWeight,
 																)}
-															/>
-														))}
+																)
+															</div>
+														</>
+													)}
+												</div>
+											</div>
+
+											<div className='flex flex-col gap-1.5'>
+												{brew.brewTime && (
+													<div className='flex items-center justify-between text-sm'>
+														<div className='flex items-center gap-1.5 text-muted-foreground'>
+															<Clock size={13} />
+															<span className='text-xs'>Time</span>
+														</div>
+														<span className='font-mono font-medium'>
+															{formatBrewTime(brew.brewTime)}
+														</span>
 													</div>
 												)}
-												{brew.tastingNotes && (
-													<p className='text-sm text-muted-foreground italic line-clamp-2'>
-														&quot;{brew.tastingNotes}&quot;
-													</p>
+												{brew.waterTemperature && (
+													<div className='flex items-center justify-between text-sm'>
+														<div className='flex items-center gap-1.5 text-muted-foreground'>
+															<Thermometer size={13} />
+															<span className='text-xs'>Temp</span>
+														</div>
+														<span className='font-medium'>
+															{brew.waterTemperature}°C
+														</span>
+													</div>
+												)}
+												{brew.grindSize && (
+													<div className='flex items-center justify-between text-sm'>
+														<div className='flex items-center gap-1.5 text-muted-foreground'>
+															<Settings2 size={13} />
+															<span className='text-xs'>Grind</span>
+														</div>
+														<span
+															className='font-medium truncate max-w-20 text-right'
+															title={brew.grindSize}
+														>
+															{brew.grindSize}
+														</span>
+													</div>
 												)}
 											</div>
-										</>
-									)}
-								</CardContent>
-							</Card>
-						))}
+										</div>
+
+										{(brew.rating !== null || brew.tastingNotes) && (
+											<>
+												<Separator className='mb-3' />
+												<div className='space-y-2'>
+													{brew.rating !== null && (
+														<div className='flex gap-0.5'>
+															{[1, 2, 3, 4, 5].map((star) => (
+																<Star
+																	key={star}
+																	size={14}
+																	className={cn(
+																		brew.rating! >= star
+																			? 'fill-warning text-warning'
+																			: 'fill-muted/20 text-muted-foreground/30',
+																	)}
+																/>
+															))}
+														</div>
+													)}
+													{brew.tastingNotes && (
+														<p className='text-sm text-muted-foreground italic line-clamp-2'>
+															&quot;{brew.tastingNotes}&quot;
+														</p>
+													)}
+												</div>
+											</>
+										)}
+									</CardContent>
+								</Card>
+							)
+						})}
 					</div>
 				)}
 			</Section>
@@ -341,6 +384,7 @@ export default function Brews() {
 				isOpen={isFormOpen}
 				onClose={() => setIsFormOpen(false)}
 				brewId={selectedBrew}
+				barId={activeBarId || undefined}
 				onSuccess={fetchBrews}
 			/>
 

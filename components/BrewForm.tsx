@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { z } from 'zod'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
-import { Loader2, Star, X } from 'lucide-react'
-import type { Bean } from 'generated/prisma/client'
+import { Star, X } from 'lucide-react'
+import type { Bean, Brewer, Grinder } from 'generated/prisma/client'
 import { brewSchema, type BrewFormData } from '@/lib/validators'
 
 import { Button } from '@/components/ui/button'
@@ -39,6 +38,7 @@ interface BrewFormProps {
 	isOpen: boolean
 	onClose: () => void
 	brewId?: number
+	barId?: number
 	onSuccess?: () => void
 }
 
@@ -46,6 +46,7 @@ export default function BrewForm({
 	isOpen,
 	onClose,
 	brewId,
+	barId,
 	onSuccess,
 }: BrewFormProps) {
 	const { user } = useAuth()
@@ -54,10 +55,21 @@ export default function BrewForm({
 	const [isLoading, setIsLoading] = useState(false)
 	const [isFetching, setIsFetching] = useState(false)
 
+	const [isBeanSelectOpen, setIsBeanSelectOpen] = useState(false)
+	const [isMethodSelectOpen, setIsMethodSelectOpen] = useState(false)
+	const [isBrewerSelectOpen, setIsBrewerSelectOpen] = useState(false)
+	const [isGrinderSelectOpen, setIsGrinderSelectOpen] = useState(false)
+	const [isMinSelectOpen, setIsMinSelectOpen] = useState(false)
+	const [isSecSelectOpen, setIsSecSelectOpen] = useState(false)
+
+	const [activeSelect, setActiveSelect] = useState<string | null>(null)
+
 	const [beans, setBeans] = useState<Bean[]>([])
 	const [methods, setMethods] = useState<Array<{ id: number; name: string }>>(
 		[],
 	)
+	const [brewers, setBrewers] = useState<Brewer[]>([])
+	const [grinders, setGrinders] = useState<Grinder[]>([])
 
 	const form = useForm<BrewFormData>({
 		resolver: zodResolver(brewSchema),
@@ -72,27 +84,36 @@ export default function BrewForm({
 			rating: 0,
 			tastingNotes: '',
 			brewDate: new Date().toISOString().split('T')[0],
+			barId: barId || undefined,
+			brewerId: undefined,
+			grinderId: undefined,
 		},
 	})
 
+	console.log(form)
+
 	const watchedBeanId = useWatch({ control: form.control, name: 'beanId' })
-	const watchedMethodId = useWatch({ control: form.control, name: 'methodId' })
+	const watchedBrewerId = useWatch({ control: form.control, name: 'brewerId' })
 
 	useEffect(() => {
 		if (isOpen && user) {
 			const fetchData = async () => {
 				try {
-					const [beansRes, methodsRes] = await Promise.all([
-						axios.get('/api/beans', {
-							headers: { Authorization: `Bearer ${user.token}` },
-						}),
-						axios.get('/api/brew-methods', {
-							headers: { Authorization: `Bearer ${user.token}` },
-						}),
-					])
-					console.log({ methodsRes })
+					const params = { barId: barId || undefined }
+					const headers = { Authorization: `Bearer ${user.token}` }
+
+					const [beansRes, methodsRes, brewersRes, grindersRes] =
+						await Promise.all([
+							axios.get('/api/beans', { headers, params }),
+							axios.get('/api/brew-methods', { headers }),
+							axios.get('/api/brewers', { headers, params }),
+							axios.get('/api/grinders', { headers, params }),
+						])
+
 					setBeans(beansRes.data)
 					setMethods(methodsRes.data)
+					setBrewers(brewersRes.data)
+					setGrinders(grindersRes.data)
 				} catch (error) {
 					console.error('Error loading form data:', error)
 					toast.error('Failed to load beans or methods')
@@ -100,7 +121,7 @@ export default function BrewForm({
 			}
 			fetchData()
 		}
-	}, [isOpen, user])
+	}, [isOpen, user, barId])
 
 	useEffect(() => {
 		if (isOpen && isEditMode && brewId && user) {
@@ -117,6 +138,9 @@ export default function BrewForm({
 						brewDate: data.brewDate
 							? new Date(data.brewDate).toISOString().split('T')[0]
 							: new Date().toISOString().split('T')[0],
+						barId: data.barId || undefined,
+						brewerId: data.brewerId || undefined,
+						grinderId: data.grinderId || undefined,
 					})
 				} catch (error) {
 					console.error('Error fetching brew:', error)
@@ -139,19 +163,22 @@ export default function BrewForm({
 				rating: 0,
 				tastingNotes: '',
 				brewDate: new Date().toISOString().split('T')[0],
+				barId: barId || undefined,
+				brewerId: undefined,
+				grinderId: undefined,
 			})
 		}
-	}, [isOpen, isEditMode, brewId])
+	}, [isOpen, isEditMode, brewId, barId])
 
 	useEffect(() => {
 		const fetchLastBrew = async () => {
-			if (!watchedBeanId || !watchedMethodId || isEditMode || !user) return
+			if (!watchedBeanId || !watchedBrewerId || isEditMode || !user) return
 
 			try {
 				const response = await axios.get(`/api/brews/last-parameters`, {
 					params: {
 						beanId: watchedBeanId,
-						methodId: watchedMethodId,
+						brewerId: watchedBrewerId,
 					},
 					headers: { Authorization: `Bearer ${user.token}` },
 					validateStatus: (status) => status < 500,
@@ -166,6 +193,8 @@ export default function BrewForm({
 						brewTime: response.data.brewTime,
 						grindSize: response.data.grindSize,
 						waterTemperature: response.data.waterTemperature,
+						brewerId: response.data.brewerId,
+						grinderId: response.data.grinderId,
 					})
 					toast.success('Loaded settings from last brew')
 				}
@@ -178,7 +207,7 @@ export default function BrewForm({
 			fetchLastBrew()
 		}, 100)
 		return () => clearTimeout(timer)
-	}, [watchedBeanId, watchedMethodId, isEditMode])
+	}, [watchedBeanId, watchedBrewerId, isEditMode])
 
 	const onSubmit = async (data: BrewFormData) => {
 		setIsLoading(true)
@@ -206,16 +235,26 @@ export default function BrewForm({
 		}
 	}
 
+	useEffect
+
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className='max-w-xl max-h-[90vh] overflow-y-auto'>
+			<DialogContent
+				className='max-w-xl max-h-[90vh] overflow-y-auto'
+				onEscapeKeyDown={(e) => {
+					if (activeSelect) {
+						e.preventDefault()
+						setActiveSelect(null)
+					}
+				}}
+			>
 				<DialogHeader>
 					<DialogTitle>{isEditMode ? 'Edit Brew' : 'Add New Brew'}</DialogTitle>
 				</DialogHeader>
 
 				{isFetching ? (
 					<div className='flex justify-center items-center py-8'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				) : (
 					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
@@ -233,6 +272,10 @@ export default function BrewForm({
 											beans={beans}
 											value={field.value?.toString() || ''}
 											onChange={(val) => field.onChange(Number(val))}
+											onOpenChange={(isOpen) =>
+												setActiveSelect(isOpen ? 'bean' : null)
+											}
+											open={activeSelect === 'bean'}
 										/>
 
 										{fieldState.invalid && (
@@ -242,38 +285,94 @@ export default function BrewForm({
 								)}
 							/>
 
-							<Controller
-								name='methodId'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='methodId'>
-											Brew Method <span className='text-error'>*</span>
-										</FieldLabel>
-										<Select
-											onValueChange={(val) => field.onChange(Number(val))}
-											value={field.value?.toString() || ''}
-										>
-											<SelectTrigger id='methodId' className='w-full'>
-												<SelectValue placeholder='Select a brew method' />
-											</SelectTrigger>
-											<SelectContent>
-												{methods.map((method) => (
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+								<Controller
+									name='brewerId'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='brewerId'>
+												Brewer (Optional)
+											</FieldLabel>
+											<Select
+												onValueChange={(val) =>
+													field.onChange(val ? Number(val) : null)
+												}
+												value={field.value ? field.value.toString() : ''}
+												onOpenChange={(isOpen) =>
+													setActiveSelect(isOpen ? 'brewer' : null)
+												}
+												open={activeSelect === 'brewer'}
+											>
+												<SelectTrigger id='brewerId' className='w-full'>
+													<SelectValue placeholder='Select brewer' />
+												</SelectTrigger>
+												<SelectContent>
 													<SelectItem
-														key={method.id}
-														value={method.id.toString()}
+														value='0'
+														className='text-muted-foreground italic'
 													>
-														{method.name}
+														None
 													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
+													{brewers.map((brewer) => (
+														<SelectItem
+															key={brewer.id}
+															value={brewer.id.toString()}
+														>
+															{brewer.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</Field>
+									)}
+								/>
+
+								<Controller
+									name='grinderId'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor='grinderId'>
+												Grinder (Optional)
+											</FieldLabel>
+											<Select
+												onValueChange={(val) =>
+													field.onChange(val ? Number(val) : null)
+												}
+												value={field.value ? field.value.toString() : ''}
+												onOpenChange={(isOpen) =>
+													setActiveSelect(isOpen ? 'grinder' : null)
+												}
+												open={activeSelect === 'grinder'}
+											>
+												<SelectTrigger id='grinderId' className='w-full'>
+													<SelectValue placeholder='Select grinder' />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem
+														value='0'
+														className='text-muted-foreground italic'
+													>
+														None
+													</SelectItem>
+													{grinders.map((grinder) => (
+														<SelectItem
+															key={grinder.id}
+															value={grinder.id.toString()}
+														>
+															{grinder.name}&nbsp;
+															<span className='text-muted-foreground italic'>
+																{grinder.burrType}
+															</span>
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</Field>
+									)}
+								/>
+							</div>
 
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
 								<Controller
@@ -290,6 +389,7 @@ export default function BrewForm({
 												type='number'
 												min='0.1'
 												step='0.1'
+												onFocus={(e) => e.target.select()}
 											/>
 											{fieldState.invalid && (
 												<FieldError errors={[fieldState.error]} />
@@ -313,6 +413,7 @@ export default function BrewForm({
 												type='number'
 												min='0.1'
 												step='0.1'
+												onFocus={(e) => e.target.select()}
 											/>
 										</Field>
 									)}
@@ -337,8 +438,7 @@ export default function BrewForm({
 											if (type === 'min') {
 												newTotal = num * 60 + seconds
 											} else {
-												const cappedSec = Math.min(num, 59)
-												newTotal = minutes * 60 + cappedSec
+												newTotal = minutes * 60 + num
 											}
 											field.onChange(newTotal > 0 ? newTotal : null)
 										}
@@ -346,32 +446,66 @@ export default function BrewForm({
 										return (
 											<Field data-invalid={fieldState.invalid}>
 												<FieldLabel>Brew Time</FieldLabel>
-												<div className='flex items-center space-x-2'>
-													<Input
-														type='number'
-														min='0'
-														value={minutes || ''}
-														onChange={(e) =>
-															handleTimeChange('min', e.target.value)
-														}
-														placeholder='0'
-														className='text-center'
-													/>
-													<span className='text-muted-foreground'>:</span>
-													<Input
-														type='number'
-														min='0'
-														max='59'
-														value={seconds || ''}
-														onChange={(e) =>
-															handleTimeChange('sec', e.target.value)
-														}
-														placeholder='00'
-														className='text-center'
-													/>
-													<span className='text-sm text-muted-foreground ml-2'>
-														min:sec
+												<div className='flex items-center gap-2'>
+													<div className='flex-1'>
+														<Select
+															value={minutes.toString()}
+															onValueChange={(val) =>
+																handleTimeChange('min', val)
+															}
+															onOpenChange={(isOpen) =>
+																setActiveSelect(isOpen ? 'mins' : null)
+															}
+															open={activeSelect === 'mins'}
+														>
+															<SelectTrigger className='text-center'>
+																<div className='flex items-center gap-1'>
+																	<SelectValue placeholder='0' />
+																	<span className='text-muted-foreground text-xs'>
+																		Minutes
+																	</span>
+																</div>
+															</SelectTrigger>
+															<SelectContent className='max-h-48'>
+																{Array.from({ length: 21 }).map((_, i) => (
+																	<SelectItem key={i} value={i.toString()}>
+																		{i}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</div>
+													<span className='text-muted-foreground font-bold'>
+														:
 													</span>
+													<div className='flex-1'>
+														<Select
+															value={seconds.toString()}
+															onValueChange={(val) =>
+																handleTimeChange('sec', val)
+															}
+															onOpenChange={(isOpen) =>
+																setActiveSelect(isOpen ? 'secs' : null)
+															}
+															open={activeSelect === 'secs'}
+														>
+															<SelectTrigger className='text-center'>
+																<div className='flex items-center gap-1'>
+																	<SelectValue placeholder='00' />
+																	<span className='text-muted-foreground text-xs'>
+																		Seconds
+																	</span>
+																</div>
+															</SelectTrigger>
+															<SelectContent className='max-h-48'>
+																{Array.from({ length: 60 }).map((_, i) => (
+																	<SelectItem key={i} value={i.toString()}>
+																		{i.toString().padStart(2, '0')}
+																	</SelectItem>
+																))}
+															</SelectContent>
+														</Select>
+													</div>
 												</div>
 												{fieldState.invalid && (
 													<FieldError errors={[fieldState.error]} />
@@ -396,6 +530,7 @@ export default function BrewForm({
 												type='number'
 												min='1'
 												max='100'
+												onFocus={(e) => e.target.select()}
 											/>
 										</Field>
 									)}

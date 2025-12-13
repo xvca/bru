@@ -44,6 +44,7 @@ interface BeanFormModalProps {
 	isOpen: boolean
 	onClose: () => void
 	beanId?: number
+	barId?: number
 	onSuccess?: () => void
 }
 
@@ -51,6 +52,7 @@ export default function BeanFormModal({
 	isOpen,
 	onClose,
 	beanId,
+	barId,
 	onSuccess,
 }: BeanFormModalProps) {
 	const { user } = useAuth()
@@ -77,6 +79,7 @@ export default function BeanFormModal({
 			initialWeight: 250,
 			remainingWeight: 250,
 			notes: '',
+			barId: barId || undefined,
 		},
 	})
 
@@ -95,6 +98,7 @@ export default function BeanFormModal({
 					initialWeight: 250,
 					remainingWeight: 250,
 					notes: '',
+					barId: barId || undefined,
 				})
 			} else if (beanId) {
 				fetchBean()
@@ -151,7 +155,6 @@ export default function BeanFormModal({
 			onClose()
 		} catch (error) {
 			console.error('Error saving bean:', error)
-			// Handle potential Zod/Server errors here if needed
 			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} coffee bean`)
 		} finally {
 			setIsLoading(false)

@@ -7,8 +7,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Snowflake, Bean as BeanIcon } from 'lucide-react'
+import { Snowflake } from 'lucide-react'
 import { format } from 'date-fns'
 import type { Bean } from 'generated/prisma/client'
 
@@ -16,10 +15,17 @@ interface BeanSelectProps {
 	beans: Bean[]
 	value: string
 	onChange: (value: string) => void
+	open?: boolean
+	onOpenChange?: (open: boolean) => void
 }
 
-export function BeanSelect({ beans, value, onChange }: BeanSelectProps) {
-	// 1. Filter out finished beans (unless it's the currently selected one)
+export function BeanSelect({
+	beans,
+	value,
+	onChange,
+	open,
+	onOpenChange,
+}: BeanSelectProps) {
 	const availableBeans = beans.filter(
 		(b) =>
 			b.remainingWeight === null ||
@@ -27,14 +33,18 @@ export function BeanSelect({ beans, value, onChange }: BeanSelectProps) {
 			b.id.toString() === value,
 	)
 
-	// 2. Group them
 	const activeBeans = availableBeans.filter((b) => !b.freezeDate)
 	const frozenBeans = availableBeans.filter((b) => !!b.freezeDate)
 
 	const selectedBean = beans.find((b) => b.id.toString() === value)
 
 	return (
-		<Select value={value} onValueChange={onChange}>
+		<Select
+			value={value}
+			onValueChange={onChange}
+			open={open}
+			onOpenChange={onOpenChange}
+		>
 			<SelectTrigger className='h-auto py-2'>
 				<SelectValue placeholder='Select a bean'>
 					{selectedBean && (
@@ -54,7 +64,6 @@ export function BeanSelect({ beans, value, onChange }: BeanSelectProps) {
 				</SelectValue>
 			</SelectTrigger>
 			<SelectContent>
-				{/* Active Beans Group */}
 				<SelectGroup>
 					<SelectLabel>Active Stash</SelectLabel>
 					{activeBeans.map((bean) => (
@@ -75,7 +84,6 @@ export function BeanSelect({ beans, value, onChange }: BeanSelectProps) {
 					))}
 				</SelectGroup>
 
-				{/* Frozen Beans Group - Separated visually */}
 				{frozenBeans.length > 0 && (
 					<SelectGroup>
 						<SelectLabel className='flex items-center gap-2 text-blue-500 mt-2 border-t pt-2'>

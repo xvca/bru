@@ -2,7 +2,7 @@ import { useRouter } from 'next/router'
 import { useState, useEffect } from 'react'
 import ProtectedPage from '@/components/ProtectedPage'
 import Section from '@/components/Section'
-import EquipmentFormModal from '@/components/EquipmentFormModal'
+import BrewerFormModal from '@/components/BrewerFormModal'
 import GrinderFormModal from '@/components/GrinderFormModal'
 import InviteMemberModal from '@/components/InviteMemberModal'
 import { useAuth } from '@/lib/authContext'
@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-import { Prisma, Equipment, Grinder, BrewBar } from '@/generated/prisma/client'
+import { Prisma, Brewer, Grinder } from '@/generated/prisma/client'
 
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -71,16 +71,16 @@ export default function BrewBarDetailPage() {
 	const [activeTab, setActiveTab] = useState('members')
 
 	const [members, setMembers] = useState<BrewBarMemberWithUser[]>([])
-	const [equipment, setEquipment] = useState<Equipment[]>([])
+	const [brewers, setBrewers] = useState<Brewer[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 
 	const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
-	const [isEquipmentFormOpen, setIsEquipmentFormOpen] = useState(false)
+	const [isBrewerFormOpen, setIsBrewerFormOpen] = useState(false)
 	const [isGrinderFormOpen, setIsGrinderFormOpen] = useState(false)
 
-	const [selectedEquipmentId, setSelectedEquipmentId] = useState<
-		number | undefined
-	>(undefined)
+	const [selectedBrewerId, setSelectedBrewerId] = useState<number | undefined>(
+		undefined,
+	)
 	const [selectedGrinderId, setSelectedGrinderId] = useState<
 		number | undefined
 	>(undefined)
@@ -109,7 +109,7 @@ export default function BrewBarDetailPage() {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
 			setBrewBar(data)
-			await Promise.all([fetchMembers(), fetchEquipment(), fetchGrinders()])
+			await Promise.all([fetchMembers(), fetchBrewers(), fetchGrinders()])
 		} catch (error) {
 			console.error('Error fetching brew bar details:', error)
 			toast.error('Failed to load brew bar details')
@@ -149,28 +149,28 @@ export default function BrewBarDetailPage() {
 		}
 	}
 
-	const fetchEquipment = async () => {
+	const fetchBrewers = async () => {
 		try {
-			const { data } = await axios.get<Equipment[]>(
-				`/api/brew-bars/${id}/equipment`,
+			const { data } = await axios.get<Brewer[]>(
+				`/api/brew-bars/${id}/brewers`,
 				{
 					headers: { Authorization: `Bearer ${user?.token}` },
 				},
 			)
-			setEquipment(data)
+			setBrewers(data)
 		} catch (error) {
-			console.error('Error fetching equipment:', error)
+			console.error('Error fetching brewers:', error)
 		}
 	}
 
-	const handleAddEquipment = () => {
-		setSelectedEquipmentId(undefined)
-		setIsEquipmentFormOpen(true)
+	const handleAddBrewer = () => {
+		setSelectedBrewerId(undefined)
+		setIsBrewerFormOpen(true)
 	}
 
-	const handleEditEquipment = (id: number) => {
-		setSelectedEquipmentId(id)
-		setIsEquipmentFormOpen(true)
+	const handleEditBrewer = (id: number) => {
+		setSelectedBrewerId(id)
+		setIsBrewerFormOpen(true)
 	}
 
 	const handleAddGrinder = () => {
@@ -405,29 +405,25 @@ export default function BrewBarDetailPage() {
 								<div className='flex items-center justify-between'>
 									<div className='flex items-center gap-2'>
 										<Coffee className='h-5 w-5 text-muted-foreground' />
-										<h2 className='text-xl font-semibold'>Equipment</h2>
+										<h2 className='text-xl font-semibold'>Brewers</h2>
 									</div>
-									<Button
-										onClick={handleAddEquipment}
-										variant='outline'
-										size='sm'
-									>
+									<Button onClick={handleAddBrewer} variant='outline' size='sm'>
 										<Plus className='mr-2 h-4 w-4' />
-										Add Equipment
+										Add Brewer
 									</Button>
 								</div>
 
-								{equipment.length === 0 ? (
+								{brewers.length === 0 ? (
 									<Card className='border-dashed'>
 										<CardContent className='flex flex-col items-center justify-center py-8'>
 											<p className='text-muted-foreground text-sm'>
-												No equipment added yet
+												No brewers added yet
 											</p>
 										</CardContent>
 									</Card>
 								) : (
 									<div className='grid gap-4 md:grid-cols-2'>
-										{equipment.map((item) => (
+										{brewers.map((item) => (
 											<Card key={item.id} className='relative group'>
 												<CardHeader className='p-4'>
 													<div className='flex justify-between items-start'>
@@ -443,7 +439,7 @@ export default function BrewBarDetailPage() {
 															variant='ghost'
 															size='icon'
 															className='h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity'
-															onClick={() => handleEditEquipment(item.id)}
+															onClick={() => handleEditBrewer(item.id)}
 														>
 															<Edit className='h-4 w-4 text-muted-foreground' />
 														</Button>
@@ -459,12 +455,12 @@ export default function BrewBarDetailPage() {
 				</div>
 			</Section>
 
-			<EquipmentFormModal
-				isOpen={isEquipmentFormOpen}
-				onClose={() => setIsEquipmentFormOpen(false)}
+			<BrewerFormModal
+				isOpen={isBrewerFormOpen}
+				onClose={() => setIsBrewerFormOpen(false)}
 				brewBarId={Number(id)}
-				equipmentId={selectedEquipmentId}
-				onSuccess={fetchEquipment}
+				brewerId={selectedBrewerId}
+				onSuccess={fetchBrewers}
 			/>
 
 			<GrinderFormModal

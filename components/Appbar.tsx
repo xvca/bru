@@ -2,8 +2,24 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useState } from 'react'
 import { useAuth } from '@/lib/authContext'
-import { LogOut } from 'lucide-react'
+import { useBrewBar } from '@/lib/brewBarContext'
+import { LogOut, Store, User, ChevronDown, Menu } from 'lucide-react'
 import { Button } from './ui/button'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+	Sheet,
+	SheetContent,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from '@/components/ui/sheet'
 
 const links = [
 	{ label: 'Autobru', href: '/' },
@@ -15,101 +31,166 @@ const links = [
 
 const Appbar = () => {
 	const router = useRouter()
-	const [isMenuOpen, setIsMenuOpen] = useState(false)
+	const [isOpen, setIsOpen] = useState(false)
 	const { user, logout } = useAuth()
-
-	const toggleMenu = () => {
-		setIsMenuOpen(!isMenuOpen)
-	}
+	const { activeBarId, setActiveBarId, availableBars } = useBrewBar()
 
 	const handleLogout = () => {
 		logout()
-		setIsMenuOpen(false)
+		setIsOpen(false)
 	}
 
+	const currentContextName = activeBarId
+		? availableBars.find((b) => b.id === activeBarId)?.name
+		: 'Personal'
+
 	return (
-		<>
-			{/* Overlay */}
-			{isMenuOpen && (
-				<div
-					className='fixed inset-0 bg-black opacity-50 z-30'
-					onClick={toggleMenu}
-				/>
-			)}
-
-			{/* Sliding Menu */}
-			<div
-				className={`fixed top-0 left-0 right-0 bg-background z-40 transform transition-transform duration-300 ease-in-out ${
-					isMenuOpen ? 'translate-y-0' : '-translate-y-full'
-				}`}
-			>
-				<div className='max-w-(--breakpoint-md) mx-auto px-4 py-6'>
-					{links.map(({ label, href }) => (
+		<div className='fixed top-0 left-0 z-20 w-full bg-background/80 backdrop-blur-md border-b border-border pt-safe'>
+			<header className='px-safe'>
+				<div className='mx-auto flex h-14 max-w-(--breakpoint-md) items-center justify-between px-4'>
+					<div className='flex items-center gap-4'>
 						<Link
-							key={label}
-							href={href}
-							onClick={() => setIsMenuOpen(false)}
-							className={`block py-3 text-lg ${
-								router.pathname === href
-									? 'text-primary'
-									: 'text-text hover:text-primary'
-							}`}
+							href='/'
+							className='font-bold text-xl flex items-center gap-2'
 						>
-							{label}
+							<span>Bru</span>
 						</Link>
-					))}
 
-					{/* Add logout button if user is logged in */}
-					{user && (
-						<button
-							onClick={handleLogout}
-							className='flex items-center w-full py-3 text-lg text-text hover:text-primary'
-						>
-							<LogOut size={18} className='mr-2' />
-							Logout
-						</button>
-					)}
-				</div>
-			</div>
+						{user && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant='outline'
+										size='sm'
+										className='h-8 gap-1 px-2 text-xs font-normal border-dashed hidden sm:flex'
+									>
+										{activeBarId ? <Store size={12} /> : <User size={12} />}
+										<span className='max-w-[100px] truncate'>
+											{currentContextName}
+										</span>
+										<ChevronDown size={10} className='opacity-50' />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align='start'>
+									<DropdownMenuLabel className='text-xs text-muted-foreground'>
+										Switch Context
+									</DropdownMenuLabel>
 
-			{/* Main Appbar */}
-			<div className='fixed top-0 left-0 z-20 w-full bg-background pt-safe'>
-				<header className='border-b border-border bg-background px-safe'>
-					<div className='mx-auto flex h-12 max-w-(--breakpoint-md) items-center justify-between px-4'>
-						<Button variant='ghost'>
-							<Link href='/'>
-								<h1 className='font-medium text-text'>Bru</h1>
-							</Link>
-						</Button>
+									<DropdownMenuItem onClick={() => setActiveBarId(null)}>
+										<User className='mr-2 h-4 w-4' />
+										<span>Personal Space</span>
+										{!activeBarId && (
+											<span className='ml-auto text-xs opacity-50'>Active</span>
+										)}
+									</DropdownMenuItem>
 
-						<Button
-							onClick={toggleMenu}
-							aria-label='Toggle menu'
-							variant='ghost'
-							size='sm'
-						>
-							<div className='w-6 h-5 relative flex flex-col justify-between'>
-								<span
-									className={`w-full h-0.5 bg-foreground transform transition-all duration-300 ${
-										isMenuOpen ? 'rotate-45 translate-y-2' : ''
-									}`}
-								/>
-								<span
-									className={`w-full h-0.5 bg-foreground transition-all duration-300 ${
-										isMenuOpen ? 'opacity-0' : ''
-									}`}
-								/>
-								<span
-									className={`w-full h-0.5 bg-foreground transform transition-all duration-300 ${
-										isMenuOpen ? '-rotate-45 -translate-y-2' : ''
-									}`}
-								/>
-							</div>
-						</Button>
+									{availableBars.length > 0 && <DropdownMenuSeparator />}
+
+									{availableBars.map((bar) => (
+										<DropdownMenuItem
+											key={bar.id}
+											onClick={() => setActiveBarId(bar.id)}
+										>
+											<Store className='mr-2 h-4 w-4' />
+											<span>{bar.name}</span>
+											{activeBarId === bar.id && (
+												<span className='ml-auto text-xs opacity-50'>
+													Active
+												</span>
+											)}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
 					</div>
-				</header>
-			</div>
-		</>
+
+					<Sheet open={isOpen} onOpenChange={setIsOpen}>
+						<SheetTrigger asChild>
+							<Button variant='ghost' size='icon'>
+								<Menu className='h-5 w-5' />
+								<span className='sr-only'>Toggle menu</span>
+							</Button>
+						</SheetTrigger>
+						<SheetContent side='top' aria-describedby=''>
+							<SheetHeader className='text-left'>
+								<SheetTitle>Menu</SheetTitle>
+							</SheetHeader>
+							<div className='flex flex-col gap-2 mt-6'>
+								{user && (
+									<div className='sm:hidden mb-4 p-4 bg-muted/50 rounded-lg'>
+										<p className='text-xs font-medium text-muted-foreground mb-2'>
+											Current Context
+										</p>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button
+													variant='outline'
+													className='w-full justify-between'
+												>
+													<div className='flex items-center gap-2'>
+														{activeBarId ? (
+															<Store size={14} />
+														) : (
+															<User size={14} />
+														)}
+														<span>{currentContextName}</span>
+													</div>
+													<ChevronDown size={14} className='opacity-50' />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent className='w-[280px]'>
+												<DropdownMenuItem onClick={() => setActiveBarId(null)}>
+													<User className='mr-2 h-4 w-4' />
+													<span>Personal Space</span>
+												</DropdownMenuItem>
+												{availableBars.map((bar) => (
+													<DropdownMenuItem
+														key={bar.id}
+														onClick={() => setActiveBarId(bar.id)}
+													>
+														<Store className='mr-2 h-4 w-4' />
+														<span>{bar.name}</span>
+													</DropdownMenuItem>
+												))}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
+								)}
+
+								{links.map(({ label, href }) => (
+									<Link
+										key={label}
+										href={href}
+										onClick={() => setIsOpen(false)}
+										className={`block py-2 text-lg font-medium transition-colors ${
+											router.pathname === href
+												? 'text-primary'
+												: 'text-muted-foreground hover:text-foreground'
+										}`}
+									>
+										{label}
+									</Link>
+								))}
+
+								{user && (
+									<>
+										<div className='h-px bg-border my-2' />
+										<button
+											onClick={handleLogout}
+											className='flex items-center w-full py-2 text-lg text-destructive hover:text-destructive/80 font-medium'
+										>
+											<LogOut size={18} className='mr-2' />
+											Logout
+										</button>
+									</>
+								)}
+							</div>
+						</SheetContent>
+					</Sheet>
+				</div>
+			</header>
+		</div>
 	)
 }
 

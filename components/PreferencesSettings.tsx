@@ -1,13 +1,14 @@
-import { useState } from 'react'
-import { z } from 'zod'
+import { useEffect, useState } from 'react'
 import { useForm, Controller, SubmitHandler } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
+import { useBrewBar } from '@/lib/brewBarContext'
+import axios from 'axios'
+import { useAuth } from '@/lib/authContext'
 import {
 	userPreferencesSchema,
 	type UserPreferencesFormData,
 } from '@/lib/validators'
-import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
@@ -18,25 +19,47 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
+import { Spinner } from './ui/spinner'
 
 export default function PreferencesSettings() {
+	const { user } = useAuth()
+	const { availableBars, activeBarId, refreshBars } = useBrewBar()
 	const [isSaving, setIsSaving] = useState(false)
 
 	const form = useForm<UserPreferencesFormData>({
 		resolver: zodResolver(userPreferencesSchema),
 		defaultValues: {
-			defaultBrewBar: '',
+			defaultBrewBar: 'personal',
 		},
 	})
+
+	useEffect(() => {
+		const load = async () => {
+			try {
+				const { data } = await axios.get('/api/user/preferences', {
+					headers: { Authorization: `Bearer ${user?.token}` },
+				})
+				form.reset({
+					defaultBrewBar: data.defaultBarId
+						? String(data.defaultBarId)
+						: 'personal',
+				})
+			} catch (e) {
+				console.error(e)
+			}
+		}
+		if (user) load()
+	}, [user, form])
 
 	const onSubmit: SubmitHandler<UserPreferencesFormData> = async (data) => {
 		setIsSaving(true)
 		try {
-			await new Promise((resolve) => setTimeout(resolve, 1000))
-			console.log('Saving preferences:', data)
+			await axios.put('/api/user/preferences', data, {
+				headers: { Authorization: `Bearer ${user?.token}` },
+			})
 
-			toast.success('Preferences saved successfully')
-			form.reset(data)
+			toast.success('Preferences saved')
+			await refreshBars()
 		} catch (error) {
 			console.error('Failed to save preferences:', error)
 			toast.error('Failed to save preferences')
@@ -53,16 +76,17 @@ export default function PreferencesSettings() {
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
 						<FieldLabel htmlFor='defaultBrewBar'>Default Brew Bar</FieldLabel>
-						<Select
-							onValueChange={field.onChange}
-							defaultValue={field.value}
-							value={field.value}
-						>
+						<Select onValueChange={field.onChange} value={field.value}>
 							<SelectTrigger id='defaultBrewBar' className='w-full'>
 								<SelectValue placeholder='Select default brew bar' />
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value='personal'>Personal Space</SelectItem>
+								{availableBars.map((bar) => (
+									<SelectItem key={bar.id} value={String(bar.id)}>
+										{bar.name} ({bar.role})
+									</SelectItem>
+								))}
 							</SelectContent>
 						</Select>
 						{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -71,8 +95,8 @@ export default function PreferencesSettings() {
 			/>
 
 			<div>
-				<Button type='submit' disabled={!form.formState.isDirty || isSaving}>
-					{isSaving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+				<Button type='submit' disabled={isSaving}>
+					{isSaving && <Spinner />}
 					Save Preferences
 				</Button>
 			</div>

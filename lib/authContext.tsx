@@ -30,7 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 	const [isLoading, setIsLoading] = useState(true)
 	const router = useRouter()
 
-	// Load user from localStorage on initial render
 	useEffect(() => {
 		const loadUser = () => {
 			const userData = localStorage.getItem('user')
@@ -54,9 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 		router.push('/login')
 	}
 
-	const login = (userData: User) => {
-		localStorage.setItem('user', JSON.stringify(userData))
-		setUser(userData)
+	const login = (apiResponse: any) => {
+		const normalizedUser: User = {
+			token: apiResponse.token,
+			id: apiResponse.user?.id || apiResponse.id,
+			username: apiResponse.user?.username || apiResponse.username,
+		}
+
+		localStorage.setItem('user', JSON.stringify(normalizedUser))
+		setUser(normalizedUser)
 	}
 
 	return (

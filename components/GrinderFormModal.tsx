@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { grinderSchema, type GrinderFormData } from '@/lib/validators'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -52,6 +50,7 @@ export default function GrinderFormModal({
 			name: '',
 			burrType: '',
 			notes: '',
+			barId: brewBarId,
 		},
 	})
 
@@ -62,6 +61,7 @@ export default function GrinderFormModal({
 					name: '',
 					burrType: '',
 					notes: '',
+					barId: brewBarId,
 				})
 			} else if (grinderId) {
 				fetchGrinder()
@@ -69,7 +69,7 @@ export default function GrinderFormModal({
 		} else {
 			form.reset()
 		}
-	}, [isOpen, isEditMode, grinderId])
+	}, [isOpen, isEditMode, grinderId, brewBarId])
 
 	const fetchGrinder = async () => {
 		try {
@@ -87,6 +87,7 @@ export default function GrinderFormModal({
 				name: data.name,
 				burrType: data.burrType || '',
 				notes: data.notes || '',
+				barId: brewBarId,
 			})
 		} catch (error) {
 			console.error('Error fetching grinder:', error)
@@ -140,7 +141,7 @@ export default function GrinderFormModal({
 
 				{isFetching ? (
 					<div className='flex justify-center items-center py-8'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				) : (
 					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>

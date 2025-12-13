@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
-import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { equipmentSchema, type EquipmentFormData } from '@/lib/validators'
+import { brewerSchema, type BrewerFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -32,29 +31,29 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 
-interface EquipmentFormModalProps {
+interface BrewerFormModalProps {
 	isOpen: boolean
 	onClose: () => void
 	brewBarId: number
-	equipmentId?: number
+	brewerId?: number
 	onSuccess?: () => void
 }
 
-export default function EquipmentFormModal({
+export default function BrewerFormModal({
 	isOpen,
 	onClose,
 	brewBarId,
-	equipmentId,
+	brewerId,
 	onSuccess,
-}: EquipmentFormModalProps) {
+}: BrewerFormModalProps) {
 	const { user } = useAuth()
-	const isEditMode = !!equipmentId
+	const isEditMode = !!brewerId
 
 	const [isLoading, setIsLoading] = useState(false)
 	const [isFetching, setIsFetching] = useState(false)
 
-	const form = useForm<EquipmentFormData>({
-		resolver: zodResolver(equipmentSchema),
+	const form = useForm<BrewerFormData>({
+		resolver: zodResolver(brewerSchema),
 		defaultValues: {
 			name: '',
 			type: '',
@@ -70,21 +69,21 @@ export default function EquipmentFormModal({
 					type: '',
 					notes: '',
 				})
-			} else if (equipmentId) {
-				fetchEquipment()
+			} else if (brewerId) {
+				fetchBrewer()
 			}
 		} else {
 			form.reset()
 		}
-	}, [isOpen, isEditMode, equipmentId])
+	}, [isOpen, isEditMode, brewerId])
 
-	const fetchEquipment = async () => {
+	const fetchBrewer = async () => {
 		try {
 			setIsFetching(true)
 			if (!user?.token) return
 
 			const { data } = await axios.get(
-				`/api/brew-bars/${brewBarId}/equipment/${equipmentId}`,
+				`/api/brew-bars/${brewBarId}/brewers/${brewerId}`,
 				{
 					headers: { Authorization: `Bearer ${user.token}` },
 				},
@@ -96,41 +95,41 @@ export default function EquipmentFormModal({
 				notes: data.notes || '',
 			})
 		} catch (error) {
-			console.error('Error fetching equipment:', error)
-			toast.error('Failed to load equipment data')
+			console.error('Error fetching brewer:', error)
+			toast.error('Failed to load brewer data')
 			onClose()
 		} finally {
 			setIsFetching(false)
 		}
 	}
 
-	const onSubmit = async (data: EquipmentFormData) => {
+	const onSubmit = async (data: BrewerFormData) => {
 		setIsLoading(true)
 
 		try {
 			if (!user?.token) return
 
-			if (isEditMode && equipmentId) {
+			if (isEditMode && brewerId) {
 				await axios.put(
-					`/api/brew-bars/${brewBarId}/equipment/${equipmentId}`,
+					`/api/brew-bars/${brewBarId}/brewers/${brewerId}`,
 					data,
 					{
 						headers: { Authorization: `Bearer ${user.token}` },
 					},
 				)
-				toast.success('Equipment updated successfully')
+				toast.success('brewer updated successfully')
 			} else {
-				await axios.post(`/api/brew-bars/${brewBarId}/equipment`, data, {
+				await axios.post(`/api/brew-bars/${brewBarId}/brewers`, data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
-				toast.success('Equipment added successfully')
+				toast.success('brewer added successfully')
 			}
 
 			onSuccess?.()
 			onClose()
 		} catch (error) {
-			console.error('Error saving equipment:', error)
-			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} equipment`)
+			console.error('Error saving brewer:', error)
+			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} brewer`)
 		} finally {
 			setIsLoading(false)
 		}
@@ -140,9 +139,7 @@ export default function EquipmentFormModal({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className='max-w-md'>
 				<DialogHeader>
-					<DialogTitle>
-						{isEditMode ? 'Edit Equipment' : 'Add Equipment'}
-					</DialogTitle>
+					<DialogTitle>{isEditMode ? 'Edit brewer' : 'Add brewer'}</DialogTitle>
 				</DialogHeader>
 
 				{isFetching ? (
@@ -184,7 +181,7 @@ export default function EquipmentFormModal({
 											defaultValue={field.value || ''}
 										>
 											<SelectTrigger id='type' className='w-full'>
-												<SelectValue placeholder='Select Equipment Type' />
+												<SelectValue placeholder='Select brewer Type' />
 											</SelectTrigger>
 											<SelectContent>
 												<SelectItem value='Espresso Machine'>
@@ -197,7 +194,6 @@ export default function EquipmentFormModal({
 												<SelectItem value='AeroPress'>AeroPress</SelectItem>
 												<SelectItem value='Moka Pot'>Moka Pot</SelectItem>
 												<SelectItem value='Cold Brew'>Cold Brew</SelectItem>
-												<SelectItem value='Scale'>Scale</SelectItem>
 												<SelectItem value='Kettle'>Kettle</SelectItem>
 												<SelectItem value='Other'>Other</SelectItem>
 											</SelectContent>
@@ -220,7 +216,7 @@ export default function EquipmentFormModal({
 											value={field.value || ''}
 											id='notes'
 											rows={3}
-											placeholder='Additional notes about this equipment'
+											placeholder='Additional notes about this brewer'
 										/>
 									</Field>
 								)}

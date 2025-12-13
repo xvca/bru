@@ -3,6 +3,7 @@ import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
+import { useBrewBar } from '@/lib/brewBarContext'
 import type { Bean } from 'generated/prisma/client'
 import {
 	Plus,
@@ -13,6 +14,7 @@ import {
 	Trash,
 	Package,
 	Snowflake,
+	Store,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -33,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function BeansPage() {
 	const { user } = useAuth()
+	const { activeBarId, setActiveBarId, availableBars } = useBrewBar()
 	const [beans, setBeans] = useState<Bean[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [modalData, setModalData] = useState({
@@ -50,14 +53,17 @@ export default function BeansPage() {
 		if (user) {
 			fetchBeans()
 		}
-	}, [user])
+	}, [user, activeBarId])
 
 	const fetchBeans = async () => {
 		try {
 			setIsLoading(true)
-			const { data } = await axios.get('/api/beans', {
+			const { data } = await axios.get<Bean[]>('/api/beans', {
 				headers: { Authorization: `Bearer ${user?.token}` },
+				params: { barId: activeBarId },
 			})
+
+			console.log(data)
 			setBeans(data)
 		} catch (error) {
 			console.error('Error fetching beans:', error)
@@ -104,6 +110,8 @@ export default function BeansPage() {
 		})
 	}
 
+	console.log(activeBarId)
+
 	const calculateDaysSinceRoast = (
 		roastDateStr: Date | string,
 		freezeDateStr?: Date | string | null,
@@ -117,20 +125,30 @@ export default function BeansPage() {
 		return Math.max(0, diffDays)
 	}
 
+	const currentBarName = activeBarId
+		? availableBars.find((b) => b.id === activeBarId)?.name
+		: 'Personal Stash'
+
 	return (
 		<ProtectedPage title='Coffee Beans'>
 			<Section>
-				<div className='flex justify-between items-center mb-8'>
+				<div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4'>
 					<div>
 						<h1 className='text-3xl font-bold tracking-tight'>Coffee Beans</h1>
 						<p className='text-muted-foreground mt-1'>
-							Manage your coffee inventory.
+							Manage inventory for:{' '}
+							<span className='font-medium text-foreground'>
+								{currentBarName}
+							</span>
 						</p>
 					</div>
-					<Button onClick={handleAddNew}>
-						<Plus className='mr-2 h-4 w-4' />
-						Add Bean
-					</Button>
+
+					<div className='flex items-center gap-2 w-full md:w-auto'>
+						<Button onClick={handleAddNew}>
+							<Plus className='mr-2 h-4 w-4' />
+							Add Bean
+						</Button>
+					</div>
 				</div>
 
 				{isLoading ? (
@@ -281,6 +299,7 @@ export default function BeansPage() {
 				isOpen={isFormOpen}
 				onClose={() => setIsFormOpen(false)}
 				beanId={selectedBeanId}
+				barId={activeBarId || undefined}
 				onSuccess={fetchBeans}
 			/>
 

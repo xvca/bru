@@ -64,12 +64,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 	const isMainPageRef = useRef(isMainPage)
 
-	// Parse WebSocket binary message
 	const parseWsMessage = (buffer: ArrayBuffer) => {
 		const view = new DataView(buffer)
 		let offset = 0
-
-		console.log(buffer)
 
 		try {
 			const weight = view.getFloat32(offset, true)
@@ -92,16 +89,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
 			const isScaleConnected = view.getUint8(offset) !== 0
 			offset += 1
-
-			console.log({
-				weight,
-				flowRate,
-				target,
-				time,
-				state,
-				isActive,
-				isScaleConnected,
-			})
 
 			setBrewData({
 				weight,
