@@ -26,7 +26,7 @@ import {
 interface GrinderFormModalProps {
 	isOpen: boolean
 	onClose: () => void
-	brewBarId: number
+	brewBarId?: number | null
 	grinderId?: number
 	onSuccess?: () => void
 }
@@ -76,12 +76,9 @@ export default function GrinderFormModal({
 			setIsFetching(true)
 			if (!user?.token) return
 
-			const { data } = await axios.get(
-				`/api/brew-bars/${brewBarId}/grinders/${grinderId}`,
-				{
-					headers: { Authorization: `Bearer ${user.token}` },
-				},
-			)
+			const { data } = await axios.get(`/api/grinders/${grinderId}`, {
+				headers: { Authorization: `Bearer ${user.token}` },
+			})
 
 			form.reset({
 				name: data.name,
@@ -105,16 +102,12 @@ export default function GrinderFormModal({
 			if (!user?.token) return
 
 			if (isEditMode && grinderId) {
-				await axios.put(
-					`/api/brew-bars/${brewBarId}/grinders/${grinderId}`,
-					data,
-					{
-						headers: { Authorization: `Bearer ${user.token}` },
-					},
-				)
+				await axios.put(`/api/grinders/${grinderId}`, data, {
+					headers: { Authorization: `Bearer ${user.token}` },
+				})
 				toast.success('Grinder updated successfully')
 			} else {
-				await axios.post(`/api/brew-bars/${brewBarId}/grinders`, data, {
+				await axios.post(`/api/grinders`, data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('Grinder added successfully')

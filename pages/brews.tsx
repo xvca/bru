@@ -217,7 +217,7 @@ export default function Brews() {
 														variant='secondary'
 														className='font-normal text-xs'
 													>
-														{brew.method.name}
+														{brew.method}
 													</Badge>
 													{brew.brewBar && (
 														<Badge
@@ -334,10 +334,7 @@ export default function Brews() {
 															<Settings2 size={13} />
 															<span className='text-xs'>Grind</span>
 														</div>
-														<span
-															className='font-medium truncate max-w-20 text-right'
-															title={brew.grindSize}
-														>
+														<span className='font-medium truncate max-w-20 text-right'>
 															{brew.grindSize}
 														</span>
 													</div>

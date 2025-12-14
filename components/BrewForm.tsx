@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { Star, X } from 'lucide-react'
 import type { Bean, Brewer, Grinder } from 'generated/prisma/client'
-import { brewSchema, type BrewFormData } from '@/lib/validators'
+import { BREW_METHODS, brewSchema, type BrewFormData } from '@/lib/validators'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -55,19 +55,9 @@ export default function BrewForm({
 	const [isLoading, setIsLoading] = useState(false)
 	const [isFetching, setIsFetching] = useState(false)
 
-	const [isBeanSelectOpen, setIsBeanSelectOpen] = useState(false)
-	const [isMethodSelectOpen, setIsMethodSelectOpen] = useState(false)
-	const [isBrewerSelectOpen, setIsBrewerSelectOpen] = useState(false)
-	const [isGrinderSelectOpen, setIsGrinderSelectOpen] = useState(false)
-	const [isMinSelectOpen, setIsMinSelectOpen] = useState(false)
-	const [isSecSelectOpen, setIsSecSelectOpen] = useState(false)
-
 	const [activeSelect, setActiveSelect] = useState<string | null>(null)
 
 	const [beans, setBeans] = useState<Bean[]>([])
-	const [methods, setMethods] = useState<Array<{ id: number; name: string }>>(
-		[],
-	)
 	const [brewers, setBrewers] = useState<Brewer[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 
@@ -75,11 +65,11 @@ export default function BrewForm({
 		resolver: zodResolver(brewSchema),
 		defaultValues: {
 			beanId: 0,
-			methodId: 0,
+			method: 'Espresso',
 			doseWeight: 18,
 			yieldWeight: 36,
 			brewTime: 0,
-			grindSize: '',
+			grindSize: 0,
 			waterTemperature: 93,
 			rating: 0,
 			tastingNotes: '',
@@ -89,8 +79,6 @@ export default function BrewForm({
 			grinderId: undefined,
 		},
 	})
-
-	console.log(form)
 
 	const watchedBeanId = useWatch({ control: form.control, name: 'beanId' })
 	const watchedBrewerId = useWatch({ control: form.control, name: 'brewerId' })
@@ -102,16 +90,13 @@ export default function BrewForm({
 					const params = { barId: barId || undefined }
 					const headers = { Authorization: `Bearer ${user.token}` }
 
-					const [beansRes, methodsRes, brewersRes, grindersRes] =
-						await Promise.all([
-							axios.get('/api/beans', { headers, params }),
-							axios.get('/api/brew-methods', { headers }),
-							axios.get('/api/brewers', { headers, params }),
-							axios.get('/api/grinders', { headers, params }),
-						])
+					const [beansRes, brewersRes, grindersRes] = await Promise.all([
+						axios.get('/api/beans', { headers, params }),
+						axios.get('/api/brewers', { headers, params }),
+						axios.get('/api/grinders', { headers, params }),
+					])
 
 					setBeans(beansRes.data)
-					setMethods(methodsRes.data)
 					setBrewers(brewersRes.data)
 					setGrinders(grindersRes.data)
 				} catch (error) {
@@ -154,11 +139,11 @@ export default function BrewForm({
 		} else if (isOpen && !isEditMode) {
 			form.reset({
 				beanId: 0,
-				methodId: 0,
+				method: 'Espresso',
 				doseWeight: 18,
 				yieldWeight: 36,
 				brewTime: 0,
-				grindSize: '',
+				grindSize: 0,
 				waterTemperature: 93,
 				rating: 0,
 				tastingNotes: '',
@@ -235,7 +220,14 @@ export default function BrewForm({
 		}
 	}
 
-	useEffect
+	useEffect(() => {
+		if (watchedBrewerId) {
+			const selectedBrewer = brewers.find((b) => b.id === watchedBrewerId)
+			if (selectedBrewer && selectedBrewer.type) {
+				form.setValue('method', selectedBrewer.type)
+			}
+		}
+	}, [watchedBrewerId, brewers, form])
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -329,50 +321,82 @@ export default function BrewForm({
 								/>
 
 								<Controller
-									name='grinderId'
+									name='method'
 									control={form.control}
 									render={({ field, fieldState }) => (
 										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='grinderId'>
-												Grinder (Optional)
-											</FieldLabel>
+											<FieldLabel>Method</FieldLabel>
 											<Select
-												onValueChange={(val) =>
-													field.onChange(val ? Number(val) : null)
-												}
-												value={field.value ? field.value.toString() : ''}
+												onValueChange={field.onChange}
+												value={field.value}
 												onOpenChange={(isOpen) =>
-													setActiveSelect(isOpen ? 'grinder' : null)
+													setActiveSelect(isOpen ? 'method' : null)
 												}
-												open={activeSelect === 'grinder'}
+												open={activeSelect === 'method'}
 											>
-												<SelectTrigger id='grinderId' className='w-full'>
-													<SelectValue placeholder='Select grinder' />
+												<SelectTrigger>
+													<SelectValue />
 												</SelectTrigger>
 												<SelectContent>
-													<SelectItem
-														value='0'
-														className='text-muted-foreground italic'
-													>
-														None
-													</SelectItem>
-													{grinders.map((grinder) => (
-														<SelectItem
-															key={grinder.id}
-															value={grinder.id.toString()}
-														>
-															{grinder.name}&nbsp;
-															<span className='text-muted-foreground italic'>
-																{grinder.burrType}
-															</span>
+													{BREW_METHODS.map((m) => (
+														<SelectItem key={m} value={m}>
+															{m}
 														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
 										</Field>
 									)}
 								/>
 							</div>
+
+							<Controller
+								name='grinderId'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='grinderId'>
+											Grinder (Optional)
+										</FieldLabel>
+										<Select
+											onValueChange={(val) =>
+												field.onChange(val ? Number(val) : null)
+											}
+											value={field.value ? field.value.toString() : ''}
+											onOpenChange={(isOpen) =>
+												setActiveSelect(isOpen ? 'grinder' : null)
+											}
+											open={activeSelect === 'grinder'}
+										>
+											<SelectTrigger id='grinderId' className='w-full'>
+												<SelectValue placeholder='Select grinder' />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem
+													value='0'
+													className='text-muted-foreground italic'
+												>
+													None
+												</SelectItem>
+												{grinders.map((grinder) => (
+													<SelectItem
+														key={grinder.id}
+														value={grinder.id.toString()}
+													>
+														{grinder.name}&nbsp;
+														<span className='text-muted-foreground italic'>
+															{grinder.burrType}
+														</span>
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
+								)}
+							/>
 
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
 								<Controller
@@ -546,8 +570,12 @@ export default function BrewForm({
 										<Input
 											{...field}
 											value={field.value || ''}
+											type='number'
+											step='0.1'
+											min='0'
 											id='grindSize'
-											placeholder='e.g., Fine, Medium, or a number'
+											placeholder='4.5'
+											onFocus={(e) => e.target.select()}
 										/>
 									</Field>
 								)}

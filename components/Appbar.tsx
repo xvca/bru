@@ -25,6 +25,7 @@ const links = [
 	{ label: 'Autobru', href: '/' },
 	{ label: 'Beans', href: '/beans' },
 	{ label: 'Brews', href: '/brews' },
+	{ label: 'Equipment', href: '/equipment' },
 	{ label: 'Brew Bars', href: '/brew-bars' },
 	{ label: 'Settings', href: '/settings' },
 ]

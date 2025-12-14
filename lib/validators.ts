@@ -1,5 +1,18 @@
 import { z } from 'zod'
 
+export const BREW_METHODS = [
+	'Espresso',
+	'Pour Over',
+	'French Press',
+	'AeroPress',
+	'Cold Brew',
+	'Moka Pot',
+	'Drip',
+	'Siphon',
+	'Turkish Coffee',
+	'Other',
+] as const
+
 // Auth
 export const authSchema = z.object({
 	username: z.string().min(3, 'Username must be at least 3 characters'),
@@ -40,11 +53,11 @@ export type BeanFormData = z.infer<typeof beanSchema>
 // Brews
 export const brewSchema = z.object({
 	beanId: z.coerce.number().min(1, 'Bean is required'),
-	methodId: z.coerce.number().min(1, 'Brew method is required'),
+	method: z.string().min(1, 'Method is required'),
 	doseWeight: z.coerce.number().min(0.1, 'Dose weight must be positive'),
 	yieldWeight: z.coerce.number().min(0.1).optional().nullable(),
 	brewTime: z.coerce.number().min(0).optional().nullable(),
-	grindSize: z.string().optional().nullable(),
+	grindSize: z.coerce.number().min(0).optional().nullable(),
 	waterTemperature: z.coerce.number().min(1).max(100).optional().nullable(),
 	rating: z.coerce.number().min(0).max(5).optional().nullable(),
 	tastingNotes: z.string().optional().nullable(),
@@ -59,7 +72,7 @@ export type BrewFormData = z.infer<typeof brewSchema>
 // Brewers
 export const brewerSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
-	type: z.string().optional().nullable(),
+	type: z.enum(BREW_METHODS).or(z.string()),
 	notes: z.string().optional().nullable(),
 	barId: z.coerce.number().optional().nullable(),
 })

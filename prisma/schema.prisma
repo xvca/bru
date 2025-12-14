@@ -72,7 +72,7 @@ model Grinder {
 model Brewer {
   id    Int     @id @default(autoincrement())
   name  String
-  type  String?
+  type  String
   notes String?
 
   createdBy Int  @map("created_by")
@@ -84,14 +84,6 @@ model Brewer {
   brews Brew[]
 
   @@map("brewers")
-}
-
-model BrewMethod {
-  id    Int    @id @default(autoincrement())
-  name  String
-  brews Brew[]
-
-  @@map("brew_methods")
 }
 
 model BrewBar {
@@ -125,10 +117,12 @@ model BrewBarMember {
 }
 
 model Brew {
-  id        Int  @id @default(autoincrement())
-  userId    Int  @map("user_id")
-  beanId    Int  @map("bean_id")
-  methodId  Int  @map("method_id")
+  id     Int @id @default(autoincrement())
+  userId Int @map("user_id")
+  beanId Int @map("bean_id")
+
+  method String
+
   grinderId Int? @map("grinder_id")
 
   brewerId Int? @map("brewer_id")
@@ -139,7 +133,7 @@ model Brew {
   doseWeight       Float    @map("dose_weight")
   yieldWeight      Float?   @map("yield_weight")
   brewTime         Int?     @map("brew_time")
-  grindSize        String?  @map("grind_size")
+  grindSize        Float?   @map("grind_size")
   waterTemperature Float?   @map("water_temperature")
   bloomTime        Int?     @map("bloom_time")
   pourPattern      String?  @map("pour_pattern")
@@ -147,10 +141,9 @@ model Brew {
   tastingNotes     String?  @map("tasting_notes")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  user    User       @relation(fields: [userId], references: [id])
-  bean    Bean       @relation(fields: [beanId], references: [id])
-  method  BrewMethod @relation(fields: [methodId], references: [id])
-  grinder Grinder?   @relation(fields: [grinderId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  bean    Bean     @relation(fields: [beanId], references: [id])
+  grinder Grinder? @relation(fields: [grinderId], references: [id])
 
   brewer Brewer? @relation(fields: [brewerId], references: [id])
 

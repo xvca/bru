@@ -3,7 +3,11 @@ import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { brewerSchema, type BrewerFormData } from '@/lib/validators'
+import {
+	BREW_METHODS,
+	brewerSchema,
+	type BrewerFormData,
+} from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
@@ -34,7 +38,7 @@ import {
 interface BrewerFormModalProps {
 	isOpen: boolean
 	onClose: () => void
-	brewBarId: number
+	brewBarId?: number | null
 	brewerId?: number
 	onSuccess?: () => void
 }
@@ -58,6 +62,7 @@ export default function BrewerFormModal({
 			name: '',
 			type: '',
 			notes: '',
+			barId: brewBarId || undefined,
 		},
 	})
 
@@ -68,6 +73,7 @@ export default function BrewerFormModal({
 					name: '',
 					type: '',
 					notes: '',
+					barId: brewBarId || undefined,
 				})
 			} else if (brewerId) {
 				fetchBrewer()
@@ -75,19 +81,16 @@ export default function BrewerFormModal({
 		} else {
 			form.reset()
 		}
-	}, [isOpen, isEditMode, brewerId])
+	}, [isOpen, isEditMode, brewerId, brewBarId])
 
 	const fetchBrewer = async () => {
 		try {
 			setIsFetching(true)
 			if (!user?.token) return
 
-			const { data } = await axios.get(
-				`/api/brew-bars/${brewBarId}/brewers/${brewerId}`,
-				{
-					headers: { Authorization: `Bearer ${user.token}` },
-				},
-			)
+			const { data } = await axios.get(`/api/brewers/${brewerId}`, {
+				headers: { Authorization: `Bearer ${user.token}` },
+			})
 
 			form.reset({
 				name: data.name,
@@ -110,16 +113,12 @@ export default function BrewerFormModal({
 			if (!user?.token) return
 
 			if (isEditMode && brewerId) {
-				await axios.put(
-					`/api/brew-bars/${brewBarId}/brewers/${brewerId}`,
-					data,
-					{
-						headers: { Authorization: `Bearer ${user.token}` },
-					},
-				)
+				await axios.put(`/api/brewers/${brewerId}`, data, {
+					headers: { Authorization: `Bearer ${user.token}` },
+				})
 				toast.success('brewer updated successfully')
 			} else {
-				await axios.post(`/api/brew-bars/${brewBarId}/brewers`, data, {
+				await axios.post(`/api/brewers`, data, {
 					headers: { Authorization: `Bearer ${user.token}` },
 				})
 				toast.success('brewer added successfully')
@@ -174,28 +173,17 @@ export default function BrewerFormModal({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='type'>Type</FieldLabel>
-										<Select
-											onValueChange={field.onChange}
-											value={field.value || ''}
-											defaultValue={field.value || ''}
-										>
-											<SelectTrigger id='type' className='w-full'>
-												<SelectValue placeholder='Select brewer Type' />
+										<FieldLabel>Type</FieldLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
+											<SelectTrigger>
+												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value='Espresso Machine'>
-													Espresso Machine
-												</SelectItem>
-												<SelectItem value='Pour Over'>Pour Over</SelectItem>
-												<SelectItem value='French Press'>
-													French Press
-												</SelectItem>
-												<SelectItem value='AeroPress'>AeroPress</SelectItem>
-												<SelectItem value='Moka Pot'>Moka Pot</SelectItem>
-												<SelectItem value='Cold Brew'>Cold Brew</SelectItem>
-												<SelectItem value='Kettle'>Kettle</SelectItem>
-												<SelectItem value='Other'>Other</SelectItem>
+												{BREW_METHODS.map((m) => (
+													<SelectItem key={m} value={m}>
+														{m}
+													</SelectItem>
+												))}
 											</SelectContent>
 										</Select>
 										{fieldState.invalid && (

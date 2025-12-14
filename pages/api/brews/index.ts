@@ -35,7 +35,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				where: whereClause,
 				include: {
 					bean: { select: { name: true, roaster: true } },
-					method: { select: { name: true } },
 					user: { select: { id: true, username: true } },
 					brewBar: { select: { id: true, name: true } },
 				},
@@ -62,7 +61,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const {
 				beanId,
-				methodId,
+				method,
 				doseWeight,
 				yieldWeight,
 				brewTime,
@@ -81,7 +80,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					data: {
 						userId,
 						beanId,
-						methodId,
+						method,
 						doseWeight,
 						yieldWeight,
 						brewTime,
