@@ -39,7 +39,15 @@ export default function App({ Component, pageProps }: AppProps) {
 				<WebSocketProvider>
 					<BrewBarProvider>
 						<Component {...pageProps} />
-						<Toaster position='top-center' />
+						<Toaster
+							position='top-center'
+							toastOptions={{
+								style: {
+									background: 'var(--background)',
+									borderColor: 'var(--border)',
+								},
+							}}
+						/>
 					</BrewBarProvider>
 				</WebSocketProvider>
 			</AuthProvider>

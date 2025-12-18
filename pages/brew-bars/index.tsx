@@ -115,22 +115,15 @@ export default function BrewBarsPage() {
 	}
 
 	const navigateToMembers = (barId: number) => {
-		router.push(`/brew-bars/${barId}?tab=members`)
-	}
-
-	const navigateToEquipment = (barId: number) => {
-		router.push(`/brew-bars/${barId}?tab=equipment`)
+		router.push(`/brew-bars/${barId}`)
 	}
 
 	return (
 		<ProtectedPage title='Brew Bars'>
-			<Section>
+			<div className='p-6'>
 				<div className='flex justify-between items-center mb-8'>
 					<div>
 						<h1 className='text-3xl font-bold tracking-tight'>Brew Bars</h1>
-						<p className='text-muted-foreground mt-1'>
-							Manage shared coffee spaces, equipment, and members.
-						</p>
 					</div>
 					<Button onClick={handleCreateNewBar}>
 						<Plus className='mr-2 h-4 w-4' />
@@ -246,31 +239,13 @@ export default function BrewBarsPage() {
 											<UserPlus className='mr-2 h-3.5 w-3.5' />
 											Members
 										</Button>
-										<Button
-											variant='outline'
-											size='sm'
-											className='flex-1 text-xs'
-											onClick={() => navigateToEquipment(bar.id)}
-										>
-											<Settings className='mr-2 h-3.5 w-3.5' />
-											Equipment
-										</Button>
 									</div>
-									<Button
-										variant='ghost'
-										size='sm'
-										className='w-full text-xs hover:bg-background'
-										onClick={() => router.push(`/brew-bars/${bar.id}`)}
-									>
-										View Dashboard
-										<ArrowRight className='ml-2 h-3.5 w-3.5' />
-									</Button>
 								</CardFooter>
 							</Card>
 						))}
 					</div>
 				)}
-			</Section>
+			</div>
 
 			<BrewBarFormModal
 				isOpen={isCreateModalOpen}

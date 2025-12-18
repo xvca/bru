@@ -13,13 +13,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 
 const links = [
 	{ label: 'Autobru', href: '/' },
@@ -114,10 +108,7 @@ const Appbar = () => {
 							</Button>
 						</SheetTrigger>
 						<SheetContent side='top' aria-describedby=''>
-							<SheetHeader className='text-left'>
-								<SheetTitle>Menu</SheetTitle>
-							</SheetHeader>
-							<div className='flex flex-col gap-2 mt-6'>
+							<div className='flex flex-col gap-2 mt-4 sm:mt-0'>
 								{user && (
 									<div className='sm:hidden mb-4 p-4 bg-muted/50 rounded-lg'>
 										<p className='text-xs font-medium text-muted-foreground mb-2'>

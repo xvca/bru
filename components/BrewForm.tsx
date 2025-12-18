@@ -40,6 +40,7 @@ interface BrewFormProps {
 	brewId?: number
 	barId?: number
 	onSuccess?: () => void
+	initialData?: Partial<BrewFormData>
 }
 
 export default function BrewForm({
@@ -48,6 +49,7 @@ export default function BrewForm({
 	brewId,
 	barId,
 	onSuccess,
+	initialData,
 }: BrewFormProps) {
 	const { user } = useAuth()
 	const isEditMode = !!brewId
@@ -61,22 +63,26 @@ export default function BrewForm({
 	const [brewers, setBrewers] = useState<Brewer[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 
+	const defaultValues: BrewFormData = {
+		beanId: 0,
+		method: 'Espresso',
+		doseWeight: 18,
+		yieldWeight: 36,
+		brewTime: 0,
+		grindSize: 0,
+		waterTemperature: 93,
+		rating: 0,
+		tastingNotes: '',
+		barId: barId || undefined,
+		brewerId: undefined,
+		grinderId: undefined,
+	}
+
 	const form = useForm<BrewFormData>({
 		resolver: zodResolver(brewSchema),
 		defaultValues: {
-			beanId: 0,
-			method: 'Espresso',
-			doseWeight: 18,
-			yieldWeight: 36,
-			brewTime: 0,
-			grindSize: 0,
-			waterTemperature: 93,
-			rating: 0,
-			tastingNotes: '',
-			brewDate: new Date().toISOString().split('T')[0],
-			barId: barId || undefined,
-			brewerId: undefined,
-			grinderId: undefined,
+			...defaultValues,
+			...(initialData ?? {}),
 		},
 	})
 
@@ -120,9 +126,6 @@ export default function BrewForm({
 						...data,
 						beanId: data.beanId,
 						methodId: data.methodId,
-						brewDate: data.brewDate
-							? new Date(data.brewDate).toISOString().split('T')[0]
-							: new Date().toISOString().split('T')[0],
 						barId: data.barId || undefined,
 						brewerId: data.brewerId || undefined,
 						grinderId: data.grinderId || undefined,
@@ -138,26 +141,23 @@ export default function BrewForm({
 			fetchBrew()
 		} else if (isOpen && !isEditMode) {
 			form.reset({
-				beanId: 0,
-				method: 'Espresso',
-				doseWeight: 18,
-				yieldWeight: 36,
-				brewTime: 0,
-				grindSize: 0,
-				waterTemperature: 93,
-				rating: 0,
-				tastingNotes: '',
-				brewDate: new Date().toISOString().split('T')[0],
-				barId: barId || undefined,
-				brewerId: undefined,
-				grinderId: undefined,
+				...defaultValues,
+				...(initialData ?? {}),
+				barId: barId || initialData?.barId || undefined,
 			})
 		}
 	}, [isOpen, isEditMode, brewId, barId])
 
 	useEffect(() => {
 		const fetchLastBrew = async () => {
-			if (!watchedBeanId || !watchedBrewerId || isEditMode || !user) return
+			if (
+				!watchedBeanId ||
+				!watchedBrewerId ||
+				isEditMode ||
+				!user ||
+				initialData
+			)
+				return
 
 			try {
 				const response = await axios.get(`/api/brews/last-parameters`, {

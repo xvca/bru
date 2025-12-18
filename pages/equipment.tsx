@@ -85,7 +85,7 @@ export default function EquipmentPage() {
 
 	return (
 		<ProtectedPage title='Equipment'>
-			<Section>
+			<div className='p-6'>
 				<div className='flex justify-between items-center mb-8'>
 					<div>
 						<h1 className='text-3xl font-bold tracking-tight'>Equipment</h1>
@@ -230,7 +230,7 @@ export default function EquipmentPage() {
 						)}
 					</TabsContent>
 				</Tabs>
-			</Section>
+			</div>
 
 			<BrewerFormModal
 				isOpen={isBrewerModalOpen}

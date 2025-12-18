@@ -32,7 +32,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				where: { id: brewId },
 				include: {
 					bean: true,
-					method: true,
 					brewer: true,
 					grinder: true,
 					brewBar: true,
@@ -61,7 +60,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 
 			const {
 				beanId,
-				methodId,
+				method,
 				doseWeight,
 				yieldWeight,
 				brewTime,
@@ -69,7 +68,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				waterTemperature,
 				rating,
 				tastingNotes,
-				brewDate,
 				barId,
 				brewerId,
 				grinderId,
@@ -121,7 +119,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					where: { id: brewId },
 					data: {
 						beanId,
-						methodId,
+						method,
 						doseWeight,
 						yieldWeight,
 						brewTime,
@@ -129,7 +127,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 						waterTemperature,
 						rating,
 						tastingNotes,
-						brewDate: brewDate ? new Date(brewDate) : undefined,
 						barId,
 						brewerId,
 						grinderId,

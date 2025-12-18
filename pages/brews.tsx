@@ -143,7 +143,7 @@ export default function Brews() {
 
 	return (
 		<ProtectedPage title='Brew Logs'>
-			<Section>
+			<div className='p-6'>
 				<div className='flex justify-between items-center mb-8'>
 					<div>
 						<h1 className='text-3xl font-bold tracking-tight'>Brew Logs</h1>
@@ -183,8 +183,8 @@ export default function Brews() {
 							<div className='text-center'>
 								<h3 className='text-lg font-semibold'>No brews recorded</h3>
 								<p className='text-muted-foreground text-sm max-w-sm mt-1'>
-									Start logging your coffee journey to track parameters and
-									improve consistency.
+									Start logging your brews to track parameters and improve
+									consistency.
 								</p>
 							</div>
 							<Button
@@ -232,7 +232,7 @@ export default function Brews() {
 												<CardDescription className='flex items-center gap-1'>
 													{brew.bean.roaster || 'Unknown Roaster'}
 													<span>•</span>
-													{format(new Date(brew.brewDate), 'MMM d, h:mm a')}
+													{format(new Date(brew.createdAt), 'MMM d, h:mm a')}
 												</CardDescription>
 											</div>
 
@@ -375,7 +375,7 @@ export default function Brews() {
 						})}
 					</div>
 				)}
-			</Section>
+			</div>
 
 			<BrewForm
 				isOpen={isFormOpen}

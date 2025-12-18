@@ -39,7 +39,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					brewBar: { select: { id: true, name: true } },
 				},
 				orderBy: {
-					brewDate: 'desc',
+					createdAt: 'desc',
 				},
 			})
 
@@ -69,7 +69,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				waterTemperature,
 				rating,
 				tastingNotes,
-				brewDate,
 				barId,
 				brewerId,
 				grinderId,
@@ -88,7 +87,6 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 						waterTemperature,
 						rating,
 						tastingNotes,
-						brewDate: brewDate ? new Date(brewDate) : undefined,
 						barId,
 						brewerId,
 						grinderId,

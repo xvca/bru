@@ -37,6 +37,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 				bean.createdBy === userId ||
 				['Owner', 'Admin'].includes(membership.role || '')
 			) {
+				canRead = true
 				canWrite = true
 			}
 		}

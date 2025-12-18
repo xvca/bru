@@ -18,6 +18,7 @@ interface WebSocketContextType {
 		target: number
 		isActive: boolean
 		isScaleConnected: boolean
+		lastUpdated: number
 	}
 	sendMessage: (message: string) => void
 }
@@ -30,6 +31,7 @@ const initialBrewData = {
 	target: 0,
 	isActive: false,
 	isScaleConnected: false,
+	lastUpdated: 0,
 }
 
 const WebSocketContext = createContext<WebSocketContextType>({
@@ -98,6 +100,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 				state,
 				isActive,
 				isScaleConnected,
+				lastUpdated: Date.now(),
 			})
 		} catch (e) {
 			console.error('Error parsing binary metrics:', e)
@@ -216,9 +219,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 						return
 					}
 
-					if (!isReconnecting.current && isMainPage) {
-						isReconnecting.current = false
-						// Only attempt reconnect if we're on the main page
+					if (!isReconnecting.current && isMainPageRef.current) {
 						setTimeout(() => {
 							if (isMainPageRef.current) connect()
 						}, 1000)
@@ -259,7 +260,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			}
 		}
 
-		connect()
+		const initialTimeout = setTimeout(() => {
+			connect()
+		}, 500)
 
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === 'visible') {
@@ -268,10 +271,25 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			}
 		}
 
+		const handleFocus = () => {
+			console.log('window focused, attemping reconnect...')
+			connect()
+		}
+
+		const handleOnline = () => {
+			console.log('network online, attempting reconnect...')
+			connect()
+		}
+
 		document.addEventListener('visibilitychange', handleVisibilityChange)
+		window.addEventListener('focus', handleFocus)
+		window.addEventListener('online', handleOnline)
 
 		return () => {
+			clearTimeout(initialTimeout)
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
+			window.removeEventListener('focus', handleFocus)
+			window.removeEventListener('online', handleOnline)
 			cleanupWebSocket()
 		}
 	}, [isMainPage, wsUrl])

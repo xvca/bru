@@ -20,6 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 
 export default function Settings() {
 	const { user } = useAuth()
@@ -65,7 +66,7 @@ export default function Settings() {
 	return (
 		<Page title='Settings'>
 			<Section>
-				<div className='max-w-4xl mx-auto'>
+				<div className='max-w-4xl mx-auto p-6'>
 					<h1 className='text-2xl font-bold mb-6'>Settings</h1>
 
 					<Tabs
@@ -99,6 +100,7 @@ export default function Settings() {
 									))}
 								</SelectContent>
 							</Select>
+							<Separator className='mt-6' />
 						</div>
 
 						<TabsList className='hidden lg:flex flex-col justify-start h-auto w-64 bg-transparent p-0 space-y-1 shrink-0'>

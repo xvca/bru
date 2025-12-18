@@ -1,10 +1,10 @@
 import Page from '@/components/Page'
 import Section from '@/components/Section'
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import { RefreshCw, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { espPrefsSchema, type ESPPrefsFormData } from '@/lib/validators'
@@ -68,6 +68,8 @@ interface MergedShotData {
 export default function ESPSettings() {
 	const [isLoading, setIsLoading] = useState(true)
 	const [isSaving, setIsSaving] = useState(false)
+
+	const { user } = useAuth()
 
 	const [isViewDataOpen, setIsViewDataOpen] = useState(false)
 	const [shotData, setShotData] = useState<MergedShotData | null>(null)
@@ -141,6 +143,15 @@ export default function ESPSettings() {
 			formData.append('timezone', data.timezone)
 
 			await api.post('/prefs', formData)
+
+			if (user)
+				await axios.put(
+					'/api/user/preferences',
+					{
+						decafStartHour: data.decafStartHour,
+					},
+					{ headers: { Authorization: `Bearer ${user.token}` } },
+				)
 
 			form.reset(data)
 			toast.success('Settings saved successfully')

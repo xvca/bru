@@ -147,7 +147,7 @@ export default function BrewBarDetailPage() {
 
 	return (
 		<ProtectedPage title={`Brew Bar: ${brewBar.name}`}>
-			<Section>
+			<div className='p-6'>
 				<div className='space-y-6'>
 					<div>
 						<Button
@@ -252,7 +252,7 @@ export default function BrewBarDetailPage() {
 						)}
 					</div>
 				</div>
-			</Section>
+			</div>
 
 			<InviteMemberModal
 				isOpen={isInviteModalOpen}

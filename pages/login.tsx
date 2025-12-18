@@ -76,7 +76,7 @@ export default function LoginPage() {
 
 	return (
 		<Page title='login'>
-			<Section>
+			<div className='p-6'>
 				<div className='max-w-md mx-auto mt-8'>
 					<h1 className='text-2xl font-bold mb-6 text-center'>
 						Login or Sign Up
@@ -150,7 +150,7 @@ export default function LoginPage() {
 						</div>
 					</form>
 				</div>
-			</Section>
+			</div>
 		</Page>
 	)
 }

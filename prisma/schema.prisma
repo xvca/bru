@@ -16,7 +16,8 @@ model User {
   password  String
   createdAt DateTime @default(now()) @map("created_at")
 
-  defaultBarId Int? @map("default_bar_id")
+  defaultBarId   Int? @map("default_bar_id")
+  decafStartHour Int  @default(23) @map("decaf_start_hour")
 
   brews          Brew[]
   beans          Bean[]
@@ -129,7 +130,6 @@ model Brew {
 
   barId Int? @map("bar_id")
 
-  brewDate         DateTime @default(now()) @map("brew_date")
   doseWeight       Float    @map("dose_weight")
   yieldWeight      Float?   @map("yield_weight")
   brewTime         Int?     @map("brew_time")

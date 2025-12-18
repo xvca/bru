@@ -16,8 +16,8 @@ const Page = ({ title, children }: Props) => (
 
 		<Appbar />
 
-		<main className='mx-auto max-w-(--breakpoint-md) pt-12 px-safe sm:pb-0 bg-background text-text'>
-			<div className='p-6'>{children}</div>
+		<main className='mx-auto max-w-(--breakpoint-md) pt-14 sm:pb-0 bg-background text-text min-h-screen flex flex-col'>
+			{children}
 		</main>
 	</>
 )

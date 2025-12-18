@@ -23,7 +23,7 @@ async function handler(req: AuthRequest, res: NextApiResponse) {
 					brewerId,
 				},
 				orderBy: {
-					brewDate: 'desc',
+					createdAt: 'desc',
 				},
 				select: {
 					doseWeight: true,

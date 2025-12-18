@@ -61,7 +61,6 @@ export const brewSchema = z.object({
 	waterTemperature: z.coerce.number().min(1).max(100).optional().nullable(),
 	rating: z.coerce.number().min(0).max(5).optional().nullable(),
 	tastingNotes: z.string().optional().nullable(),
-	brewDate: z.string().optional(),
 	barId: z.coerce.number().optional().nullable(),
 	brewerId: z.coerce.number().optional().nullable(),
 	grinderId: z.coerce.number().optional().nullable(),
@@ -108,6 +107,7 @@ export type InviteFormData = z.infer<typeof inviteSchema>
 // User Preferences
 export const userPreferencesSchema = z.object({
 	defaultBrewBar: z.string().optional(),
+	decafStartHour: z.number().min(0).max(23).optional(),
 })
 
 export type UserPreferencesFormData = z.infer<typeof userPreferencesSchema>
@@ -118,7 +118,7 @@ export const espPrefsSchema = z.object({
 	regularPreset: z.coerce.number().min(0).max(100),
 	decafPreset: z.coerce.number().min(0).max(100),
 	pMode: z.coerce.number(),
-	decafStartHour: z.coerce.number(),
+	decafStartHour: z.coerce.number().min(0).max(23),
 	timezone: z.string(),
 })
 
