@@ -29,6 +29,13 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from '@/components/ui/accordion'
 
 const TIMEZONES = [
 	{ label: 'UTC (GMT)', value: 'GMT0' },
@@ -93,7 +100,9 @@ export default function ESPSettings() {
 
 	const api = axios.create({
 		baseURL: ESPUrl,
-		headers: { 'Content-Type': 'multipart/form-data' },
+		headers: {
+			'Content-Type': 'multipart/form-data',
+		},
 	})
 
 	const form = useForm<ESPPrefsFormData>({
@@ -105,6 +114,8 @@ export default function ESPSettings() {
 			pMode: PreinfusionMode.SIMPLE,
 			decafStartHour: -1,
 			timezone: 'GMT0',
+			learningRate: 0.4,
+			historyLength: 5,
 		},
 	})
 
@@ -116,8 +127,12 @@ export default function ESPSettings() {
 				regularPreset: data.regularPreset,
 				decafPreset: data.decafPreset,
 				pMode: data.pMode,
-				decafStartHour: data.decafStartHour,
+				decafStartHour:
+					data.decafStartHour === undefined ? -1 : data.decafStartHour,
 				timezone: data.timezone,
+				learningRate: data.learningRate === undefined ? 0.4 : data.learningRate,
+				historyLength:
+					data.historyLength === undefined ? 5 : data.historyLength,
 			})
 		} catch (error) {
 			console.error('Failed to get preferences:', error)
@@ -141,6 +156,8 @@ export default function ESPSettings() {
 			formData.append('pMode', data.pMode.toString())
 			formData.append('decafStartHour', data.decafStartHour.toString())
 			formData.append('timezone', data.timezone)
+			formData.append('learningRate', data.learningRate.toString())
+			formData.append('historyLength', data.historyLength.toString())
 
 			await api.post('/prefs', formData)
 
@@ -201,17 +218,17 @@ export default function ESPSettings() {
 		}
 	}
 
-	const handleRecalcClick = () => {
-		setIsSpinning(true)
-		api
-			.post('/recalc-comp-factor')
-			.then(() => {
-				toast.success('Factors recalculated')
-				fetchShotData()
-			})
-			.catch(() => toast.error('Failed to recalculate'))
-			.finally(() => setTimeout(() => setIsSpinning(false), 1000))
-	}
+	// const handleRecalcClick = () => {
+	// 	setIsSpinning(true)
+	// 	api
+	// 		.post('/recalc-comp-factor')
+	// 		.then(() => {
+	// 			toast.success('Factors recalculated')
+	// 			fetchShotData()
+	// 		})
+	// 		.catch(() => toast.error('Failed to recalculate'))
+	// 		.finally(() => setTimeout(() => setIsSpinning(false), 1000))
+	// }
 
 	const handleViewData = async () => {
 		setIsViewDataOpen(true)
@@ -281,37 +298,25 @@ export default function ESPSettings() {
 							name='regularPreset'
 							control={form.control}
 							render={({ field, fieldState }) => (
-								<div className='flex justify-between items-center'>
-									<Label
-										htmlFor='regularPreset'
-										className='font-medium text-base'
-									>
-										Regular Preset
-									</Label>
-									<div className='flex flex-col items-end'>
-										<div className='flex items-baseline gap-1'>
-											<input
-												{...field}
-												id='regularPreset'
-												inputMode='decimal'
-												type='number'
-												min='1'
-												max='100'
-												step='0.1'
-												className='w-20 text-right bg-transparent text-2xl font-bold tabular-nums focus:outline-hidden border-b border-transparent focus:border-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-												onFocus={(e) => e.target.select()}
-											/>
-											<span className='text-base font-normal text-text-secondary'>
-												g
-											</span>
-										</div>
-										{fieldState.invalid && (
-											<span className='text-xs text-error'>
-												{fieldState.error?.message}
-											</span>
-										)}
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel>Regular Preset</FieldLabel>
+									<div className='flex items-center gap-2'>
+										<Input
+											{...field}
+											id='regularPreset'
+											type='number'
+											step='0.1'
+											min='1'
+											max='100'
+											className='w-24 text-right text-2xl font-bold tabular-nums'
+											onFocus={(e) => e.target.select()}
+										/>
+										<span className='text-base text-muted-foreground'>g</span>
 									</div>
-								</div>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
 							)}
 						/>
 
@@ -319,37 +324,25 @@ export default function ESPSettings() {
 							name='decafPreset'
 							control={form.control}
 							render={({ field, fieldState }) => (
-								<div className='flex justify-between items-center'>
-									<Label
-										htmlFor='decafPreset'
-										className='font-medium text-base'
-									>
-										Decaf Preset
-									</Label>
-									<div className='flex flex-col items-end'>
-										<div className='flex items-baseline gap-1'>
-											<input
-												{...field}
-												id='decafPreset'
-												inputMode='decimal'
-												type='number'
-												min='1'
-												max='100'
-												step='0.1'
-												className='w-20 text-right bg-transparent text-2xl font-bold tabular-nums focus:outline-hidden border-b border-transparent focus:border-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-												onFocus={(e) => e.target.select()}
-											/>
-											<span className='text-base font-normal text-text-secondary'>
-												g
-											</span>
-										</div>
-										{fieldState.invalid && (
-											<span className='text-xs text-error'>
-												{fieldState.error?.message}
-											</span>
-										)}
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel>Decaf Preset</FieldLabel>
+									<div className='flex items-center gap-2 '>
+										<Input
+											{...field}
+											id='decafPreset'
+											type='number'
+											step='0.1'
+											min='1'
+											max='100'
+											className='w-24 text-right text-2xl font-bold tabular-nums'
+											onFocus={(e) => e.target.select()}
+										/>
+										<span className='text-base text-muted-foreground'>g</span>
 									</div>
-								</div>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
 							)}
 						/>
 					</div>
@@ -382,8 +375,8 @@ export default function ESPSettings() {
 						<Controller
 							name='decafStartHour'
 							control={form.control}
-							render={({ field }) => (
-								<Field>
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
 									<FieldLabel>Auto-Decaf Start Time</FieldLabel>
 									<Select
 										onValueChange={(val) => field.onChange(Number(val))}
@@ -407,15 +400,100 @@ export default function ESPSettings() {
 											))}
 										</SelectContent>
 									</Select>
-									<p className='text-xs text-text-secondary mt-1'>
+									<p className='text-xs text-muted-foreground mt-1'>
 										Automatically switches to Decaf Preset after this time.
 									</p>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
 								</Field>
 							)}
 						/>
 					</div>
 
-					<div className='md:fixed bottom-8 left-0 right-0 p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none'>
+					<Accordion
+						type='single'
+						collapsible
+						className='rounded-xl border border-border/60 bg-muted/20'
+					>
+						<AccordionItem value='advanced'>
+							<AccordionTrigger className='px-4 text-sm font-semibold'>
+								Advanced Flow Tuning
+							</AccordionTrigger>
+							<AccordionContent className='space-y-4 px-4 pb-4 text-sm text-muted-foreground'>
+								<p className='text-xs leading-relaxed text-muted-foreground/80'>
+									These settings control how quickly Autobru adapts to changes
+									in your bean and grinder workflow.
+								</p>
+
+								<Controller
+									name='learningRate'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel>Adaptation Speed</FieldLabel>
+											<div className='flex items-center gap-3'>
+												<Input
+													{...field}
+													id='learningRate'
+													type='number'
+													step='0.1'
+													min='0.1'
+													max='1'
+													className='w-24 text-right tabular-nums'
+													onFocus={(e) => e.target.select()}
+												/>
+												<span className='text-xs font-medium text-muted-foreground'>
+													{Math.round(field.value * 100)}%
+												</span>
+											</div>
+											<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
+												Lower values (≈20%) change slowly and ignore outliers.
+												Higher values (≈80%) correct after each shot.
+											</p>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
+								/>
+
+								<Controller
+									name='historyLength'
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel>Shot Memory</FieldLabel>
+											<div className='flex items-center gap-3'>
+												<Input
+													{...field}
+													id='historyLength'
+													type='number'
+													min='1'
+													max='10'
+													step='1'
+													className='w-24 text-right tabular-nums'
+													onFocus={(e) => e.target.select()}
+												/>
+												<span className='text-xs font-medium text-muted-foreground'>
+													shots
+												</span>
+											</div>
+											<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
+												Fewer shots = faster reaction to new beans. More shots =
+												smoother trends that shrug off one bad pull.
+											</p>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
+								/>
+							</AccordionContent>
+						</AccordionItem>
+					</Accordion>
+
+					<div className='p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none'>
 						<div className='pointer-events-auto flex flex-col gap-3'>
 							<Button
 								type='button'
@@ -454,8 +532,7 @@ export default function ESPSettings() {
 								<Spinner />
 							</div>
 						) : shotData ? (
-							<div className='space-y-6 h-full flex flex-col'>
-								{/* Factors Header */}
+							<div className='spacey-6 h-full flex flex-col'>
 								<div className='grid grid-cols-2 gap-4 p-3 bg-muted rounded-lg text-sm shrink-0'>
 									<div>
 										<div className='text-muted-foreground text-xs uppercase tracking-wider'>
@@ -473,28 +550,10 @@ export default function ESPSettings() {
 											{shotData.factorP1}
 										</div>
 									</div>
-									<div className='col-span-2 flex justify-end'>
-										<Button
-											type='button'
-											onClick={handleRecalcClick}
-											variant='link'
-											size='sm'
-											className='h-auto p-0 text-muted-foreground'
-										>
-											{isRecalcSpinning && <Spinner className='w-3 h-3 mr-1' />}
-											<RefreshCw
-												size={12}
-												className={`mr-1 ${
-													isRecalcSpinning ? 'animate-spin' : ''
-												}`}
-											/>
-											Recalculate Factors
-										</Button>
-									</div>
 								</div>
 
 								{shotData.shots.length > 0 ? (
-									<div className='space-y-2 flex-1 flex flex-col min-h-0'>
+									<div className='space-y-2 flex-1 flex flex-col min-h-0 mt-2'>
 										<div className='grid grid-cols-5 gap-2 font-medium text-xs text-muted-foreground uppercase tracking-wider px-2 shrink-0'>
 											<div>ID</div>
 											<div>Target</div>
@@ -516,7 +575,7 @@ export default function ESPSettings() {
 														<div
 															className={
 																Math.abs(shot.finalWeight - shot.targetWeight) >
-																0.5
+																0.2
 																	? 'text-error'
 																	: 'text-success'
 															}
