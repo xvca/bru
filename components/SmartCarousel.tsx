@@ -203,7 +203,7 @@ export function SmartCarousel({
 											</div>
 											<div className='text-center'>
 												<div className='font-mono text-sm text-foreground'>
-													{currentBrew.doseWeight ?? '–'}g
+													{currentBrew.yieldWeight ?? '–'}g
 												</div>
 												Yield
 											</div>
