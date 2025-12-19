@@ -1,10 +1,9 @@
 import ProtectedPage from '@/components/ProtectedPage'
-import Section from '@/components/Section'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
-import type { Bean } from 'generated/prisma/client'
+import { useBeans } from '@/hooks/useBeans'
 import {
 	Plus,
 	Coffee,
@@ -14,7 +13,6 @@ import {
 	Trash,
 	Package,
 	Snowflake,
-	Store,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -36,8 +34,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 export default function BeansPage() {
 	const { user } = useAuth()
 	const { activeBarId, availableBars } = useBrewBar()
-	const [beans, setBeans] = useState<Bean[]>([])
-	const [isLoading, setIsLoading] = useState(true)
+	const { beans, isLoading, refresh } = useBeans()
+
 	const [modalData, setModalData] = useState({
 		isOpen: false,
 		beanId: -1,
@@ -48,30 +46,6 @@ export default function BeansPage() {
 	const [selectedBeanId, setSelectedBeanId] = useState<number | undefined>(
 		undefined,
 	)
-
-	useEffect(() => {
-		if (user) {
-			fetchBeans()
-		}
-	}, [user, activeBarId])
-
-	const fetchBeans = async () => {
-		try {
-			setIsLoading(true)
-			const { data } = await axios.get<Bean[]>('/api/beans', {
-				headers: { Authorization: `Bearer ${user?.token}` },
-				params: { barId: activeBarId },
-			})
-
-			console.log(data)
-			setBeans(data)
-		} catch (error) {
-			console.error('Error fetching beans:', error)
-			toast.error('Failed to load beans')
-		} finally {
-			setIsLoading(false)
-		}
-	}
 
 	const handleAddNew = () => {
 		setSelectedBeanId(undefined)
@@ -89,8 +63,8 @@ export default function BeansPage() {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
 
-			setBeans(beans.filter((bean) => bean.id !== id))
 			toast.success('Bean deleted successfully')
+			refresh()
 			setModalData({ ...modalData, isOpen: false })
 		} catch (error) {
 			console.error('Error deleting bean:', error)
@@ -109,8 +83,6 @@ export default function BeansPage() {
 			beanName: name,
 		})
 	}
-
-	console.log(activeBarId)
 
 	const calculateDaysSinceRoast = (
 		roastDateStr: Date | string,
@@ -300,7 +272,7 @@ export default function BeansPage() {
 				onClose={() => setIsFormOpen(false)}
 				beanId={selectedBeanId}
 				barId={activeBarId || undefined}
-				onSuccess={fetchBeans}
+				onSuccess={refresh}
 			/>
 
 			<ConfirmModal

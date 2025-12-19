@@ -1,153 +1,45 @@
 import type { NextApiResponse } from 'next'
-import { prisma } from '@/lib/prisma'
-import { withAuth, AuthRequest } from '@/lib/auth'
-import { beanSchema } from '@/lib/validators'
+import { createApiHandler } from '@/lib/api/methodRouter'
+import { getBeanById, updateBean, deleteBean } from '@/services/beanService'
+import { withAuth, type AuthRequest } from '@/lib/auth'
 
-async function handler(req: AuthRequest, res: NextApiResponse) {
-	const userId = req.user!.id
-	const beanId = parseInt(req.query.id as string)
+async function handleGet(req: AuthRequest, res: NextApiResponse) {
+	const id = Number(req.query.id)
+	if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
 
-	if (isNaN(beanId)) {
-		res.status(400).json({ message: 'Valid bean ID is required' })
-		return
-	}
+	const bean = await getBeanById(id)
+	if (!bean) return res.status(404).json({ error: 'Bean not found' })
 
-	const bean = await prisma.bean.findUnique({
-		where: { id: beanId },
-	})
-
-	if (!bean) {
-		res.status(404).json({ message: 'Bean not found' })
-		return
-	}
-
-	let canRead = false
-	let canWrite = false
-
-	if (bean.barId) {
-		const membership = await prisma.brewBarMember.findFirst({
-			where: {
-				barId: bean.barId,
-				userId: userId,
-			},
-		})
-
-		if (membership) {
-			if (
-				bean.createdBy === userId ||
-				['Owner', 'Admin'].includes(membership.role || '')
-			) {
-				canRead = true
-				canWrite = true
-			}
-		}
-	} else {
-		if (bean.createdBy === userId) {
-			canRead = true
-			canWrite = true
-		}
-	}
-
-	if (!canRead) {
-		res.status(404).json({ message: 'Bean not found' })
-		return
-	}
-
-	if (req.method === 'GET') {
-		try {
-			res.status(200).json(bean)
-			return
-		} catch (error) {
-			console.error('Error fetching bean:', error)
-			res.status(500).json({ message: 'Internal server error' })
-			return
-		}
-	}
-
-	if (!canWrite) {
-		res.status(403).json({
-			message: 'You do not have permission to modify this bean',
-		})
-		return
-	}
-
-	if (req.method === 'PUT') {
-		try {
-			const validationResult = beanSchema.safeParse(req.body)
-
-			if (!validationResult.success) {
-				res.status(400).json({
-					message: 'Invalid bean data',
-					errors: validationResult.error.flatten().fieldErrors,
-				})
-				return
-			}
-
-			const {
-				name,
-				roaster,
-				origin,
-				roastLevel,
-				roastDate,
-				freezeDate,
-				initialWeight,
-				remainingWeight,
-				notes,
-			} = validationResult.data
-
-			const updatedBean = await prisma.bean.update({
-				where: { id: beanId },
-				data: {
-					name,
-					roaster,
-					origin,
-					roastLevel,
-					roastDate: new Date(roastDate),
-					freezeDate: freezeDate ? new Date(freezeDate) : null,
-					initialWeight,
-					remainingWeight,
-					notes,
-				},
-			})
-
-			res.status(200).json(updatedBean)
-			return
-		} catch (error) {
-			console.error('Error updating bean:', error)
-			res.status(500).json({ message: 'Failed to update bean' })
-			return
-		}
-	}
-
-	if (req.method === 'DELETE') {
-		try {
-			const brewCount = await prisma.brew.count({
-				where: { beanId },
-			})
-
-			if (brewCount > 0) {
-				res.status(409).json({
-					message: 'Cannot delete bean that is used in brews',
-					brewCount,
-				})
-				return
-			}
-
-			await prisma.bean.delete({
-				where: { id: beanId },
-			})
-
-			res.status(204).end()
-			return
-		} catch (error) {
-			console.error('Error deleting bean:', error)
-			res.status(500).json({ message: 'Failed to delete bean' })
-			return
-		}
-	}
-
-	res.status(405).json({ message: 'Method not allowed' })
-	return
+	return res.status(200).json(bean)
 }
 
-export default withAuth(handler)
+async function handlePut(req: AuthRequest, res: NextApiResponse) {
+	const id = Number(req.query.id)
+	if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
+
+	const bean = await updateBean(id, req.body)
+	return res.status(200).json(bean)
+}
+
+async function handleDelete(req: AuthRequest, res: NextApiResponse) {
+	const id = Number(req.query.id)
+	if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid id' })
+
+	try {
+		await deleteBean(id)
+		return res.status(204).end()
+	} catch (error: any) {
+		if (error.message.includes('existing brews')) {
+			return res.status(409).json({ error: error.message })
+		}
+		throw error
+	}
+}
+
+export default withAuth(
+	createApiHandler<AuthRequest>({
+		GET: handleGet,
+		PUT: handlePut,
+		DELETE: handleDelete,
+	}),
+)

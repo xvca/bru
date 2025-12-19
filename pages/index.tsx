@@ -25,7 +25,7 @@ import {
 import { SmartCarousel, type SmartSuggestion } from '@/components/SmartCarousel'
 import { BrewFormData } from '@/lib/validators'
 import { useBrewBar } from '@/lib/brewBarContext'
-import BrewForm from '@/components/BrewForm'
+import BrewForm from '@/components/BrewFormModal'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import { verifyEspReachable } from '@/utils/esp'

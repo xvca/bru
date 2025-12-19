@@ -19,7 +19,7 @@ import {
 	Store,
 	User,
 } from 'lucide-react'
-import BrewForm from '@/components/BrewForm'
+import BrewForm from '@/components/BrewFormModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { cn } from '@/lib/utils'
 import { Prisma } from '@/generated/prisma/client'

@@ -3,11 +3,11 @@ import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react'
-import { z } from 'zod'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format, parse } from 'date-fns'
 import { beanSchema, type BeanFormData } from '@/lib/validators'
+import { useBean } from '@/hooks/useBean'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -58,14 +58,16 @@ export default function BeanFormModal({
 	const { user } = useAuth()
 	const isEditMode = !!beanId
 
-	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(false)
-
+	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [isRoastDateOpen, setIsRoastDateOpen] = useState(false)
 	const [isFreezeDateOpen, setIsFreezeDateOpen] = useState(false)
 
 	const roastDateRef = useRef<HTMLButtonElement>(null)
 	const freezeDateRef = useRef<HTMLButtonElement>(null)
+
+	const { bean, isLoading: isFetching } = useBean(
+		isOpen && isEditMode ? beanId : undefined,
+	)
 
 	const form = useForm<BeanFormData>({
 		resolver: zodResolver(beanSchema),
@@ -87,7 +89,22 @@ export default function BeanFormModal({
 
 	useEffect(() => {
 		if (isOpen) {
-			if (!isEditMode) {
+			if (isEditMode && bean) {
+				form.reset({
+					name: bean.name,
+					roaster: bean.roaster || '',
+					origin: bean.origin || '',
+					roastLevel: bean.roastLevel || '',
+					roastDate: new Date(bean.roastDate).toISOString().split('T')[0],
+					freezeDate: bean.freezeDate
+						? new Date(bean.freezeDate).toISOString().split('T')[0]
+						: '',
+					initialWeight: bean.initialWeight,
+					remainingWeight: bean.remainingWeight ?? bean.initialWeight,
+					notes: bean.notes || '',
+					barId: bean.barId || undefined,
+				})
+			} else if (!isEditMode) {
 				form.reset({
 					name: '',
 					roaster: '',
@@ -100,41 +117,12 @@ export default function BeanFormModal({
 					notes: '',
 					barId: barId || undefined,
 				})
-			} else if (beanId) {
-				fetchBean()
 			}
-		} else {
-			form.reset()
 		}
-	}, [isOpen, isEditMode, beanId])
-
-	const fetchBean = async () => {
-		try {
-			setIsFetching(true)
-			if (!user?.token) return
-
-			const { data } = await axios.get(`/api/beans/${beanId}`, {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
-
-			form.reset({
-				...data,
-				roastDate: new Date(data.roastDate).toISOString().split('T')[0],
-				freezeDate: data.freezeDate
-					? new Date(data.freezeDate).toISOString().split('T')[0]
-					: '',
-			})
-		} catch (error) {
-			console.error('Error fetching bean:', error)
-			toast.error('Failed to load coffee bean data')
-			onClose()
-		} finally {
-			setIsFetching(false)
-		}
-	}
+	}, [isOpen, isEditMode, bean, barId, form])
 
 	const onSubmit = async (data: BeanFormData) => {
-		setIsLoading(true)
+		setIsSubmitting(true)
 
 		try {
 			if (!user?.token) return
@@ -157,7 +145,7 @@ export default function BeanFormModal({
 			console.error('Error saving bean:', error)
 			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} coffee bean`)
 		} finally {
-			setIsLoading(false)
+			setIsSubmitting(false)
 		}
 	}
 
@@ -181,7 +169,7 @@ export default function BeanFormModal({
 					</DialogTitle>
 				</DialogHeader>
 
-				{isFetching ? (
+				{isFetching && isEditMode ? (
 					<div className='flex justify-center items-center py-8'>
 						<Loader2 className='w-8 h-8 animate-spin' />
 					</div>
@@ -333,6 +321,7 @@ export default function BeanFormModal({
 																date < new Date('1900-01-01')
 															}
 															className='w-full'
+															fixedWeeks
 														/>
 													</PopoverContent>
 												</Popover>
@@ -412,6 +401,7 @@ export default function BeanFormModal({
 																(minDate ? date < minDate : false)
 															}
 															className='w-full'
+															fixedWeeks
 														/>
 													</PopoverContent>
 												</Popover>
@@ -436,6 +426,7 @@ export default function BeanFormModal({
 												type='number'
 												min='1'
 												step='1'
+												onChange={(e) => field.onChange(Number(e.target.value))}
 											/>
 											{fieldState.invalid && (
 												<FieldError errors={[fieldState.error]} />
@@ -459,6 +450,7 @@ export default function BeanFormModal({
 												type='number'
 												min='0'
 												step='1'
+												onChange={(e) => field.onChange(Number(e.target.value))}
 											/>
 										</Field>
 									)}
@@ -488,8 +480,8 @@ export default function BeanFormModal({
 								Cancel
 							</Button>
 
-							<Button type='submit' disabled={isLoading}>
-								{isLoading && <Spinner className='mr-2' />}
+							<Button type='submit' disabled={isSubmitting}>
+								{isSubmitting && <Spinner className='mr-2' />}
 								{isEditMode ? 'Update Bean' : 'Add Bean'}
 							</Button>
 						</div>
