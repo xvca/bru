@@ -1,7 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
-import { useBrewBar } from '@/lib/brewBarContext'
+import { useMemo, useState } from 'react'
 import { Star } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +9,8 @@ import {
 } from '@/components/ui/carousel'
 import { cn } from '@/lib/utils'
 import { Brew } from '@/generated/prisma/client'
+import { useSuggestions } from '@/hooks/useSuggestions'
+import { Button } from '@/components/ui/button'
 
 export interface SmartSuggestion {
 	id: number
@@ -34,88 +33,36 @@ export function SmartCarousel({
 	onTargetRequest,
 	className,
 }: SmartCarouselProps) {
-	const { activeBarId } = useBrewBar()
-	const { user } = useAuth()
-
-	const [suggestions, setSuggestions] = useState<SmartSuggestion[]>([])
-	const [loading, setLoading] = useState(true)
-	const [decafStartHour, setDecafStartHour] = useState(14)
+	const {
+		suggestions: rawSuggestions,
+		decafStartHour,
+		isLoading,
+	} = useSuggestions()
 	const [activeIndex, setActiveIndex] = useState(0)
 
-	useEffect(() => {
-		if (!user?.token) {
-			setSuggestions([])
-			setLoading(false)
-			return
-		}
+	const suggestions = useMemo(() => {
+		const hour = new Date().getHours()
+		let isEvening = hour >= decafStartHour
+		if (decafStartHour === -1) isEvening = false
 
-		if (activeBarId == null) {
-			setSuggestions([])
-			setLoading(false)
-			return
-		}
+		return [...rawSuggestions].sort((a, b) => {
+			const isADecaf =
+				a.name.toLowerCase().includes('decaf') ||
+				(a.roaster && a.roaster.toLowerCase().includes('decaf'))
+			const isBDecaf =
+				b.name.toLowerCase().includes('decaf') ||
+				(b.roaster && b.roaster.toLowerCase().includes('decaf'))
 
-		let isMounted = true
-		setLoading(true)
-
-		const fetchData = async () => {
-			try {
-				const { data } = await axios.get(
-					`/api/dashboard/suggestions?barId=${activeBarId}`,
-					{
-						headers: { Authorization: `Bearer ${user.token}` },
-					},
-				)
-
-				if (!isMounted) return
-
-				setDecafStartHour(data.decafStartHour)
-
-				const hour = new Date().getHours()
-				let isEvening = hour >= data.decafStartHour
-
-				if (decafStartHour === -1) {
-					isEvening = false
-				}
-
-				const sorted: SmartSuggestion[] = [...data.suggestions].sort((a, b) => {
-					const isADecaf =
-						a.name.toLowerCase().includes('decaf') ||
-						(a.roaster && a.roaster.toLowerCase().includes('decaf'))
-					const isBDecaf =
-						b.name.toLowerCase().includes('decaf') ||
-						(b.roaster && b.roaster.toLowerCase().includes('decaf'))
-
-					if (isEvening) {
-						if (isADecaf && !isBDecaf) return -1
-						if (!isADecaf && isBDecaf) return 1
-					} else {
-						if (isADecaf && !isBDecaf) return 1
-						if (!isADecaf && isBDecaf) return -1
-					}
-					return 0
-				})
-
-				setSuggestions(sorted)
-				setActiveIndex(0)
-			} catch (error) {
-				console.error('Failed to load suggestions', error)
-			} finally {
-				if (isMounted) setLoading(false)
+			if (isEvening) {
+				if (isADecaf && !isBDecaf) return -1
+				if (!isADecaf && isBDecaf) return 1
+			} else {
+				if (isADecaf && !isBDecaf) return 1
+				if (!isADecaf && isBDecaf) return -1
 			}
-		}
-
-		fetchData()
-
-		return () => {
-			isMounted = false
-		}
-	}, [activeBarId, user?.token])
-
-	const isEvening = useMemo(
-		() => new Date().getHours() >= decafStartHour,
-		[decafStartHour],
-	)
+			return 0
+		})
+	}, [rawSuggestions, decafStartHour])
 
 	const handleSelect = (index: number) => setActiveIndex(index)
 
@@ -129,7 +76,7 @@ export function SmartCarousel({
 		}
 	}
 
-	if (loading) {
+	if (isLoading) {
 		return (
 			<div className={cn('relative', className)}>
 				<div className='flex h-48 items-center justify-center'>
@@ -161,7 +108,7 @@ export function SmartCarousel({
 					const currentBrew = bean.lastBrew
 
 					if (!currentBrew) {
-						return
+						return null
 					}
 
 					return (
@@ -216,7 +163,7 @@ export function SmartCarousel({
 											</div>
 											<div className='text-center'>
 												<div className='font-mono text-sm text-foreground'>
-													{currentBrew.waterTemperature ?? '–'}s
+													{currentBrew.brewTime ?? '–'}s
 												</div>
 												Time
 											</div>

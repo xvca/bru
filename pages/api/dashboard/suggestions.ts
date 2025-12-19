@@ -1,63 +1,22 @@
-import { NextApiResponse } from 'next'
-import { withAuth, AuthRequest } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import type { NextApiResponse } from 'next'
+import { createApiHandler } from '@/lib/api/methodRouter'
+import { getSuggestionsForBar } from '@/services/suggestionService'
+import { withAuth, type AuthRequest } from '@/lib/auth'
 
-async function handler(req: AuthRequest, res: NextApiResponse) {
-	if (req.method !== 'GET') {
-		return res.status(405).json({ message: 'Method not allowed' })
-	}
-
-	const { barId } = req.query
+async function handleGet(req: AuthRequest, res: NextApiResponse) {
+	const barId = req.query.barId ? Number(req.query.barId) : null
 	const userId = req.user!.id
 
-	if (!barId) {
-		return res.status(400).json({ message: 'Missing barId' })
+	if (!barId || Number.isNaN(barId)) {
+		return res.status(400).json({ error: 'barId query param required' })
 	}
 
-	try {
-		const [beans, user] = await Promise.all([
-			prisma.bean.findMany({
-				where: {
-					barId: Number(barId),
-					OR: [{ remainingWeight: { gt: 0 } }, { remainingWeight: null }],
-					brews: {
-						some: {
-							method: 'Espresso',
-							barId: Number(barId),
-						},
-					},
-				},
-				include: {
-					brews: {
-						where: { method: 'Espresso' },
-						orderBy: { createdAt: 'desc' },
-						take: 1,
-					},
-				},
-			}),
-			prisma.user.findUnique({
-				where: { id: userId },
-				select: { decafStartHour: true },
-			}),
-		])
-
-		const suggestions = beans
-			.filter((bean) => bean.brews.length > 0)
-			.map(({ brews, ...bean }) => ({
-				...bean,
-				lastBrew: brews[0],
-			}))
-
-		console.log(suggestions)
-
-		return res.status(200).json({
-			suggestions,
-			decafStartHour: user?.decafStartHour ?? -1,
-		})
-	} catch (error) {
-		console.error(error)
-		return res.status(500).json({ message: 'Internal server error' })
-	}
+	const result = await getSuggestionsForBar(barId, userId)
+	return res.status(200).json(result)
 }
 
-export default withAuth(handler)
+export default withAuth(
+	createApiHandler({
+		GET: handleGet,
+	}),
+)
