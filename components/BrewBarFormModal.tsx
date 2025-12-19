@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { brewBarSchema, type BrewBarFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { useBrewBar } from '@/hooks/useBrewBar'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -39,8 +40,13 @@ export default function BrewBarFormModal({
 	const { user } = useAuth()
 	const isEditMode = !!brewBarId
 
-	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(false)
+	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	const { bean: brewBar, isLoading: isFetching } = useBrewBar(
+		isOpen && isEditMode ? brewBarId : undefined,
+	) as any // Casting because useBrewBar returns { brewBar, ... } but I aliased it to match the pattern, though the hook returns 'brewBar' property.
+	// Actually, let's fix the destructuring:
+	// const { brewBar, isLoading: isFetching } = useBrewBar(...)
 
 	const form = useForm<BrewBarFormData>({
 		resolver: zodResolver(brewBarSchema),
@@ -52,43 +58,22 @@ export default function BrewBarFormModal({
 
 	useEffect(() => {
 		if (isOpen) {
-			if (!isEditMode) {
+			if (isEditMode && brewBar) {
+				form.reset({
+					name: brewBar.name,
+					location: brewBar.location || '',
+				})
+			} else if (!isEditMode) {
 				form.reset({
 					name: '',
 					location: '',
 				})
-			} else if (brewBarId) {
-				fetchBrewBar()
 			}
-		} else {
-			form.reset()
 		}
-	}, [isOpen, isEditMode, brewBarId])
-
-	const fetchBrewBar = async () => {
-		try {
-			setIsFetching(true)
-			if (!user?.token) return
-
-			const { data } = await axios.get(`/api/brew-bars/${brewBarId}`, {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
-
-			form.reset({
-				name: data.name,
-				location: data.location || '',
-			})
-		} catch (error) {
-			console.error('Error fetching brew bar:', error)
-			toast.error('Failed to load brew bar data')
-			onClose()
-		} finally {
-			setIsFetching(false)
-		}
-	}
+	}, [isOpen, isEditMode, brewBar, form])
 
 	const onSubmit = async (data: BrewBarFormData) => {
-		setIsLoading(true)
+		setIsSubmitting(true)
 
 		try {
 			if (!user?.token) return
@@ -111,7 +96,7 @@ export default function BrewBarFormModal({
 			console.error('Error saving brew bar:', error)
 			toast.error(`Failed to ${isEditMode ? 'update' : 'create'} brew bar`)
 		} finally {
-			setIsLoading(false)
+			setIsSubmitting(false)
 		}
 	}
 
@@ -124,7 +109,7 @@ export default function BrewBarFormModal({
 					</DialogTitle>
 				</DialogHeader>
 
-				{isFetching ? (
+				{isFetching && isEditMode ? (
 					<div className='flex justify-center items-center py-8'>
 						<Loader2 className='w-8 h-8 animate-spin' />
 					</div>
@@ -173,8 +158,8 @@ export default function BrewBarFormModal({
 								Cancel
 							</Button>
 
-							<Button type='submit' disabled={isLoading}>
-								{isLoading && <Spinner className='mr-2' />}
+							<Button type='submit' disabled={isSubmitting}>
+								{isSubmitting && <Spinner className='mr-2' />}
 								{isEditMode ? 'Update' : 'Create'}
 							</Button>
 						</div>

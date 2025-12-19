@@ -1,48 +1,27 @@
-import type { NextApiResponse } from 'next'
-import { prisma } from '@/lib/prisma'
+import { createApiHandler } from '@/lib/api/methodRouter'
+import { removeBrewBarMember, isBrewBarOwner } from '@/services/brewBarService'
 import { withAuth, AuthRequest } from '@/lib/auth'
 
-async function handler(req: AuthRequest, res: NextApiResponse) {
-	const userId = req.user!.id
-	const brewBarId = parseInt(req.query.id as string)
-	const memberUserId = parseInt(req.query.memberId as string)
+const handler = createApiHandler<AuthRequest>({
+	DELETE: async (req, res) => {
+		const userId = req.user!.id
+		const brewBarId = parseInt(req.query.id as string)
+		const memberUserId = parseInt(req.query.memberId as string)
 
-	if (isNaN(brewBarId) || isNaN(memberUserId)) {
-		return res.status(400).json({ error: 'Valid IDs required' })
-	}
-
-	if (req.method !== 'DELETE') {
-		return res.status(405).json({ error: 'Method not allowed' })
-	}
-
-	try {
-		const brewBar = await prisma.brewBar.findFirst({
-			where: {
-				id: brewBarId,
-				createdBy: userId,
-			},
-		})
-
-		if (!brewBar) {
-			return res.status(403).json({ error: 'Not authorized to remove members' })
+		if (isNaN(brewBarId) || isNaN(memberUserId)) {
+			res.status(400).json({ error: 'Valid IDs required' })
+			return
 		}
 
-		await prisma.brewBarMember.delete({
-			where: {
-				barId_userId: {
-					barId: brewBarId,
-					userId: memberUserId,
-				},
-			},
-		})
+		const isOwner = await isBrewBarOwner(brewBarId, userId)
+		if (!isOwner) {
+			res.status(403).json({ error: 'Not authorized to remove members' })
+			return
+		}
 
+		await removeBrewBarMember(brewBarId, memberUserId)
 		res.status(204).end()
-		return
-	} catch (error) {
-		console.error('Error removing member:', error)
-		res.status(500).json({ error: 'Failed to remove member' })
-		return
-	}
-}
+	},
+})
 
 export default withAuth(handler)

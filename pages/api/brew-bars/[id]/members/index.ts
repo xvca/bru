@@ -1,94 +1,59 @@
-import type { NextApiResponse } from 'next'
-import { prisma } from '@/lib/prisma'
+import { createApiHandler } from '@/lib/api/methodRouter'
+import {
+	getBrewBarMembers,
+	addBrewBarMember,
+	isBrewBarOwner,
+} from '@/services/brewBarService'
 import { withAuth, AuthRequest } from '@/lib/auth'
 import { inviteSchema } from '@/lib/validators'
 
-async function handler(req: AuthRequest, res: NextApiResponse) {
-	const userId = req.user!.id
-	const brewBarId = parseInt(req.query.id as string)
+const handler = createApiHandler<AuthRequest>({
+	GET: async (req, res) => {
+		const userId = req.user!.id
+		const brewBarId = parseInt(req.query.id as string)
 
-	if (isNaN(brewBarId)) {
-		return res.status(400).json({ error: 'Valid brew bar ID is required' })
-	}
-
-	if (req.method === 'GET') {
-		try {
-			const members = await prisma.brewBarMember.findMany({
-				where: { barId: brewBarId },
-				include: {
-					user: {
-						select: {
-							id: true,
-							username: true,
-						},
-					},
-				},
-			})
-
-			const transformedMembers = members.map((member) => ({
-				...member,
-				isCurrentUser: member.userId === userId,
-			}))
-
-			return res.status(200).json(transformedMembers)
-		} catch (error) {
-			console.error('Error fetching members:', error)
-			return res.status(500).json({ error: 'Failed to fetch members' })
+		if (isNaN(brewBarId)) {
+			res.status(400).json({ error: 'Valid brew bar ID is required' })
+			return
 		}
-	}
 
-	if (req.method === 'POST') {
-		try {
-			const brewBar = await prisma.brewBar.findFirst({
-				where: {
-					id: brewBarId,
-					createdBy: userId,
-				},
-			})
+		const members = await getBrewBarMembers(brewBarId)
+		const transformedMembers = members.map((member) => ({
+			...member,
+			isCurrentUser: member.userId === userId,
+		}))
 
-			if (!brewBar) {
-				return res.status(403).json({ error: 'Not authorized to add members' })
-			}
+		res.status(200).json(transformedMembers)
+	},
+	POST: async (req, res) => {
+		const userId = req.user!.id
+		const brewBarId = parseInt(req.query.id as string)
 
-			const validData = inviteSchema.parse(req.body)
-
-			const userToInvite = await prisma.user.findUnique({
-				where: { username: validData.username },
-			})
-
-			if (!userToInvite) {
-				return res.status(404).json({ error: 'User not found' })
-			}
-
-			const existingMember = await prisma.brewBarMember.findUnique({
-				where: {
-					barId_userId: {
-						barId: brewBarId,
-						userId: userToInvite.id,
-					},
-				},
-			})
-
-			if (existingMember) {
-				return res.status(409).json({ error: 'User is already a member' })
-			}
-
-			const member = await prisma.brewBarMember.create({
-				data: {
-					barId: brewBarId,
-					userId: userToInvite.id,
-					role: validData.role || 'Member',
-				},
-			})
-
-			return res.status(201).json(member)
-		} catch (error) {
-			console.error('Error adding member:', error)
-			return res.status(500).json({ error: 'Failed to add member' })
+		const isOwner = await isBrewBarOwner(brewBarId, userId)
+		if (!isOwner) {
+			res.status(403).json({ error: 'Not authorized to add members' })
+			return
 		}
-	}
 
-	return res.status(405).json({ error: 'Method not allowed' })
-}
+		const validData = inviteSchema.parse(req.body)
+
+		try {
+			const member = await addBrewBarMember(
+				brewBarId,
+				validData.username,
+				validData.role,
+			)
+			res.status(201).json(member)
+		} catch (error: any) {
+			if (error.message === 'User not found') {
+				res.status(404).json({ error: 'User not found' })
+			} else if (error.message === 'User is already a member') {
+				res.status(409).json({ error: 'User is already a member' })
+			} else {
+				throw error
+			}
+		}
+	},
+})
 
 export default withAuth(handler)

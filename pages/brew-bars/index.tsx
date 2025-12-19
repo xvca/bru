@@ -1,23 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import ProtectedPage from '@/components/ProtectedPage'
-import Section from '@/components/Section'
 import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import { toast } from 'sonner'
-import {
-	Plus,
-	Users,
-	Settings,
-	Edit,
-	Trash,
-	UserPlus,
-	MapPin,
-	Store,
-	ArrowRight,
-} from 'lucide-react'
+import { useBrewBars } from '@/hooks/useBrewBars'
+import { Plus, Users, Edit, Trash, UserPlus, MapPin, Store } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewBarFormModal from '@/components/BrewBarFormModal'
-import { useRouter } from 'next/router'
+import BrewBarMembersModal from '@/components/BrewBarMembersModal'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -30,60 +20,49 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
-
-type BrewBar = {
-	id: number
-	name: string
-	location: string | null
-	createdAt: string
-	isOwner: boolean
-	memberCount: number
-	role: string
-}
 
 export default function BrewBarsPage() {
 	const { user } = useAuth()
-	const router = useRouter()
-	const [brewBars, setBrewBars] = useState<BrewBar[]>([])
-	const [isLoading, setIsLoading] = useState(true)
+	const { brewBars, isLoading, refresh } = useBrewBars()
+
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-	const [selectedBar, setSelectedBar] = useState<number | null>(null)
+	const [selectedBar, setSelectedBar] = useState<number | undefined>(undefined)
+
+	const [membersModalData, setMembersModalData] = useState<{
+		isOpen: boolean
+		barId: number
+		barName: string
+		isOwner: boolean
+	}>({
+		isOpen: false,
+		barId: -1,
+		barName: '',
+		isOwner: false,
+	})
+
 	const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
 	const [barToDelete, setBarToDelete] = useState<{
 		id: number
 		name: string
 	} | null>(null)
 
-	useEffect(() => {
-		if (user) {
-			fetchBrewBars()
-		}
-	}, [user])
-
-	const fetchBrewBars = async () => {
-		try {
-			setIsLoading(true)
-			const { data } = await axios.get('/api/brew-bars', {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
-			setBrewBars(data)
-		} catch (error) {
-			console.error('Error fetching brew bars:', error)
-			toast.error('Failed to load brew bars')
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
 	const handleCreateNewBar = () => {
-		setSelectedBar(null)
+		setSelectedBar(undefined)
 		setIsCreateModalOpen(true)
 	}
 
 	const handleEditBar = (id: number) => {
 		setSelectedBar(id)
 		setIsCreateModalOpen(true)
+	}
+
+	const handleManageMembers = (id: number, name: string, isOwner: boolean) => {
+		setMembersModalData({
+			isOpen: true,
+			barId: id,
+			barName: name,
+			isOwner,
+		})
 	}
 
 	const confirmDelete = (id: number, name: string) => {
@@ -99,7 +78,7 @@ export default function BrewBarsPage() {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
 
-			setBrewBars(brewBars.filter((bar) => bar.id !== barToDelete.id))
+			refresh()
 			toast.success('Brew bar deleted successfully')
 		} catch (error) {
 			console.error('Error deleting brew bar:', error)
@@ -112,10 +91,6 @@ export default function BrewBarsPage() {
 			setIsConfirmDeleteOpen(false)
 			setBarToDelete(null)
 		}
-	}
-
-	const navigateToMembers = (barId: number) => {
-		router.push(`/brew-bars/${barId}`)
 	}
 
 	return (
@@ -234,10 +209,12 @@ export default function BrewBarsPage() {
 											variant='outline'
 											size='sm'
 											className='flex-1 text-xs'
-											onClick={() => navigateToMembers(bar.id)}
+											onClick={() =>
+												handleManageMembers(bar.id, bar.name, bar.isOwner)
+											}
 										>
 											<UserPlus className='mr-2 h-3.5 w-3.5' />
-											Members
+											{bar.isOwner ? 'Manage Members' : 'View Members'}
 										</Button>
 									</div>
 								</CardFooter>
@@ -250,8 +227,18 @@ export default function BrewBarsPage() {
 			<BrewBarFormModal
 				isOpen={isCreateModalOpen}
 				onClose={() => setIsCreateModalOpen(false)}
-				brewBarId={selectedBar || undefined}
-				onSuccess={fetchBrewBars}
+				brewBarId={selectedBar}
+				onSuccess={refresh}
+			/>
+
+			<BrewBarMembersModal
+				isOpen={membersModalData.isOpen}
+				onClose={() =>
+					setMembersModalData({ ...membersModalData, isOpen: false })
+				}
+				brewBarId={membersModalData.barId}
+				brewBarName={membersModalData.barName}
+				isOwner={membersModalData.isOwner}
 			/>
 
 			<ConfirmModal
