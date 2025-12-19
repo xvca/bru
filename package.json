@@ -11,7 +11,6 @@
 		"prisma:studio": "prisma studio"
 	},
 	"dependencies": {
-		"@headlessui/react": "^2.2.0",
 		"@hookform/resolvers": "^5.2.2",
 		"@prisma/adapter-better-sqlite3": "^7.0.1",
 		"@prisma/client": "^7.1.0",

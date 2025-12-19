@@ -104,9 +104,10 @@ docker run -d -p 3000:3000 --name bru --restart unless-stopped -v $(pwd)/prisma:
 Rename `.env.example` to `.env` and set your ESP's IP address:
 
 ```
-NEXT_PUBLIC_ESP_IP=192.168.1.x
 DATABASE_URL="file:./prisma/dev.db"
 ```
+
+The ESP IP address is now configured inside the app itself. When you first open the dashboard you’ll be prompted to enter the device IP or hostname, and you can update it later in **Settings → ESP Settings**.
 
 ## ⚠️ Work in Progress
 

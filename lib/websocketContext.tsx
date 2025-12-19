@@ -2,10 +2,12 @@ import React, {
 	createContext,
 	useContext,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from 'react'
 import { useRouter } from 'next/router'
+import { useEspConfig } from './espConfigContext'
 
 interface WebSocketContextType {
 	ws: WebSocket | null
@@ -60,8 +62,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 	const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-	const wsUrl =
-		`ws://${process.env.NEXT_PUBLIC_ESP_IP}/ws` || 'ws://localhost:8080'
+	const { espIp, isReady: isEspConfigReady } = useEspConfig()
+	const wsUrl = useMemo(() => (espIp ? `ws://${espIp}/ws` : null), [espIp])
+
 	const isMainPage = router.pathname === '/'
 
 	const isMainPageRef = useRef(isMainPage)
@@ -145,8 +148,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	// WebSocket connection management
 	useEffect(() => {
 		// Only connect on the main page
-		if (!isMainPage) {
-			console.log('not on main page - skipping connection')
+		if (!isEspConfigReady || !wsUrl || !isMainPage) {
 			cleanupWebSocket()
 			return
 		}

@@ -2,21 +2,33 @@ import Page from '@/components/Page'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import CountUp from 'react-countup'
 import { Play, Square, ArrowUp, ArrowDown, Power } from 'lucide-react'
-import axios from 'axios'
+import axios, { AxiosInstance } from 'axios'
 import { toast } from 'sonner'
 import { Gauge } from '@/components/Gauge'
 import { useWebSocket } from '@/lib/websocketContext'
 import { useAuth } from '@/lib/authContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useEspConfig } from '@/lib/espConfigContext'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Badge } from '@/components/ui/badge'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
 import { SmartCarousel, type SmartSuggestion } from '@/components/SmartCarousel'
 import { BrewFormData } from '@/lib/validators'
 import { useBrewBar } from '@/lib/brewBarContext'
 import BrewForm from '@/components/BrewForm'
+import Link from 'next/link'
+import { Label } from '@/components/ui/label'
+import { verifyEspReachable } from '@/utils/esp'
 
 enum BrewStates {
 	IDLE,
@@ -24,6 +36,12 @@ enum BrewStates {
 	BREWING,
 	DRIPPING,
 }
+
+const sanitizeIp = (value: string) =>
+	value
+		.trim()
+		.replace(/^https?:\/\//i, '')
+		.replace(/\/+$/, '')
 
 export default function CoffeeBrewControl() {
 	const [targetWeight, setTargetWeight] = useState(() => {
@@ -38,6 +56,19 @@ export default function CoffeeBrewControl() {
 	const [isBrewing, setIsBrewing] = useState(false)
 
 	const { brewData, isWsConnected } = useWebSocket()
+	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
+
+	const sanitizedIp = useMemo(() => (espIp ? sanitizeIp(espIp) : null), [espIp])
+
+	const api: AxiosInstance | null = useMemo(() => {
+		if (!sanitizedIp) return null
+		return axios.create({
+			baseURL: `http://${sanitizedIp}`,
+			headers: {
+				'Content-Type': 'multipart/form-data',
+			},
+		})
+	}, [sanitizedIp])
 
 	const [selectedSuggestion, setSelectedSuggestion] =
 		useState<SmartSuggestion | null>(null)
@@ -49,27 +80,36 @@ export default function CoffeeBrewControl() {
 		time: 0,
 	})
 
+	const [showEspPrompt, setShowEspPrompt] = useState(false)
+	const [hasDismissedEspPrompt, setHasDismissedEspPrompt] = useState(false)
+	const [espIpDraft, setEspIpDraft] = useState('')
+	const [isValidatingEsp, setIsValidatingEsp] = useState(false)
+
 	const latestShotRef = useRef(brewData)
 	const previousStateRef = useRef(brewData.state)
 	const { activeBarId } = useBrewBar()
 
 	const { user } = useAuth()
 
-	const ESPUrl =
-		`http://${process.env.NEXT_PUBLIC_ESP_IP}` || 'http://localhost:8080'
-
-	const api = useMemo(
-		() =>
-			axios.create({
-				baseURL: ESPUrl,
-				headers: { 'Content-Type': 'multipart/form-data' },
-			}),
-		[ESPUrl],
-	)
-
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
 	}, [targetWeight])
+
+	useEffect(() => {
+		if (!isEspConfigReady) return
+		setEspIpDraft(espIp ?? '')
+
+		if (!espIp && !hasDismissedEspPrompt) {
+			setShowEspPrompt(true)
+		}
+	}, [espIp, hasDismissedEspPrompt, isEspConfigReady])
+
+	useEffect(() => {
+		if (espIp) {
+			setHasDismissedEspPrompt(false)
+			setShowEspPrompt(false)
+		}
+	}, [espIp])
 
 	useEffect(() => {
 		if (brewData.state === BrewStates.IDLE) {
@@ -128,13 +168,13 @@ export default function CoffeeBrewControl() {
 
 	const getBrewStateText = (state: number) => {
 		switch (state) {
-			case 0:
+			case BrewStates.IDLE:
 				return 'Idle'
-			case 1:
+			case BrewStates.PREINFUSION:
 				return 'Pre-infusion'
-			case 2:
+			case BrewStates.BREWING:
 				return 'Brewing'
-			case 3:
+			case BrewStates.DRIPPING:
 				return 'Dripping'
 			default:
 				return ''
@@ -142,18 +182,17 @@ export default function CoffeeBrewControl() {
 	}
 
 	const getConnectionState = () => {
-		// 1. ESP Offline (WebSocket down)
+		if (!isEspConfigured) {
+			return { label: 'ESP not configured', color: 'warning' }
+		}
+
 		if (!isWsConnected) return { label: 'Offline', color: 'destructive' }
 
-		// 2. Scale Connected (We are good to go)
-		// Note: We check this first. If we are connected, we don't care if 'isActive' is true/false.
 		if (brewData.isScaleConnected)
 			return { label: 'Connected', color: 'success' }
 
-		// 3. ESP Online, Scale Missing, Scanning active
 		if (brewData.isActive) return { label: 'Scanning...', color: 'warning' }
 
-		// 4. ESP Online, Scale Missing, Not Scanning
 		return { label: 'Sleeping', color: 'secondary' }
 	}
 
@@ -178,15 +217,23 @@ export default function CoffeeBrewControl() {
 				setSelectedSuggestion(null)
 			}
 		},
-		[handleTargetChange],
+		[],
 	)
 
-	const connectionState = useMemo(
-		() => getConnectionState(),
-		[brewData, isWsConnected],
-	)
+	const isEspConfigured = Boolean(api)
+
+	const connectionState = useMemo(getConnectionState, [
+		brewData,
+		isWsConnected,
+		isEspConfigured,
+	])
 
 	const startBrew = useCallback(async () => {
+		if (!api) {
+			toast.error('Configure your ESP IP first')
+			return
+		}
+
 		try {
 			const formData = new FormData()
 			formData.append('weight', targetWeight.toString())
@@ -204,6 +251,11 @@ export default function CoffeeBrewControl() {
 	}, [api, targetWeight])
 
 	const stopBrew = useCallback(async () => {
+		if (!api) {
+			toast.error('Configure your ESP IP first')
+			return
+		}
+
 		try {
 			const { data } = await api.post('/stop')
 			console.log('Brew stopped:', data)
@@ -214,6 +266,11 @@ export default function CoffeeBrewControl() {
 	}, [api])
 
 	const wakeESP = useCallback(async () => {
+		if (!api) {
+			toast.error('Configure your ESP IP first')
+			return
+		}
+
 		if (brewData.isActive) return
 		setIsWaking(true)
 		try {
@@ -272,8 +329,68 @@ export default function CoffeeBrewControl() {
 		previousStateRef.current = brewData.state
 	}, [brewData.state, targetWeight, activeBarId, selectedSuggestion])
 
+	const openEspModal = () => {
+		setEspIpDraft(espIp ?? '')
+		setHasDismissedEspPrompt(false)
+		setShowEspPrompt(true)
+	}
+
+	const handleSaveEspIp = useCallback(async () => {
+		const normalized = sanitizeIp(espIpDraft)
+		if (!normalized) {
+			toast.error('Enter a valid IP address or hostname.')
+			return
+		}
+
+		setIsValidatingEsp(true)
+		try {
+			await verifyEspReachable(normalized)
+			setEspIp(normalized)
+			toast.success('ESP IP saved.')
+			setHasDismissedEspPrompt(false)
+			setShowEspPrompt(false)
+		} catch (error) {
+			toast.error('Unable to reach the ESP at that address.')
+		} finally {
+			setIsValidatingEsp(false)
+		}
+	}, [espIpDraft, setEspIp])
+
+	const handleMaybeLater = () => {
+		setHasDismissedEspPrompt(true)
+		setShowEspPrompt(false)
+	}
+
 	return (
 		<Page title='Autobru'>
+			{isEspConfigReady && !espIp && (
+				<div className='flex items-start justify-between gap-4 rounded-lg border border-dashed border-warning bg-warning/20 p-4 text-sm m-4'>
+					<div>
+						<p className='font-semibold'>Connect your Autobru ESP</p>
+						<p className='mt-1 text-xs leading-relaxed opacity-90'>
+							Enter the device IP to unlock live brewing controls. You can find
+							the IP on the Autobru display or your router.
+						</p>
+					</div>
+					<div className='flex flex-col gap-2 sm:flex-col sm:items-center'>
+						<Button
+							size='sm'
+							variant='outline'
+							onClick={openEspModal}
+							className='w-full sm:w-auto'
+						>
+							Configure now
+						</Button>
+						<Link
+							href='/settings'
+							className='text-xs font-medium text-primary underline underline-offset-4'
+						>
+							Open ESP settings
+						</Link>
+					</div>
+				</div>
+			)}
+
 			<div className='h-full grow flex flex-col justify-between p-6 pb-0 mb-28'>
 				<div className='flex justify-between items-center rounded-lg z-10 mb-0'>
 					<div className='flex items-center gap-2'>
@@ -314,9 +431,9 @@ export default function CoffeeBrewControl() {
 					layout
 					layoutId='gauge-wrapper'
 					transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-					className={`grow flex flex-col ${user !== null ? 'justify-center' : ''}`}
+					className='grow flex flex-col justify-center'
 				>
-					<motion.div layout className='relative w-full'>
+					<motion.div layout className='relative w-full -mt-8'>
 						<Gauge
 							value={
 								displayData.weight < 0
@@ -331,7 +448,7 @@ export default function CoffeeBrewControl() {
 							}
 							gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
 							gaugeSecondaryColor='var(--secondary)'
-							className='mx-auto max-w-[80vw] sm:max-w-md -mb-12'
+							className='mx-auto max-w-[80vw] sm:max-w-xl -mb-12'
 						/>
 
 						<div className='absolute inset-0 flex flex-col items-center justify-center pt-16 sm:pt-8'>
@@ -374,7 +491,7 @@ export default function CoffeeBrewControl() {
 										<div className='flex-col justify-center'>
 											<div className='text-2xl font-bold tabular-nums'>
 												<div className='flex justify-center items-center gap-1'>
-													<div className='w-16 flex justify-end'>
+													<div className='w-20 flex justify-end'>
 														<Input
 															inputMode='decimal'
 															type='number'
@@ -392,7 +509,7 @@ export default function CoffeeBrewControl() {
 																setTargetWeight(value)
 															}}
 															onFocus={(e) => e.target.select()}
-															className='h-auto w-16 border-none bg-transparent p-0 text-center text-3xl md:text-3xl font-bold shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+															className='h-auto w-20 border-none bg-transparent p-0 text-center text-3xl md:text-3xl font-bold shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 														/>
 													</div>
 												</div>
@@ -419,9 +536,7 @@ export default function CoffeeBrewControl() {
 											size='sm'
 											variant='outline'
 											onClick={() =>
-												setTargetWeight((prev) =>
-													Math.max(Math.floor(prev / 2), 1),
-												)
+												setTargetWeight((prev) => Math.max(prev / 2, 1))
 											}
 											className='text-xs font-mono h-7 px-2.5'
 										>
@@ -496,6 +611,53 @@ export default function CoffeeBrewControl() {
 					setBrewDraft(null)
 				}}
 			/>
+
+			<Dialog
+				open={showEspPrompt}
+				onOpenChange={(open) => {
+					if (!open && !espIp) {
+						setHasDismissedEspPrompt(true)
+					}
+					setShowEspPrompt(open)
+				}}
+			>
+				<DialogContent className='max-w-md space-y-6'>
+					<DialogHeader>
+						<DialogTitle>Connect to your Autobru ESP</DialogTitle>
+						<DialogDescription>
+							Enter the device IP address or hostname on your home network. You
+							can find it on the Autobru display or your router’s client list.
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className='space-y-3'>
+						<Label htmlFor='dashboard-esp-ip' className='text-sm font-medium'>
+							Device IP address
+						</Label>
+						<Input
+							id='dashboard-esp-ip'
+							value={espIpDraft}
+							onChange={(e) => setEspIpDraft(e.target.value)}
+							placeholder='192.168.1.42'
+							autoComplete='off'
+						/>
+						<p className='text-xs text-muted-foreground'>
+							No need to include the &apos;http://&apos;. We’ll use this for
+							both REST calls and live scale data.
+						</p>
+					</div>
+
+					<DialogFooter className='flex flex-col gap-2 sm:flex-row mb-0'>
+						<Button variant='ghost' onClick={handleMaybeLater}>
+							Maybe later
+						</Button>
+						<Button onClick={handleSaveEspIp} disabled={isValidatingEsp}>
+							{isValidatingEsp && <Spinner className='mr-2 h-4 w-4' />}
+							{isValidatingEsp ? 'Checking…' : 'Save & connect'}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</Page>
 	)
 }

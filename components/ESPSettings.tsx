@@ -1,14 +1,15 @@
 import Page from '@/components/Page'
 import Section from '@/components/Section'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@/lib/authContext'
-import axios from 'axios'
-import { RefreshCw, Trash2, X } from 'lucide-react'
+import axios, { AxiosInstance } from 'axios'
+import { Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { espPrefsSchema, type ESPPrefsFormData } from '@/lib/validators'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { useEspConfig } from '@/lib/espConfigContext'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -36,6 +37,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from '@/components/ui/accordion'
+import { verifyEspReachable } from '@/utils/esp'
 
 const TIMEZONES = [
 	{ label: 'UTC (GMT)', value: 'GMT0' },
@@ -72,16 +74,26 @@ interface MergedShotData {
 	factorP1: number
 }
 
+const sanitizeIp = (value: string) =>
+	value
+		.trim()
+		.replace(/^https?:\/\//i, '')
+		.replace(/\/+$/, '')
+
 export default function ESPSettings() {
 	const [isLoading, setIsLoading] = useState(true)
 	const [isSaving, setIsSaving] = useState(false)
 
 	const { user } = useAuth()
+	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
+
+	const [ipInput, setIpInput] = useState('')
+	const [isValidatingIp, setIsValidatingIp] = useState(false)
 
 	const [isViewDataOpen, setIsViewDataOpen] = useState(false)
 	const [shotData, setShotData] = useState<MergedShotData | null>(null)
 	const [isLoadingData, setIsLoadingData] = useState(false)
-	const [isRecalcSpinning, setIsSpinning] = useState(false)
+	// const [isRecalcSpinning, setIsSpinning] = useState(false)
 
 	const [modalData, setModalData] = useState<{
 		isOpen: boolean
@@ -95,15 +107,17 @@ export default function ESPSettings() {
 		description: '',
 	})
 
-	const ESPUrl =
-		`http://${process.env.NEXT_PUBLIC_ESP_IP}` || 'http://localhost:8080'
+	const sanitizedIp = useMemo(() => (espIp ? sanitizeIp(espIp) : null), [espIp])
 
-	const api = axios.create({
-		baseURL: ESPUrl,
-		headers: {
-			'Content-Type': 'multipart/form-data',
-		},
-	})
+	const api: AxiosInstance | null = useMemo(() => {
+		if (!sanitizedIp) return null
+		return axios.create({
+			baseURL: `http://${sanitizedIp}`,
+			headers: {
+				'Content-Type': 'multipart/form-data',
+			},
+		})
+	}, [sanitizedIp])
 
 	const form = useForm<ESPPrefsFormData>({
 		resolver: zodResolver(espPrefsSchema),
@@ -119,7 +133,12 @@ export default function ESPSettings() {
 		},
 	})
 
-	const getPrefs = async () => {
+	const getPrefs = useCallback(async () => {
+		if (!api) {
+			setIsLoading(false)
+			return
+		}
+
 		try {
 			const { data } = await api.get('/prefs', { timeout: 5000 })
 			form.reset({
@@ -140,13 +159,27 @@ export default function ESPSettings() {
 		} finally {
 			setIsLoading(false)
 		}
-	}
+	}, [api, form])
 
 	useEffect(() => {
+		if (!isEspConfigReady) return
+		setIpInput(espIp ?? '')
+
+		if (!api) {
+			setIsLoading(false)
+			return
+		}
+
+		setIsLoading(true)
 		getPrefs()
-	}, [])
+	}, [api, espIp, getPrefs, isEspConfigReady])
 
 	const onSubmit = async (data: ESPPrefsFormData) => {
+		if (!api) {
+			toast.error('Configure your ESP IP before saving settings.')
+			return
+		}
+
 		setIsSaving(true)
 		try {
 			const formData = new FormData()
@@ -181,6 +214,11 @@ export default function ESPSettings() {
 	}
 
 	const fetchShotData = async () => {
+		if (!api) {
+			toast.error('Configure your ESP IP first.')
+			return
+		}
+
 		setIsLoadingData(true)
 		try {
 			const { data } = await api.get<ShotDataResponse>('/data', {
@@ -201,6 +239,11 @@ export default function ESPSettings() {
 	}
 
 	const clearShotData = async () => {
+		if (!api) {
+			toast.error('Configure your ESP IP first.')
+			return
+		}
+
 		const id = modalData.shotId
 		try {
 			if (id === null) {
@@ -218,22 +261,52 @@ export default function ESPSettings() {
 		}
 	}
 
-	// const handleRecalcClick = () => {
+	// const handleRecalcClick = async () => {
+	// 	if (!api) {
+	// 		toast.error('Configure your ESP IP first.')
+	// 		return
+	// 	}
+
 	// 	setIsSpinning(true)
-	// 	api
-	// 		.post('/recalc-comp-factor')
-	// 		.then(() => {
-	// 			toast.success('Factors recalculated')
-	// 			fetchShotData()
-	// 		})
-	// 		.catch(() => toast.error('Failed to recalculate'))
-	// 		.finally(() => setTimeout(() => setIsSpinning(false), 1000))
+	// 	try {
+	// 		await api.post('/recalc-comp-factor')
+	// 		toast.success('Factors recalculated')
+	// 		await fetchShotData()
+	// 	} catch {
+	// 		toast.error('Failed to recalculate')
+	// 	} finally {
+	// 		setTimeout(() => setIsSpinning(false), 1000)
+	// 	}
 	// }
 
 	const handleViewData = async () => {
+		if (!api) {
+			toast.error('Configure your ESP IP first.')
+			return
+		}
 		setIsViewDataOpen(true)
 		await fetchShotData()
 	}
+
+	const handleSaveIp = async () => {
+		const normalized = sanitizeIp(ipInput)
+		if (!normalized) {
+			toast.error('Enter a valid IP address or hostname.')
+			return
+		}
+
+		setIsValidatingIp(true)
+		try {
+			await verifyEspReachable(normalized)
+			setEspIp(normalized)
+			toast.success('ESP IP saved. Fetching device settings…')
+		} catch (error) {
+			toast.error('Unable to reach the ESP at that address.')
+		} finally {
+			setIsValidatingIp(false)
+		}
+	}
+	const isDeviceConfigured = Boolean(api)
 
 	if (isLoading) {
 		return (
@@ -249,273 +322,318 @@ export default function ESPSettings() {
 
 	return (
 		<>
-			<Section>
-				<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-					<div className='flex items-center justify-between'>
-						<Label htmlFor='isEnabled' className='font-medium text-base'>
-							Enable Device
-						</Label>
-						<Controller
-							name='isEnabled'
-							control={form.control}
-							render={({ field }) => (
-								<Switch
-									id='isEnabled'
-									checked={field.value}
-									onCheckedChange={field.onChange}
-								/>
-							)}
+			<div className='space-y-6'>
+				<div className='space-y-2 rounded-xl border border-border/60 bg-muted/20 p-4'>
+					<Label htmlFor='esp-address' className='text-sm font-medium'>
+						Device IP Address
+					</Label>
+					<div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3'>
+						<Input
+							id='esp-address'
+							placeholder='e.g. 192.168.1.42'
+							value={ipInput}
+							onChange={(e) => setIpInput(e.target.value)}
+							autoComplete='off'
 						/>
+						<Button
+							type='button'
+							onClick={handleSaveIp}
+							disabled={isValidatingIp}
+						>
+							{isValidatingIp && <Spinner className='mr-2 h-4 w-4' />}
+							{isValidatingIp ? 'Checking…' : 'Save IP'}
+						</Button>
 					</div>
+					<p className='text-xs text-muted-foreground'>
+						Enter the local IP or hostname of your Autobru ESP (without
+						http://). This address is used for both the REST API and the live
+						websocket feed.
+					</p>
+				</div>
 
-					<div className='flex items-center justify-between'>
-						<Label htmlFor='pMode' className='font-medium text-base'>
-							Weight-Triggered Preinfusion
-						</Label>
-						<Controller
-							name='pMode'
-							control={form.control}
-							render={({ field }) => (
-								<Switch
-									id='pMode'
-									checked={field.value === PreinfusionMode.WEIGHT_TRIGGERED}
-									onCheckedChange={(checked) =>
-										field.onChange(
-											checked
-												? PreinfusionMode.WEIGHT_TRIGGERED
-												: PreinfusionMode.SIMPLE,
-										)
-									}
-								/>
-							)}
-						/>
-					</div>
-
-					<hr className='border-input-border' />
-
-					<div className='space-y-4'>
-						<Controller
-							name='regularPreset'
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel>Regular Preset</FieldLabel>
-									<div className='flex items-center gap-2'>
-										<Input
-											{...field}
-											id='regularPreset'
-											type='number'
-											step='0.1'
-											min='1'
-											max='100'
-											className='w-24 text-right text-2xl font-bold tabular-nums'
-											onFocus={(e) => e.target.select()}
-										/>
-										<span className='text-base text-muted-foreground'>g</span>
-									</div>
-									{fieldState.invalid && (
-										<FieldError errors={[fieldState.error]} />
-									)}
-								</Field>
-							)}
-						/>
-
-						<Controller
-							name='decafPreset'
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel>Decaf Preset</FieldLabel>
-									<div className='flex items-center gap-2 '>
-										<Input
-											{...field}
-											id='decafPreset'
-											type='number'
-											step='0.1'
-											min='1'
-											max='100'
-											className='w-24 text-right text-2xl font-bold tabular-nums'
-											onFocus={(e) => e.target.select()}
-										/>
-										<span className='text-base text-muted-foreground'>g</span>
-									</div>
-									{fieldState.invalid && (
-										<FieldError errors={[fieldState.error]} />
-									)}
-								</Field>
-							)}
-						/>
-					</div>
-
-					<hr className='border-input-border' />
-
-					<div className='space-y-4'>
-						<Controller
-							name='timezone'
-							control={form.control}
-							render={({ field }) => (
-								<Field>
-									<FieldLabel>Timezone</FieldLabel>
-									<Select onValueChange={field.onChange} value={field.value}>
-										<SelectTrigger>
-											<SelectValue placeholder='Select timezone' />
-										</SelectTrigger>
-										<SelectContent>
-											{TIMEZONES.map((tz) => (
-												<SelectItem key={tz.value} value={tz.value}>
-													{tz.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</Field>
-							)}
-						/>
-
-						<Controller
-							name='decafStartHour'
-							control={form.control}
-							render={({ field, fieldState }) => (
-								<Field data-invalid={fieldState.invalid}>
-									<FieldLabel>Auto-Decaf Start Time</FieldLabel>
-									<Select
-										onValueChange={(val) => field.onChange(Number(val))}
-										value={field.value.toString()}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder='Select start time' />
-										</SelectTrigger>
-										<SelectContent className='max-h-60'>
-											<SelectItem value='-1'>Disabled</SelectItem>
-											{Array.from({ length: 24 }).map((_, i) => (
-												<SelectItem key={i} value={i.toString()}>
-													{i === 0
-														? '12:00 AM'
-														: i < 12
-															? `${i}:00 AM`
-															: i === 12
-																? '12:00 PM'
-																: `${i - 12}:00 PM`}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<p className='text-xs text-muted-foreground mt-1'>
-										Automatically switches to Decaf Preset after this time.
-									</p>
-									{fieldState.invalid && (
-										<FieldError errors={[fieldState.error]} />
-									)}
-								</Field>
-							)}
-						/>
-					</div>
-
-					<Accordion
-						type='single'
-						collapsible
-						className='rounded-xl border border-border/60 bg-muted/20'
-					>
-						<AccordionItem value='advanced'>
-							<AccordionTrigger className='px-4 text-sm font-semibold'>
-								Advanced Flow Tuning
-							</AccordionTrigger>
-							<AccordionContent className='space-y-4 px-4 pb-4 text-sm text-muted-foreground'>
-								<p className='text-xs leading-relaxed text-muted-foreground/80'>
-									These settings control how quickly Autobru adapts to changes
-									in your bean and grinder workflow.
-								</p>
-
-								<Controller
-									name='learningRate'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel>Adaptation Speed</FieldLabel>
-											<div className='flex items-center gap-3'>
-												<Input
-													{...field}
-													id='learningRate'
-													type='number'
-													step='0.1'
-													min='0.1'
-													max='1'
-													className='w-24 text-right tabular-nums'
-													onFocus={(e) => e.target.select()}
-												/>
-												<span className='text-xs font-medium text-muted-foreground'>
-													{Math.round(field.value * 100)}%
-												</span>
-											</div>
-											<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
-												Lower values (≈20%) change slowly and ignore outliers.
-												Higher values (≈80%) correct after each shot.
-											</p>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-
-								<Controller
-									name='historyLength'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel>Shot Memory</FieldLabel>
-											<div className='flex items-center gap-3'>
-												<Input
-													{...field}
-													id='historyLength'
-													type='number'
-													min='1'
-													max='10'
-													step='1'
-													className='w-24 text-right tabular-nums'
-													onFocus={(e) => e.target.select()}
-												/>
-												<span className='text-xs font-medium text-muted-foreground'>
-													shots
-												</span>
-											</div>
-											<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
-												Fewer shots = faster reaction to new beans. More shots =
-												smoother trends that shrug off one bad pull.
-											</p>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-							</AccordionContent>
-						</AccordionItem>
-					</Accordion>
-
-					<div className='p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none'>
-						<div className='pointer-events-auto flex flex-col gap-3'>
-							<Button
-								type='button'
-								onClick={handleViewData}
-								variant='outline'
-								className='bg-background/80 backdrop-blur-sm shadow-sm'
-							>
-								View Shot History
-							</Button>
-
-							<Button
-								type='submit'
-								disabled={!form.formState.isDirty || isSaving}
-								className='shadow-lg'
-							>
-								{isSaving && <Spinner className='mr-2' />}
-								{isSaving ? 'Saving...' : 'Save Changes'}
-							</Button>
+				{!isDeviceConfigured && (
+					<div className='flex items-start gap-3 rounded-lg border border-dashed border-border/60 bg-warning/20 p-4 text-sm'>
+						<div className='font-medium'>
+							Device IP required. Add your local Autobru IP.
 						</div>
 					</div>
+				)}
+
+				<form onSubmit={form.handleSubmit(onSubmit)}>
+					<fieldset
+						disabled={!isDeviceConfigured}
+						className={`flex flex-col gap-4
+							${isDeviceConfigured ? '' : 'pointer-events-none opacity-50'}`}
+					>
+						<div className='flex items-center justify-between'>
+							<Label htmlFor='isEnabled' className='font-medium text-base'>
+								Enable Device
+							</Label>
+							<Controller
+								name='isEnabled'
+								control={form.control}
+								render={({ field }) => (
+									<Switch
+										id='isEnabled'
+										checked={field.value}
+										onCheckedChange={field.onChange}
+									/>
+								)}
+							/>
+						</div>
+
+						<div className='flex items-center justify-between'>
+							<Label htmlFor='pMode' className='font-medium text-base'>
+								Weight-Triggered Preinfusion
+							</Label>
+							<Controller
+								name='pMode'
+								control={form.control}
+								render={({ field }) => (
+									<Switch
+										id='pMode'
+										checked={field.value === PreinfusionMode.WEIGHT_TRIGGERED}
+										onCheckedChange={(checked) =>
+											field.onChange(
+												checked
+													? PreinfusionMode.WEIGHT_TRIGGERED
+													: PreinfusionMode.SIMPLE,
+											)
+										}
+									/>
+								)}
+							/>
+						</div>
+
+						<hr className='border-input-border' />
+
+						<div className='space-y-4'>
+							<Controller
+								name='regularPreset'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel>Regular Preset</FieldLabel>
+										<div className='flex items-center gap-2'>
+											<Input
+												{...field}
+												id='regularPreset'
+												type='number'
+												step='0.1'
+												min='1'
+												max='100'
+												className='w-24 text-right text-2xl font-bold tabular-nums'
+												onFocus={(e) => e.target.select()}
+											/>
+											<span className='text-base text-muted-foreground'>g</span>
+										</div>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='decafPreset'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel>Decaf Preset</FieldLabel>
+										<div className='flex items-center gap-2 '>
+											<Input
+												{...field}
+												id='decafPreset'
+												type='number'
+												step='0.1'
+												min='1'
+												max='100'
+												className='w-24 text-right text-2xl font-bold tabular-nums'
+												onFocus={(e) => e.target.select()}
+											/>
+											<span className='text-base text-muted-foreground'>g</span>
+										</div>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
+						</div>
+
+						<hr className='border-input-border' />
+
+						<div className='space-y-4'>
+							<Controller
+								name='timezone'
+								control={form.control}
+								render={({ field }) => (
+									<Field>
+										<FieldLabel>Timezone</FieldLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
+											<SelectTrigger>
+												<SelectValue placeholder='Select timezone' />
+											</SelectTrigger>
+											<SelectContent>
+												{TIMEZONES.map((tz) => (
+													<SelectItem key={tz.value} value={tz.value}>
+														{tz.label}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='decafStartHour'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel>Auto-Decaf Start Time</FieldLabel>
+										<Select
+											onValueChange={(val) => field.onChange(Number(val))}
+											value={field.value.toString()}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder='Select start time' />
+											</SelectTrigger>
+											<SelectContent className='max-h-60'>
+												<SelectItem value='-1'>Disabled</SelectItem>
+												{Array.from({ length: 24 }).map((_, i) => (
+													<SelectItem key={i} value={i.toString()}>
+														{i === 0
+															? '12:00 AM'
+															: i < 12
+																? `${i}:00 AM`
+																: i === 12
+																	? '12:00 PM'
+																	: `${i - 12}:00 PM`}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										<p className='text-xs text-muted-foreground mt-1'>
+											Automatically switches to Decaf Preset after this time.
+										</p>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
+						</div>
+
+						<Accordion
+							type='single'
+							collapsible
+							className='rounded-xl border border-border/60 bg-muted/20'
+						>
+							<AccordionItem value='advanced'>
+								<AccordionTrigger className='px-4 text-sm font-semibold'>
+									Advanced Flow Tuning
+								</AccordionTrigger>
+								<AccordionContent className='space-y-4 px-4 pb-4 text-sm text-muted-foreground'>
+									<p className='text-xs leading-relaxed text-muted-foreground/80'>
+										These settings control how quickly Autobru adapts to changes
+										in your bean and grinder workflow.
+									</p>
+
+									<Controller
+										name='learningRate'
+										control={form.control}
+										render={({ field, fieldState }) => (
+											<Field data-invalid={fieldState.invalid}>
+												<FieldLabel>Adaptation Speed</FieldLabel>
+												<div className='flex items-center gap-3'>
+													<Input
+														{...field}
+														id='learningRate'
+														type='number'
+														step='0.1'
+														min='0.1'
+														max='1'
+														className='w-24 text-right tabular-nums'
+														onFocus={(e) => e.target.select()}
+													/>
+													<span className='text-xs font-medium text-muted-foreground'>
+														{Math.round(field.value * 100)}%
+													</span>
+												</div>
+												<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
+													Lower values (≈20%) change slowly and ignore outliers.
+													Higher values (≈80%) correct after each shot.
+												</p>
+												{fieldState.invalid && (
+													<FieldError errors={[fieldState.error]} />
+												)}
+											</Field>
+										)}
+									/>
+
+									<Controller
+										name='historyLength'
+										control={form.control}
+										render={({ field, fieldState }) => (
+											<Field data-invalid={fieldState.invalid}>
+												<FieldLabel>Shot Memory</FieldLabel>
+												<div className='flex items-center gap-3'>
+													<Input
+														{...field}
+														id='historyLength'
+														type='number'
+														min='1'
+														max='10'
+														step='1'
+														className='w-24 text-right tabular-nums'
+														onFocus={(e) => e.target.select()}
+													/>
+													<span className='text-xs font-medium text-muted-foreground'>
+														shots
+													</span>
+												</div>
+												<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
+													Fewer shots = faster reaction to new beans. More shots
+													= smoother trends that shrug off one bad pull.
+												</p>
+												{fieldState.invalid && (
+													<FieldError errors={[fieldState.error]} />
+												)}
+											</Field>
+										)}
+									/>
+								</AccordionContent>
+							</AccordionItem>
+						</Accordion>
+
+						<div className='p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none w-full'>
+							<div className='pointer-events-auto flex flex-col gap-3'>
+								<Button
+									type='button'
+									onClick={handleViewData}
+									variant='outline'
+									className='bg-background/80 backdrop-blur-sm shadow-sm'
+									disabled={!isDeviceConfigured}
+								>
+									View Shot History
+								</Button>
+
+								<Button
+									type='submit'
+									disabled={
+										!isDeviceConfigured || !form.formState.isDirty || isSaving
+									}
+									className='shadow-lg'
+								>
+									{isSaving && <Spinner className='mr-2' />}
+									{isSaving ? 'Saving...' : 'Save Changes'}
+								</Button>
+							</div>
+						</div>
+					</fieldset>
 				</form>
-			</Section>
+			</div>
 
 			<Dialog
 				open={isViewDataOpen}

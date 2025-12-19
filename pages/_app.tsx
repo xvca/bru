@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/authContext'
 import { BrewBarProvider } from '@/lib/brewBarContext'
 import { Toaster } from '@/components/ui/sonner'
 import '@/styles/globals.css'
+import { EspConfigProvider } from '@/lib/espConfigContext'
 
 export default function App({ Component, pageProps }: AppProps) {
 	useEffect(() => {
@@ -35,22 +36,24 @@ export default function App({ Component, pageProps }: AppProps) {
 			defaultTheme='system'
 			disableTransitionOnChange
 		>
-			<AuthProvider>
-				<WebSocketProvider>
-					<BrewBarProvider>
-						<Component {...pageProps} />
-						<Toaster
-							position='top-center'
-							toastOptions={{
-								style: {
-									background: 'var(--background)',
-									borderColor: 'var(--border)',
-								},
-							}}
-						/>
-					</BrewBarProvider>
-				</WebSocketProvider>
-			</AuthProvider>
+			<EspConfigProvider>
+				<AuthProvider>
+					<WebSocketProvider>
+						<BrewBarProvider>
+							<Component {...pageProps} />
+							<Toaster
+								position='top-center'
+								toastOptions={{
+									style: {
+										background: 'var(--background)',
+										borderColor: 'var(--border)',
+									},
+								}}
+							/>
+						</BrewBarProvider>
+					</WebSocketProvider>
+				</AuthProvider>
+			</EspConfigProvider>
 		</ThemeProvider>
 	)
 }
