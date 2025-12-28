@@ -9,7 +9,6 @@ import {
 	type BrewerFormData,
 } from '@/lib/validators'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -143,7 +142,7 @@ export default function BrewerFormModal({
 
 				{isFetching ? (
 					<div className='flex justify-center items-center py-8'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				) : (
 					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>

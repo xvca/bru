@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
-import { Loader2, Calendar as CalendarIcon } from 'lucide-react'
+import { Calendar as CalendarIcon } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format, parse } from 'date-fns'
@@ -171,7 +171,7 @@ export default function BeanFormModal({
 
 				{isFetching && isEditMode ? (
 					<div className='flex justify-center items-center py-8'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				) : (
 					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>

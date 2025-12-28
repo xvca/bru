@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
-import { Loader2, Snowflake } from 'lucide-react'
+import { Snowflake } from 'lucide-react'
 import { format } from 'date-fns'
 
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
 	DialogDescription,
 } from '@/components/ui/dialog'
 import { Field, FieldLabel } from '@/components/ui/field'
+import { Spinner } from './ui/spinner'
 
 interface ThawBeanModalProps {
 	isOpen: boolean
@@ -143,9 +144,7 @@ export default function ThawBeanModal({
 							Cancel
 						</Button>
 						<Button type='submit' disabled={isSubmitting || thawWeight <= 0}>
-							{isSubmitting && (
-								<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-							)}
+							{isSubmitting && <Spinner />}
 							Thaw Beans
 						</Button>
 					</div>

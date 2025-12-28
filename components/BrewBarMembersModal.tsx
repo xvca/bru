@@ -3,7 +3,7 @@ import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
 import { useBrewBarMembers } from '@/hooks/useBrewBarMembers'
-import { Loader2, Trash, UserPlus, Shield } from 'lucide-react'
+import { Trash, UserPlus, Shield } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { inviteSchema, type InviteFormData } from '@/lib/validators'
@@ -27,6 +27,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Spinner } from './ui/spinner'
 
 interface BrewBarMembersModalProps {
 	isOpen: boolean
@@ -145,11 +146,7 @@ export default function BrewBarMembersModal({
 								/>
 							</div>
 							<Button type='submit' size='sm' disabled={isInviting}>
-								{isInviting ? (
-									<Loader2 className='h-4 w-4 animate-spin' />
-								) : (
-									<UserPlus className='h-4 w-4' />
-								)}
+								{isInviting ? <Spinner /> : <UserPlus className='h-4 w-4' />}
 							</Button>
 						</form>
 					</div>
@@ -162,7 +159,7 @@ export default function BrewBarMembersModal({
 
 					{isLoading ? (
 						<div className='flex justify-center py-4'>
-							<Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
+							<Spinner />
 						</div>
 					) : (
 						<ScrollArea className='h-[300px] pr-4'>

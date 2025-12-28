@@ -5,7 +5,6 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { brewBarSchema, type BrewBarFormData } from '@/lib/validators'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 import { useBrewBar } from '@/hooks/useBrewBar'
 import { useBrewBar as useActiveBrewBar } from '@/lib/brewBarContext'
 
@@ -114,7 +113,7 @@ export default function BrewBarFormModal({
 
 				{isFetching && isEditMode ? (
 					<div className='flex justify-center items-center py-8'>
-						<Loader2 className='w-8 h-8 animate-spin' />
+						<Spinner />
 					</div>
 				) : (
 					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
