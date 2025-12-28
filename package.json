@@ -13,7 +13,7 @@
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",
 		"@prisma/adapter-better-sqlite3": "^7.0.1",
-		"@prisma/client": "^7.1.0",
+		"@prisma/client": "^7.2.0",
 		"@radix-ui/react-accordion": "^1.2.12",
 		"@radix-ui/react-avatar": "^1.1.11",
 		"@radix-ui/react-dialog": "^1.1.15",
@@ -66,7 +66,7 @@
 		"postcss": "^8.4.31",
 		"prettier": "^3.6.2",
 		"prettier-plugin-tailwindcss": "^0.7.1",
-		"prisma": "^7.1.0",
+		"prisma": "^7.2.0",
 		"tailwindcss": "^4.1.17",
 		"tailwindcss-safe-area": "^0.4.1",
 		"typescript": "^5.2.2"
