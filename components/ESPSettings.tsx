@@ -346,8 +346,8 @@ export default function ESPSettings() {
 					</div>
 					<p className='text-xs text-muted-foreground'>
 						Enter the local IP or hostname of your Autobru ESP (without
-						http://). This address is used for both the REST API and the live
-						websocket feed.
+						http://). This address is used for both the API and the live scale
+						data feed.
 					</p>
 				</div>
 

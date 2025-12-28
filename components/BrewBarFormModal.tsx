@@ -7,6 +7,7 @@ import { brewBarSchema, type BrewBarFormData } from '@/lib/validators'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { useBrewBar } from '@/hooks/useBrewBar'
+import { useBrewBar as useActiveBrewBar } from '@/lib/brewBarContext'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -23,6 +24,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import { refresh } from 'next/cache'
 
 interface BrewBarFormModalProps {
 	isOpen: boolean
@@ -42,11 +44,11 @@ export default function BrewBarFormModal({
 
 	const [isSubmitting, setIsSubmitting] = useState(false)
 
-	const { bean: brewBar, isLoading: isFetching } = useBrewBar(
+	const { brewBar, isLoading: isFetching } = useBrewBar(
 		isOpen && isEditMode ? brewBarId : undefined,
-	) as any // Casting because useBrewBar returns { brewBar, ... } but I aliased it to match the pattern, though the hook returns 'brewBar' property.
-	// Actually, let's fix the destructuring:
-	// const { brewBar, isLoading: isFetching } = useBrewBar(...)
+	)
+
+	const { refreshBars } = useActiveBrewBar()
 
 	const form = useForm<BrewBarFormData>({
 		resolver: zodResolver(brewBarSchema),
@@ -90,6 +92,7 @@ export default function BrewBarFormModal({
 				toast.success('Brew bar created successfully')
 			}
 
+			await refreshBars()
 			onSuccess?.()
 			onClose()
 		} catch (error) {

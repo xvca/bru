@@ -23,13 +23,13 @@ import { Spinner } from './ui/spinner'
 
 export default function PreferencesSettings() {
 	const { user } = useAuth()
-	const { availableBars, activeBarId, refreshBars } = useBrewBar()
+	const { availableBars, refreshBars } = useBrewBar()
 	const [isSaving, setIsSaving] = useState(false)
 
 	const form = useForm<UserPreferencesFormData>({
 		resolver: zodResolver(userPreferencesSchema),
 		defaultValues: {
-			defaultBrewBar: 'personal',
+			defaultBarId: 'personal',
 		},
 	})
 
@@ -40,9 +40,10 @@ export default function PreferencesSettings() {
 					headers: { Authorization: `Bearer ${user?.token}` },
 				})
 				form.reset({
-					defaultBrewBar: data.defaultBarId
+					defaultBarId: data.defaultBarId
 						? String(data.defaultBarId)
 						: 'personal',
+					decafStartHour: data.decafStartHour,
 				})
 			} catch (e) {
 				console.error(e)
@@ -71,13 +72,13 @@ export default function PreferencesSettings() {
 	return (
 		<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
 			<Controller
-				name='defaultBrewBar'
+				name='defaultBarId'
 				control={form.control}
 				render={({ field, fieldState }) => (
 					<Field data-invalid={fieldState.invalid}>
-						<FieldLabel htmlFor='defaultBrewBar'>Default Brew Bar</FieldLabel>
+						<FieldLabel htmlFor='defaultBarId'>Default Brew Bar</FieldLabel>
 						<Select onValueChange={field.onChange} value={field.value}>
-							<SelectTrigger id='defaultBrewBar' className='w-full'>
+							<SelectTrigger id='defaultBarId' className='w-full'>
 								<SelectValue placeholder='Select default brew bar' />
 							</SelectTrigger>
 							<SelectContent>

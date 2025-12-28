@@ -6,85 +6,89 @@ import {
 } from '@/services/brewBarService'
 import { withAuth, AuthRequest } from '@/lib/auth'
 import { brewBarSchema } from '@/lib/validators'
+import { NextApiResponse } from 'next'
 
-const handler = createApiHandler<AuthRequest>({
-	GET: async (req, res) => {
-		const userId = req.user!.id
-		const brewBarId = parseInt(req.query.id as string)
+async function handleGet(req: AuthRequest, res: NextApiResponse) {
+	const userId = req.user!.id
+	const brewBarId = parseInt(req.query.id as string)
 
-		if (isNaN(brewBarId)) {
-			res.status(400).json({ error: 'Valid brew bar ID is required' })
-			return
-		}
+	if (isNaN(brewBarId)) {
+		res.status(400).json({ error: 'Valid brew bar ID is required' })
+		return
+	}
 
-		const brewBar = await getBrewBarById(brewBarId)
+	const brewBar = await getBrewBarById(brewBarId)
 
-		if (
-			!brewBar ||
-			!brewBar.members.some((member) => member.userId === userId)
-		) {
-			res.status(404).json({
-				error: "Brew bar not found or you don't have access to it",
-			})
-			return
-		}
-
-		const userMembership = brewBar.members.find(
-			(member) => member.userId === userId,
-		)
-		const isOwner = brewBar.createdBy === userId
-		const userRole = userMembership?.role || 'Member'
-
-		res.status(200).json({
-			id: brewBar.id,
-			name: brewBar.name,
-			location: brewBar.location,
-			createdAt: brewBar.createdAt,
-			createdBy: brewBar.createdBy,
-			isOwner,
-			role: userRole,
+	if (!brewBar || !brewBar.members.some((member) => member.userId === userId)) {
+		res.status(404).json({
+			error: "Brew bar not found or you don't have access to it",
 		})
-	},
-	PUT: async (req, res) => {
-		const userId = req.user!.id
-		const brewBarId = parseInt(req.query.id as string)
+		return
+	}
 
-		const brewBar = await getBrewBarById(brewBarId)
-		if (!brewBar || brewBar.createdBy !== userId) {
-			res.status(403).json({
-				error: 'You do not have permission to update this brew bar',
-			})
-			return
-		}
+	const userMembership = brewBar.members.find(
+		(member) => member.userId === userId,
+	)
+	const isOwner = brewBar.createdBy === userId
+	const userRole = userMembership?.role || 'Member'
 
-		const validationResult = brewBarSchema.safeParse(req.body)
+	res.status(200).json({
+		id: brewBar.id,
+		name: brewBar.name,
+		location: brewBar.location,
+		createdAt: brewBar.createdAt,
+		createdBy: brewBar.createdBy,
+		isOwner,
+		role: userRole,
+	})
+}
 
-		if (!validationResult.success) {
-			res.status(400).json({
-				error: 'Invalid brew bar data',
-				details: validationResult.error.flatten().fieldErrors,
-			})
-			return
-		}
+async function handlePut(req: AuthRequest, res: NextApiResponse) {
+	const userId = req.user!.id
+	const brewBarId = parseInt(req.query.id as string)
 
-		const updatedBrewBar = await updateBrewBar(brewBarId, validationResult.data)
-		res.status(200).json(updatedBrewBar)
-	},
-	DELETE: async (req, res) => {
-		const userId = req.user!.id
-		const brewBarId = parseInt(req.query.id as string)
+	const brewBar = await getBrewBarById(brewBarId)
+	if (!brewBar || brewBar.createdBy !== userId) {
+		res.status(403).json({
+			error: 'You do not have permission to update this brew bar',
+		})
+		return
+	}
 
-		const brewBar = await getBrewBarById(brewBarId)
-		if (!brewBar || brewBar.createdBy !== userId) {
-			res.status(403).json({
-				error: 'You do not have permission to delete this brew bar',
-			})
-			return
-		}
+	const validationResult = brewBarSchema.safeParse(req.body)
 
-		await deleteBrewBar(brewBarId)
-		res.status(204).end()
-	},
-})
+	if (!validationResult.success) {
+		res.status(400).json({
+			error: 'Invalid brew bar data',
+			details: validationResult.error.flatten().fieldErrors,
+		})
+		return
+	}
 
-export default withAuth(handler)
+	const updatedBrewBar = await updateBrewBar(brewBarId, validationResult.data)
+	res.status(200).json(updatedBrewBar)
+}
+
+async function handleDelete(req: AuthRequest, res: NextApiResponse) {
+	const userId = req.user!.id
+	const brewBarId = parseInt(req.query.id as string)
+
+	const brewBar = await getBrewBarById(brewBarId)
+	if (!brewBar || brewBar.createdBy !== userId) {
+		res.status(403).json({
+			error: 'You do not have permission to delete this brew bar',
+		})
+		return
+	}
+
+	await deleteBrewBar(brewBarId)
+	res.status(204).end()
+}
+
+export default withAuth(
+	createApiHandler<AuthRequest>({
+		GET: handleGet,
+		PUT: handlePut,
+		DELETE: handleDelete,
+	}),
+)

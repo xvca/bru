@@ -106,7 +106,7 @@ export type InviteFormData = z.infer<typeof inviteSchema>
 
 // User Preferences
 export const userPreferencesSchema = z.object({
-	defaultBrewBar: z.string().optional(),
+	defaultBarId: z.string().optional(),
 	decafStartHour: z.number().min(0).max(23).optional(),
 })
 
