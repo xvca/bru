@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
+import { toast } from 'sonner'
 
 interface BrewBar {
 	id: number
@@ -29,7 +30,7 @@ export const useBrewBar = () => useContext(BrewBarContext)
 export const BrewBarProvider: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => {
-	const { user } = useAuth()
+	const { user, logout } = useAuth()
 	const [activeBarId, setActiveBarId] = useState<number | null>(null)
 	const [availableBars, setAvailableBars] = useState<BrewBar[]>([])
 	const [isLoading, setIsLoading] = useState(true)
@@ -39,14 +40,19 @@ export const BrewBarProvider: React.FC<{ children: React.ReactNode }> = ({
 
 		try {
 			setIsLoading(true)
-			const barsRes = await axios.get('/api/brew-bars', {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
-			setAvailableBars(barsRes.data)
 
-			const prefRes = await axios.get('/api/user/preferences', {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
+			const headers = { Authorization: `Bearer ${user.token}` }
+
+			const [barsRes, prefRes] = await Promise.all([
+				axios.get('/api/brew-bars', {
+					headers,
+				}),
+				axios.get('/api/user/preferences', {
+					headers,
+				}),
+			])
+
+			setAvailableBars(barsRes.data)
 
 			// if we haven't manually set a bar in this session yet, use the default
 			if (activeBarId === null && prefRes.data.defaultBarId !== undefined) {
@@ -54,6 +60,10 @@ export const BrewBarProvider: React.FC<{ children: React.ReactNode }> = ({
 			}
 		} catch (error) {
 			console.error('Failed to load brew bar context', error)
+			toast.error(
+				'Failed to load your brew bars and preferences. Logging you out to refresh session.',
+			)
+			logout()
 		} finally {
 			setIsLoading(false)
 		}

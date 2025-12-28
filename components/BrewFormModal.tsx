@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Star, X } from 'lucide-react'
 import type { Bean, Brewer, Grinder } from 'generated/prisma/client'
 import { BREW_METHODS, brewSchema, type BrewFormData } from '@/lib/validators'
+import { useBrew } from '@/hooks/useBrew'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -55,13 +56,16 @@ export default function BrewForm({
 	const isEditMode = !!brewId
 
 	const [isLoading, setIsLoading] = useState(false)
-	const [isFetching, setIsFetching] = useState(false)
-
+	const [isFormDataLoading, setIsFormDataLoading] = useState(false)
 	const [activeSelect, setActiveSelect] = useState<string | null>(null)
 
 	const [beans, setBeans] = useState<Bean[]>([])
 	const [brewers, setBrewers] = useState<Brewer[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
+
+	const { brew, isLoading: isFetching } = useBrew(
+		isOpen && isEditMode ? brewId : undefined,
+	)
 
 	const defaultValues: BrewFormData = {
 		beanId: 0,
@@ -91,6 +95,7 @@ export default function BrewForm({
 
 	useEffect(() => {
 		if (isOpen && user) {
+			setIsFormDataLoading(true)
 			const fetchData = async () => {
 				try {
 					const params = { barId: barId || undefined }
@@ -108,6 +113,8 @@ export default function BrewForm({
 				} catch (error) {
 					console.error('Error loading form data:', error)
 					toast.error('Failed to load beans or methods')
+				} finally {
+					setIsFormDataLoading(false)
 				}
 			}
 			fetchData()
@@ -115,38 +122,25 @@ export default function BrewForm({
 	}, [isOpen, user, barId])
 
 	useEffect(() => {
-		if (isOpen && isEditMode && brewId && user) {
-			const fetchBrew = async () => {
-				setIsFetching(true)
-				try {
-					const { data } = await axios.get(`/api/brews/${brewId}`, {
-						headers: { Authorization: `Bearer ${user.token}` },
-					})
-					form.reset({
-						...data,
-						beanId: data.beanId,
-						methodId: data.methodId,
-						barId: data.barId || undefined,
-						brewerId: data.brewerId || undefined,
-						grinderId: data.grinderId || undefined,
-					})
-				} catch (error) {
-					console.error('Error fetching brew:', error)
-					toast.error('Failed to load brew data')
-					onClose()
-				} finally {
-					setIsFetching(false)
-				}
+		if (isOpen) {
+			if (isEditMode && brew) {
+				form.reset({
+					...brew,
+					beanId: brew.beanId,
+					method: brew.method,
+					barId: brew.barId || undefined,
+					brewerId: brew.brewerId || undefined,
+					grinderId: brew.grinderId || undefined,
+				})
+			} else if (!isEditMode) {
+				form.reset({
+					...defaultValues,
+					...(initialData ?? {}),
+					barId: barId || initialData?.barId || undefined,
+				})
 			}
-			fetchBrew()
-		} else if (isOpen && !isEditMode) {
-			form.reset({
-				...defaultValues,
-				...(initialData ?? {}),
-				barId: barId || initialData?.barId || undefined,
-			})
 		}
-	}, [isOpen, isEditMode, brewId, barId])
+	}, [isOpen, isEditMode, brew, barId, initialData, form])
 
 	useEffect(() => {
 		const fetchLastBrew = async () => {
@@ -244,7 +238,7 @@ export default function BrewForm({
 					<DialogTitle>{isEditMode ? 'Edit Brew' : 'Add New Brew'}</DialogTitle>
 				</DialogHeader>
 
-				{isFetching ? (
+				{isFetching || isFormDataLoading ? (
 					<div className='flex justify-center items-center py-8'>
 						<Spinner />
 					</div>
@@ -259,7 +253,6 @@ export default function BrewForm({
 										<FieldLabel htmlFor='beanId'>
 											Coffee Bean <span className='text-error'>*</span>
 										</FieldLabel>
-
 										<BeanSelect
 											beans={beans}
 											value={field.value?.toString() || ''}
@@ -283,9 +276,7 @@ export default function BrewForm({
 									control={form.control}
 									render={({ field, fieldState }) => (
 										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='brewerId'>
-												Brewer (Optional)
-											</FieldLabel>
+											<FieldLabel htmlFor='brewerId'>Brewer</FieldLabel>
 											<Select
 												onValueChange={(val) =>
 													field.onChange(val ? Number(val) : null)
@@ -300,12 +291,6 @@ export default function BrewForm({
 													<SelectValue placeholder='Select brewer' />
 												</SelectTrigger>
 												<SelectContent>
-													<SelectItem
-														value='0'
-														className='text-muted-foreground italic'
-													>
-														None
-													</SelectItem>
 													{brewers.map((brewer) => (
 														<SelectItem
 															key={brewer.id}
@@ -325,7 +310,9 @@ export default function BrewForm({
 									control={form.control}
 									render={({ field, fieldState }) => (
 										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel>Method</FieldLabel>
+											<FieldLabel htmlFor='method'>
+												Method <span className='text-error'>*</span>
+											</FieldLabel>
 											<Select
 												onValueChange={field.onChange}
 												value={field.value}
@@ -471,64 +458,39 @@ export default function BrewForm({
 											<Field data-invalid={fieldState.invalid}>
 												<FieldLabel>Brew Time</FieldLabel>
 												<div className='flex items-center gap-2'>
-													<div className='flex-1'>
-														<Select
+													<div className='relative flex-1'>
+														<Input
+															type='number'
+															min='0'
 															value={minutes.toString()}
-															onValueChange={(val) =>
-																handleTimeChange('min', val)
+															onChange={(e) =>
+																handleTimeChange('min', e.target.value)
 															}
-															onOpenChange={(isOpen) =>
-																setActiveSelect(isOpen ? 'mins' : null)
-															}
-															open={activeSelect === 'mins'}
-														>
-															<SelectTrigger className='text-center'>
-																<div className='flex items-center gap-1'>
-																	<SelectValue placeholder='0' />
-																	<span className='text-muted-foreground text-xs'>
-																		Minutes
-																	</span>
-																</div>
-															</SelectTrigger>
-															<SelectContent className='max-h-48'>
-																{Array.from({ length: 21 }).map((_, i) => (
-																	<SelectItem key={i} value={i.toString()}>
-																		{i}
-																	</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
+															onFocus={(e) => e.target.select()}
+															className='pr-8'
+														/>
+														<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
+															min
+														</span>
 													</div>
 													<span className='text-muted-foreground font-bold'>
 														:
 													</span>
-													<div className='flex-1'>
-														<Select
-															value={seconds.toString()}
-															onValueChange={(val) =>
-																handleTimeChange('sec', val)
+													<div className='relative flex-1'>
+														<Input
+															type='number'
+															min='0'
+															max='59'
+															value={seconds.toString().padStart(2, '0')}
+															onChange={(e) =>
+																handleTimeChange('sec', e.target.value)
 															}
-															onOpenChange={(isOpen) =>
-																setActiveSelect(isOpen ? 'secs' : null)
-															}
-															open={activeSelect === 'secs'}
-														>
-															<SelectTrigger className='text-center'>
-																<div className='flex items-center gap-1'>
-																	<SelectValue placeholder='00' />
-																	<span className='text-muted-foreground text-xs'>
-																		Seconds
-																	</span>
-																</div>
-															</SelectTrigger>
-															<SelectContent className='max-h-48'>
-																{Array.from({ length: 60 }).map((_, i) => (
-																	<SelectItem key={i} value={i.toString()}>
-																		{i.toString().padStart(2, '0')}
-																	</SelectItem>
-																))}
-															</SelectContent>
-														</Select>
+															onFocus={(e) => e.target.select()}
+															className='pr-8'
+														/>
+														<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
+															sec
+														</span>
 													</div>
 												</div>
 												{fieldState.invalid && (
@@ -552,8 +514,7 @@ export default function BrewForm({
 												value={field.value || ''}
 												id='waterTemperature'
 												type='number'
-												min='1'
-												max='100'
+												step='1'
 												onFocus={(e) => e.target.select()}
 											/>
 										</Field>
@@ -570,11 +531,9 @@ export default function BrewForm({
 										<Input
 											{...field}
 											value={field.value || ''}
+											id='grindSize'
 											type='number'
 											step='0.1'
-											min='0'
-											id='grindSize'
-											placeholder='4.5'
 											onFocus={(e) => e.target.select()}
 										/>
 									</Field>
@@ -584,44 +543,35 @@ export default function BrewForm({
 							<Controller
 								name='rating'
 								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
+								render={({ field }) => (
+									<Field>
 										<FieldLabel>Rating</FieldLabel>
-										<div className='flex items-center space-x-1'>
+										<div className='flex gap-1'>
 											{[1, 2, 3, 4, 5].map((star) => (
-												<Button
+												<button
 													key={star}
 													type='button'
-													variant='ghost'
-													size='icon'
-													className={cn(
-														'rounded-full hover:bg-secondary',
-														(field.value || 0) >= star
-															? 'text-yellow-500 hover:text-yellow-600'
-															: 'text-muted-foreground',
-													)}
 													onClick={() => field.onChange(star)}
+													className='focus:outline-none'
 												>
 													<Star
 														className={cn(
-															'w-6 h-6',
-															(field.value || 0) >= star ? 'fill-current' : '',
+															'h-8 w-8 transition-colors',
+															(field.value || 0) >= star
+																? 'fill-warning text-warning'
+																: 'fill-muted/20 text-muted-foreground/30 hover:text-warning/50',
 														)}
 													/>
-												</Button>
+												</button>
 											))}
-											{/* Clear rating button if needed */}
 											{(field.value || 0) > 0 && (
-												<Button
+												<button
 													type='button'
-													variant='ghost'
-													size='icon'
-													className='rounded-full ml-2 text-muted-foreground hover:text-destructive'
 													onClick={() => field.onChange(0)}
-													title='Clear rating'
+													className='ml-2 text-muted-foreground hover:text-destructive'
 												>
-													<X className='w-4 h-4' />
-												</Button>
+													<X className='h-5 w-5' />
+												</button>
 											)}
 										</div>
 									</Field>
@@ -640,8 +590,8 @@ export default function BrewForm({
 											{...field}
 											value={field.value || ''}
 											id='tastingNotes'
+											placeholder='Describe the flavor profile...'
 											rows={3}
-											placeholder='Flavor notes, acidity, body, etc.'
 										/>
 									</Field>
 								)}

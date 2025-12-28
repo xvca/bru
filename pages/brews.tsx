@@ -1,11 +1,11 @@
 import ProtectedPage from '@/components/ProtectedPage'
-import Section from '@/components/Section'
 import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
+import { useBrews } from '@/hooks/useBrews'
 import {
 	Plus,
 	Coffee,
@@ -17,12 +17,10 @@ import {
 	Scale,
 	Settings2,
 	Store,
-	User,
 } from 'lucide-react'
 import BrewForm from '@/components/BrewFormModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { cn } from '@/lib/utils'
-import { Prisma } from '@/generated/prisma/client'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -37,25 +35,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
-// Updated Type Definition
-type BrewWithRelations = Prisma.BrewGetPayload<{
-	include: {
-		bean: true
-		method: true
-		user: {
-			select: { id: true; username: true }
-		}
-		brewBar: {
-			select: { id: true; name: true }
-		}
-	}
-}>
-
 export default function Brews() {
 	const { user } = useAuth()
 	const { activeBarId, availableBars } = useBrewBar()
-	const [brews, setBrews] = useState<BrewWithRelations[]>([])
-	const [isLoading, setIsLoading] = useState(true)
+	const { brews, isLoading, refresh } = useBrews(activeBarId)
+
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [selectedBrew, setSelectedBrew] = useState<number | undefined>(
 		undefined,
@@ -66,28 +50,6 @@ export default function Brews() {
 		brewId: 0,
 		brewName: '',
 	})
-
-	useEffect(() => {
-		if (user) {
-			fetchBrews()
-		}
-	}, [user, activeBarId])
-
-	const fetchBrews = async () => {
-		setIsLoading(true)
-		try {
-			const { data } = await axios.get<BrewWithRelations[]>('/api/brews', {
-				headers: { Authorization: `Bearer ${user?.token}` },
-				params: { barId: activeBarId },
-			})
-			setBrews(data)
-		} catch (error) {
-			console.error('Error fetching brews:', error)
-			toast.error('Failed to load brews')
-		} finally {
-			setIsLoading(false)
-		}
-	}
 
 	const handleAddBrew = () => {
 		setSelectedBrew(undefined)
@@ -105,7 +67,7 @@ export default function Brews() {
 				headers: { Authorization: `Bearer ${user?.token}` },
 			})
 
-			setBrews(brews.filter((brew) => brew.id !== id))
+			refresh()
 			toast.success('Brew deleted successfully')
 		} catch (error) {
 			console.error('Error deleting brew:', error)
@@ -382,7 +344,7 @@ export default function Brews() {
 				onClose={() => setIsFormOpen(false)}
 				brewId={selectedBrew}
 				barId={activeBarId || undefined}
-				onSuccess={fetchBrews}
+				onSuccess={refresh}
 			/>
 
 			<ConfirmModal

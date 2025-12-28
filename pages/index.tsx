@@ -448,7 +448,7 @@ export default function CoffeeBrewControl() {
 							}
 							gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
 							gaugeSecondaryColor='var(--secondary)'
-							className='mx-auto max-w-[80vw] sm:max-w-xl -mb-12'
+							className='mx-auto max-w-[80vw] sm:max-w-md -mb-12'
 						/>
 
 						<div className='absolute inset-0 flex flex-col items-center justify-center pt-16 sm:pt-8'>
