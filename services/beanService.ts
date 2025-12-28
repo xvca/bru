@@ -58,9 +58,18 @@ export async function createBean(input: CreateBeanInput) {
 
 export async function updateBean(id: number, input: Partial<CreateBeanInput>) {
 	const data: any = { ...input }
-	if (input.roastDate) data.roastDate = new Date(input.roastDate)
-	if (input.freezeDate) data.freezeDate = new Date(input.freezeDate)
-	if (input.thawDate) data.thawDate = new Date(input.thawDate)
+
+	if (data.roastDate) {
+		data.roastDate = new Date(data.roastDate)
+	}
+
+	if ('freezeDate' in data) {
+		data.freezeDate = data.freezeDate ? new Date(data.freezeDate) : null
+	}
+
+	if ('thawDate' in data) {
+		data.thawDate = data.thawDate ? new Date(data.thawDate) : null
+	}
 
 	return prisma.bean.update({
 		where: { id },
@@ -76,5 +85,46 @@ export async function deleteBean(id: number) {
 
 	return prisma.bean.delete({
 		where: { id },
+	})
+}
+
+export async function thawBean(id: number, weight: number, thawDate: Date) {
+	const bean = await prisma.bean.findUnique({ where: { id } })
+	if (!bean) throw new Error('Bean not found')
+	if (!bean.freezeDate) throw new Error('Bean is not frozen')
+	if (bean.remainingWeight === null)
+		throw new Error('Bean has no remaining weight')
+	if (weight > bean.remainingWeight)
+		throw new Error('Cannot thaw more than remaining weight')
+
+	return prisma.$transaction(async (tx) => {
+		if (Math.abs(weight - bean.remainingWeight!) < 0.1) {
+			return tx.bean.update({
+				where: { id },
+				data: { thawDate },
+			})
+		} else {
+			await tx.bean.update({
+				where: { id },
+				data: { remainingWeight: bean.remainingWeight! - weight },
+			})
+
+			return tx.bean.create({
+				data: {
+					name: bean.name,
+					roaster: bean.roaster,
+					origin: bean.origin,
+					roastLevel: bean.roastLevel,
+					roastDate: bean.roastDate,
+					freezeDate: bean.freezeDate,
+					thawDate: thawDate,
+					initialWeight: weight,
+					remainingWeight: weight,
+					notes: bean.notes,
+					barId: bean.barId,
+					createdBy: bean.createdBy,
+				},
+			})
+		}
 	})
 }

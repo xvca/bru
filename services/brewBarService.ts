@@ -148,3 +148,13 @@ export async function isBrewBarOwner(barId: number, userId: number) {
 	})
 	return count > 0
 }
+
+export async function isBrewBarMember(barId: number, userId: number) {
+	const count = await prisma.brewBarMember.count({
+		where: {
+			barId,
+			userId,
+		},
+	})
+	return count > 0
+}

@@ -1,5 +1,5 @@
 import ProtectedPage from '@/components/ProtectedPage'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
@@ -13,10 +13,13 @@ import {
 	Trash,
 	Package,
 	Snowflake,
+	ThermometerSun,
+	Droplets,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BeanFormModal from '@/components/BeanFormModal'
+import ThawBeanModal from '@/components/ThawBeanModal'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -42,6 +45,13 @@ export default function BeansPage() {
 		beanName: '',
 	})
 
+	const [thawModalData, setThawModalData] = useState({
+		isOpen: false,
+		beanId: -1,
+		beanName: '',
+		remainingWeight: 0,
+	})
+
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [selectedBeanId, setSelectedBeanId] = useState<number | undefined>(
 		undefined,
@@ -55,6 +65,15 @@ export default function BeansPage() {
 	const handleEdit = (id: number) => {
 		setSelectedBeanId(id)
 		setIsFormOpen(true)
+	}
+
+	const handleThaw = (id: number, name: string, weight: number) => {
+		setThawModalData({
+			isOpen: true,
+			beanId: id,
+			beanName: name,
+			remainingWeight: weight,
+		})
 	}
 
 	const handleDelete = async (id: number) => {
@@ -87,19 +106,85 @@ export default function BeansPage() {
 	const calculateDaysSinceRoast = (
 		roastDateStr: Date | string,
 		freezeDateStr?: Date | string | null,
+		thawDateStr?: Date | string | null,
 	): number => {
 		const roast = new Date(roastDateStr)
-		const endPoint = freezeDateStr ? new Date(freezeDateStr) : new Date()
+		const now = new Date()
 
-		const diffTime = endPoint.getTime() - roast.getTime()
-		const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+		if (freezeDateStr) {
+			const freeze = new Date(freezeDateStr)
+			const ageBeforeFreeze = freeze.getTime() - roast.getTime()
 
-		return Math.max(0, diffDays)
+			if (thawDateStr) {
+				const thaw = new Date(thawDateStr)
+				const ageAfterThaw = now.getTime() - thaw.getTime()
+				const totalAge = ageBeforeFreeze + ageAfterThaw
+				return Math.max(0, Math.floor(totalAge / (1000 * 60 * 60 * 24)))
+			} else {
+				return Math.max(0, Math.floor(ageBeforeFreeze / (1000 * 60 * 60 * 24)))
+			}
+		}
+
+		const diffTime = now.getTime() - roast.getTime()
+		return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
+	}
+
+	const getBatchColor = (str: string) => {
+		let hash = 0
+		for (let i = 0; i < str.length; i++) {
+			hash = str.charCodeAt(i) + ((hash << 5) - hash)
+		}
+		const hue = Math.abs(hash % 360)
+		return `hsl(${hue}, 50%, 65%)`
 	}
 
 	const currentBarName = activeBarId
 		? availableBars.find((b) => b.id === activeBarId)?.name
 		: 'Personal Stash'
+
+	const sortedBeans = useMemo(() => {
+		if (!beans) return []
+
+		const batches: Record<string, typeof beans> = {}
+		beans.forEach((bean) => {
+			const batchKey = `${bean.name}-${bean.roaster}-${new Date(bean.roastDate).toISOString().split('T')[0]}`
+			if (!batches[batchKey]) batches[batchKey] = []
+			batches[batchKey].push(bean)
+		})
+
+		const getBeanScore = (bean: (typeof beans)[0]) => {
+			if (bean.remainingWeight === 0) return 1
+			const isFrozen = !!bean.freezeDate && !bean.thawDate
+			if (isFrozen) return 2
+			return 3
+		}
+
+		const sortedBatchKeys = Object.keys(batches).sort((a, b) => {
+			const batchA = batches[a]
+			const batchB = batches[b]
+
+			const scoreA = Math.max(...batchA.map(getBeanScore))
+			const scoreB = Math.max(...batchB.map(getBeanScore))
+
+			if (scoreA !== scoreB) return scoreB - scoreA
+
+			const dateA = new Date(batchA[0].roastDate).getTime()
+			const dateB = new Date(batchB[0].roastDate).getTime()
+			if (dateA !== dateB) return dateB - dateA
+
+			return batchA[0].name.localeCompare(batchB[0].name)
+		})
+
+		return sortedBatchKeys.flatMap((key) => {
+			const batchBeans = batches[key]
+			return batchBeans.sort((a, b) => {
+				const scoreA = getBeanScore(a)
+				const scoreB = getBeanScore(b)
+				if (scoreA !== scoreB) return scoreB - scoreA
+				return b.id - a.id
+			})
+		})
+	}, [beans])
 
 	return (
 		<ProtectedPage title='Coffee Beans'>
@@ -161,7 +246,7 @@ export default function BeansPage() {
 					</Card>
 				) : (
 					<div className='grid gap-4 md:grid-cols-2'>
-						{beans.map((bean) => {
+						{sortedBeans.map((bean) => {
 							const percentRemaining = bean.remainingWeight
 								? Math.min(
 										100,
@@ -169,26 +254,58 @@ export default function BeansPage() {
 									)
 								: 0
 
-							const isFrozen = !!bean.freezeDate
+							const isThawed = !!bean.freezeDate && !!bean.thawDate
+							const isFrozen = !!bean.freezeDate && !bean.thawDate
+							const isFinished = bean.remainingWeight === 0
+
 							const daysOld = calculateDaysSinceRoast(
 								bean.roastDate,
 								bean.freezeDate,
+								bean.thawDate,
 							)
+
+							const batchKey = `${bean.name}-${bean.roaster}-${new Date(bean.roastDate).toISOString().split('T')[0]}`
+							const batchColor = getBatchColor(batchKey)
 
 							return (
 								<Card
 									key={bean.id}
-									className='flex flex-col justify-between hover:border-primary/50 transition-colors'
+									className={cn(
+										'flex flex-col justify-between hover:border-primary/50 transition-colors',
+										isFinished && 'opacity-60',
+									)}
 								>
 									<CardHeader className='pb-3'>
 										<div className='flex justify-between items-start gap-2'>
 											<div className='space-y-1'>
-												<CardTitle className='text-lg leading-tight'>
+												<CardTitle className='text-lg leading-tight flex items-center gap-2'>
+													<div
+														className='w-3 h-3 rounded-full shrink-0'
+														style={{ backgroundColor: batchColor }}
+														title='Batch Indicator'
+													/>
 													{bean.name}
 												</CardTitle>
 												<CardDescription>{bean.roaster}</CardDescription>
 											</div>
 											<div className='flex gap-1 -mr-2 -mt-1'>
+												{isFrozen && (
+													<Button
+														onClick={() =>
+															handleThaw(
+																bean.id,
+																bean.name,
+																bean.remainingWeight || 0,
+															)
+														}
+														variant='ghost'
+														size='icon'
+														className='h-8 w-8 text-frozen-foreground hover:text-frozen-foreground hover:bg-frozen/20'
+														title='Thaw Beans'
+													>
+														<ThermometerSun size={16} />
+													</Button>
+												)}
 												<Button
 													onClick={() => handleEdit(bean.id)}
 													variant='ghost'
@@ -210,7 +327,6 @@ export default function BeansPage() {
 									</CardHeader>
 
 									<CardContent className='space-y-4'>
-										{/* Badges Row */}
 										<div className='flex flex-wrap gap-2'>
 											{bean.origin && (
 												<Badge variant='secondary' className='font-normal'>
@@ -224,11 +340,14 @@ export default function BeansPage() {
 												className={cn(
 													'font-normal',
 													isFrozen &&
-														'bg-blue-50 text-blue-700 hover:bg-blue-50/80 border-blue-100 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900',
+														'bg-frozen text-frozen-foreground hover:bg-frozen/80 border-transparent',
+													isThawed && 'border-frozen text-frozen-foreground',
 												)}
 											>
 												{isFrozen ? (
 													<Snowflake className='mr-1 h-3 w-3' />
+												) : isThawed ? (
+													<Droplets className='mr-1 h-3 w-3' />
 												) : (
 													<Calendar className='mr-1 h-3 w-3' />
 												)}
@@ -272,6 +391,15 @@ export default function BeansPage() {
 				onClose={() => setIsFormOpen(false)}
 				beanId={selectedBeanId}
 				barId={activeBarId || undefined}
+				onSuccess={refresh}
+			/>
+
+			<ThawBeanModal
+				isOpen={thawModalData.isOpen}
+				onClose={() => setThawModalData({ ...thawModalData, isOpen: false })}
+				beanId={thawModalData.beanId}
+				beanName={thawModalData.beanName}
+				remainingWeight={thawModalData.remainingWeight}
 				onSuccess={refresh}
 			/>
 

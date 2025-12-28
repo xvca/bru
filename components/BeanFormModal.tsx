@@ -445,7 +445,7 @@ export default function BeanFormModal({
 											</FieldLabel>
 											<Input
 												{...field}
-												value={field.value || ''}
+												value={field.value ?? ''}
 												id='remainingWeight'
 												type='number'
 												min='0'

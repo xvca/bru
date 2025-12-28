@@ -33,10 +33,16 @@ export function BeanSelect({
 			b.id.toString() === value,
 	)
 
-	const activeBeans = availableBeans.filter((b) => !b.freezeDate)
-	const frozenBeans = availableBeans.filter((b) => !!b.freezeDate)
+	const activeBeans = availableBeans.filter(
+		(b) => !b.freezeDate || !!b.thawDate,
+	)
+
+	const frozenBeans = availableBeans.filter(
+		(b) => !!b.freezeDate && !b.thawDate,
+	)
 
 	const selectedBean = beans.find((b) => b.id.toString() === value)
+	const isSelectedFrozen = selectedBean?.freezeDate && !selectedBean?.thawDate
 
 	return (
 		<Select
@@ -51,8 +57,8 @@ export function BeanSelect({
 						<div className='flex flex-col items-start text-left'>
 							<span className='font-medium flex items-center gap-2'>
 								{selectedBean.name}
-								{selectedBean.freezeDate && (
-									<Snowflake className='h-3 w-3 text-blue-500' />
+								{isSelectedFrozen && (
+									<Snowflake className='h-3 w-3 text-frozen-foreground' />
 								)}
 							</span>
 							<span className='text-xs text-muted-foreground'>
@@ -86,7 +92,7 @@ export function BeanSelect({
 
 				{frozenBeans.length > 0 && (
 					<SelectGroup>
-						<SelectLabel className='flex items-center gap-2 text-blue-500 mt-2 border-t pt-2'>
+						<SelectLabel className='flex items-center gap-2 text-frozen-foreground mt-2 border-t pt-2'>
 							<Snowflake className='h-3 w-3' /> Frozen Stash
 						</SelectLabel>
 						{frozenBeans.map((bean) => (

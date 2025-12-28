@@ -391,7 +391,7 @@ export default function CoffeeBrewControl() {
 				</div>
 			)}
 
-			<div className='h-full grow flex flex-col justify-between p-6 pb-0 mb-28'>
+			<div className='relative h-full grow flex flex-col justify-between p-6 pb-0 mb-28'>
 				<div className='flex justify-between items-center rounded-lg z-10 mb-0'>
 					<div className='flex items-center gap-2'>
 						<div
@@ -567,7 +567,7 @@ export default function CoffeeBrewControl() {
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: 20 }}
 							transition={{ duration: 0.4, ease: 'easeOut' }}
-							className='grow flex flex-col justify-center'
+							className='flex flex-col justify-center'
 						>
 							<SmartCarousel
 								selectedBeanId={selectedSuggestion?.id ?? null}
