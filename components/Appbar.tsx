@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import { useState } from 'react'
 import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
-import { LogOut, Store, User, ChevronDown, Menu } from 'lucide-react'
+import { LogOut, Store, User, ChevronDown, Menu, LogIn } from 'lucide-react'
 import { Button } from './ui/button'
 import {
 	DropdownMenu,
@@ -19,6 +19,7 @@ import {
 	SheetContent,
 	SheetTrigger,
 } from '@/components/ui/sheet'
+import { Separator } from './ui/separator'
 
 const links = [
 	{ label: 'Autobru', href: '/' },
@@ -56,7 +57,7 @@ const Appbar = () => {
 							<span>Bru</span>
 						</Link>
 
-						{user && (
+						{user ? (
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button
@@ -102,6 +103,8 @@ const Appbar = () => {
 									))}
 								</DropdownMenuContent>
 							</DropdownMenu>
+						) : (
+							<></>
 						)}
 					</div>
 
@@ -171,9 +174,9 @@ const Appbar = () => {
 									</Link>
 								))}
 
-								{user && (
+								{user ? (
 									<>
-										<div className='h-px bg-border my-2' />
+										<Separator />
 										<button
 											onClick={handleLogout}
 											className='flex items-center w-full py-2 text-lg text-destructive hover:text-destructive/80 font-medium'
@@ -181,6 +184,18 @@ const Appbar = () => {
 											<LogOut size={18} className='mr-2' />
 											Logout
 										</button>
+									</>
+								) : (
+									<>
+										<Separator />
+										<Link
+											href='/login'
+											onClick={() => setIsOpen(false)}
+											className='flex items-center w-full py-2 text-lg font-medium text-primary'
+										>
+											<LogIn size={18} className='mr-2' />
+											Login / Sign Up
+										</Link>
 									</>
 								)}
 							</div>
