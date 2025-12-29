@@ -21,15 +21,6 @@ import {
 } from '@/components/ui/sheet'
 import { Separator } from './ui/separator'
 
-const links = [
-	{ label: 'Autobru', href: '/' },
-	{ label: 'Beans', href: '/beans' },
-	{ label: 'Brews', href: '/brews' },
-	{ label: 'Equipment', href: '/equipment' },
-	{ label: 'Brew Bars', href: '/brew-bars' },
-	{ label: 'Settings', href: '/settings' },
-]
-
 const Appbar = () => {
 	const router = useRouter()
 	const [isOpen, setIsOpen] = useState(false)
@@ -40,6 +31,19 @@ const Appbar = () => {
 		logout()
 		setIsOpen(false)
 	}
+
+	const links = [
+		{ label: 'Autobru', href: '/' },
+		...(user
+			? [
+					{ label: 'Beans', href: '/beans' },
+					{ label: 'Brews', href: '/brews' },
+					{ label: 'Equipment', href: '/equipment' },
+					{ label: 'Brew Bars', href: '/brew-bars' },
+				]
+			: []),
+		{ label: 'Settings', href: '/settings' },
+	]
 
 	const currentContextName = activeBarId
 		? availableBars.find((b) => b.id === activeBarId)?.name

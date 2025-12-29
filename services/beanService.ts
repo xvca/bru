@@ -27,6 +27,8 @@ interface CreateBeanInput {
 	roaster?: string
 	origin?: string
 	roastLevel?: string
+	process?: string
+	producer?: string
 	roastDate: string | Date
 	freezeDate?: string | Date | null
 	thawDate?: string | Date | null
@@ -40,18 +42,12 @@ interface CreateBeanInput {
 export async function createBean(input: CreateBeanInput) {
 	return prisma.bean.create({
 		data: {
-			name: input.name,
-			roaster: input.roaster,
-			origin: input.origin,
-			roastLevel: input.roastLevel,
+			...input,
 			roastDate: new Date(input.roastDate),
 			freezeDate: input.freezeDate ? new Date(input.freezeDate) : null,
 			thawDate: input.thawDate ? new Date(input.thawDate) : null,
-			initialWeight: input.initialWeight,
 			remainingWeight: input.remainingWeight ?? input.initialWeight,
-			notes: input.notes,
 			barId: input.barId ?? null,
-			createdBy: input.createdBy,
 		},
 	})
 }
@@ -109,20 +105,14 @@ export async function thawBean(id: number, weight: number, thawDate: Date) {
 				data: { remainingWeight: bean.remainingWeight! - weight },
 			})
 
+			const { id: _id, createdAt: _createdAt, ...beanData } = bean
+
 			return tx.bean.create({
 				data: {
-					name: bean.name,
-					roaster: bean.roaster,
-					origin: bean.origin,
-					roastLevel: bean.roastLevel,
-					roastDate: bean.roastDate,
-					freezeDate: bean.freezeDate,
+					...beanData,
 					thawDate: thawDate,
 					initialWeight: weight,
 					remainingWeight: weight,
-					notes: bean.notes,
-					barId: bean.barId,
-					createdBy: bean.createdBy,
 				},
 			})
 		}

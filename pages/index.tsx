@@ -561,20 +561,12 @@ export default function CoffeeBrewControl() {
 
 				<AnimatePresence mode='wait'>
 					{user !== null && (
-						<motion.div
-							key='carousel-container'
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: 20 }}
-							transition={{ duration: 0.4, ease: 'easeOut' }}
-							className='flex flex-col justify-center'
-						>
-							<SmartCarousel
-								selectedBeanId={selectedSuggestion?.id ?? null}
-								onBeanToggle={handleSuggestionToggle}
-								onTargetRequest={handleTargetChange}
-							/>
-						</motion.div>
+						<SmartCarousel
+							selectedBeanId={selectedSuggestion?.id ?? null}
+							onBeanToggle={handleSuggestionToggle}
+							onTargetRequest={handleTargetChange}
+							className='max-w-lg w-full mx-auto'
+						/>
 					)}
 				</AnimatePresence>
 			</div>

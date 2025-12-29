@@ -27,6 +27,7 @@ You can use this app in two ways:
 *   **Brew Logging:** Record your recipes, ratio, time, and tasting notes.
 *   **Brew Bars:** Create shared spaces (like "Office" or "Home") to share inventory and logs with other members.
 *   **Equipment Manager:** Keep track of your grinders and brewers.
+* 	**Label Scanning:** Automatically extract coffee details (Roaster, Name, Roast Date, Tasting notes) by taking a photo of the bag.
 
 ## Hosting
 
@@ -105,9 +106,13 @@ Rename `.env.example` to `.env` and set your ESP's IP address:
 
 ```
 DATABASE_URL="file:./prisma/dev.db"
+OPENROUTER_API_KEY="your_key_here"
 ```
 
 The ESP IP address is now configured inside the app itself. When you first open the dashboard you’ll be prompted to enter the device IP or hostname, and you can update it later in **Settings → ESP Settings**.
+
+**Note on AI Features:**
+The AI label scanning feature uses OpenRouter to process images. If you don't provide an `OPENROUTER_API_KEY` in your `.env` file, the "Scan Label" button and other potential future AI features will be automatically hidden from the UI.
 
 ## ⚠️ Work in Progress
 

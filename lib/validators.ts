@@ -28,6 +28,8 @@ export const beanSchema = z
 		roaster: z.string().optional().nullable(),
 		origin: z.string().optional().nullable(),
 		roastLevel: z.string().optional().nullable(),
+		process: z.string().optional().nullable(),
+		producer: z.string().optional().nullable(),
 		roastDate: z.string().min(1, 'Roast date is required'),
 		freezeDate: z.string().optional().nullable(),
 		initialWeight: z.coerce.number().positive('Weight must be positive'),

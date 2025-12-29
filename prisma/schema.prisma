@@ -40,6 +40,8 @@ model Bean {
   initialWeight   Float     @map("initial_weight")
   remainingWeight Float?    @map("remaining_weight")
   notes           String?
+  process         String?
+  producer        String?
 
   createdBy Int  @map("created_by")
   user      User @relation(fields: [createdBy], references: [id])

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { Calendar as CalendarIcon, Sparkles } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { format, parse } from 'date-fns'
@@ -39,6 +39,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { resizeImage } from '@/utils/img'
 
 interface BeanFormModalProps {
 	isOpen: boolean
@@ -61,9 +62,12 @@ export default function BeanFormModal({
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [isRoastDateOpen, setIsRoastDateOpen] = useState(false)
 	const [isFreezeDateOpen, setIsFreezeDateOpen] = useState(false)
+	const [isAiEnabled, setIsAiEnabled] = useState(false)
+	const [isScanning, setIsScanning] = useState(false)
 
 	const roastDateRef = useRef<HTMLButtonElement>(null)
 	const freezeDateRef = useRef<HTMLButtonElement>(null)
+	const fileInputRef = useRef<HTMLInputElement>(null)
 
 	const { bean, isLoading: isFetching } = useBean(
 		isOpen && isEditMode ? beanId : undefined,
@@ -76,6 +80,7 @@ export default function BeanFormModal({
 			roaster: '',
 			origin: '',
 			roastLevel: '',
+			process: '',
 			roastDate: new Date().toISOString().split('T')[0],
 			freezeDate: '',
 			initialWeight: 250,
@@ -88,6 +93,13 @@ export default function BeanFormModal({
 	const roastDateWatcher = form.watch('roastDate')
 
 	useEffect(() => {
+		fetch('/api/ai/config')
+			.then((res) => res.json())
+			.then((data) => setIsAiEnabled(data.enabled))
+			.catch(() => setIsAiEnabled(false))
+	}, [])
+
+	useEffect(() => {
 		if (isOpen) {
 			if (isEditMode && bean) {
 				form.reset({
@@ -95,6 +107,7 @@ export default function BeanFormModal({
 					roaster: bean.roaster || '',
 					origin: bean.origin || '',
 					roastLevel: bean.roastLevel || '',
+					process: bean.process || '',
 					roastDate: new Date(bean.roastDate).toISOString().split('T')[0],
 					freezeDate: bean.freezeDate
 						? new Date(bean.freezeDate).toISOString().split('T')[0]
@@ -110,6 +123,7 @@ export default function BeanFormModal({
 					roaster: '',
 					origin: '',
 					roastLevel: '',
+					process: '',
 					roastDate: new Date().toISOString().split('T')[0],
 					freezeDate: '',
 					initialWeight: 250,
@@ -120,6 +134,74 @@ export default function BeanFormModal({
 			}
 		}
 	}, [isOpen, isEditMode, bean, barId, form])
+
+	const simulateTyping = async (field: any, value: string) => {
+		if (!value) return
+		form.setValue(field, '')
+		const delay = value.length > 50 ? 5 : 15
+		const step = value.length > 100 ? 5 : 1
+		for (let i = 0; i <= value.length; i += step) {
+			form.setValue(field, value.slice(0, i))
+			await new Promise((r) => setTimeout(r, delay))
+		}
+		form.setValue(field, value)
+	}
+
+	const handleScanClick = () => {
+		fileInputRef.current?.click()
+	}
+
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0]
+		if (!file) return
+
+		setIsScanning(true)
+		try {
+			const base64 = await new Promise<string>((resolve, reject) => {
+				const reader = new FileReader()
+				reader.onload = () => resolve(reader.result as string)
+				reader.onerror = reject
+				reader.readAsDataURL(file)
+			})
+
+			const resizedBase64 = await resizeImage(base64)
+
+			const response = await axios.post(
+				'/api/ai/scan-label',
+				{
+					image: resizedBase64,
+				},
+				{
+					headers: { Authorization: `Bearer ${user?.token}` },
+				},
+			)
+			const data = response.data
+
+			if (data.name) await simulateTyping('name', data.name)
+			if (data.roaster) await simulateTyping('roaster', data.roaster)
+			if (data.origin) await simulateTyping('origin', data.origin)
+			if (data.producer) await simulateTyping('producer', data.producer)
+			if (data.process) await simulateTyping('process', data.process)
+
+			if (data.roastLevel) form.setValue('roastLevel', data.roastLevel)
+			if (data.roastDate) form.setValue('roastDate', data.roastDate)
+
+			if (data.tastingNotes) await simulateTyping('notes', data.tastingNotes)
+
+			if (data.weight) {
+				form.setValue('remainingWeight', data.weight)
+				form.setValue('initialWeight', data.weight)
+			}
+
+			toast.success('Label scanned successfully')
+		} catch (error) {
+			console.error(error)
+			toast.error('Failed to scan label')
+		} finally {
+			setIsScanning(false)
+			if (fileInputRef.current) fileInputRef.current.value = ''
+		}
+	}
 
 	const onSubmit = async (data: BeanFormData) => {
 		setIsSubmitting(true)
@@ -149,6 +231,8 @@ export default function BeanFormModal({
 		}
 	}
 
+	const animClass = 'animate-pulse'
+
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent
@@ -164,10 +248,37 @@ export default function BeanFormModal({
 				}}
 			>
 				<DialogHeader>
-					<DialogTitle>
-						{isEditMode ? 'Edit Coffee Bean' : 'Add New Coffee Bean'}
-					</DialogTitle>
+					<div className='flex justify-between items-center pr-6'>
+						<DialogTitle className='text-left'>
+							{isEditMode ? 'Edit Coffee Bean' : 'Add New Coffee Bean'}
+						</DialogTitle>
+						{isAiEnabled && !isEditMode && (
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								onClick={handleScanClick}
+								disabled={isScanning}
+							>
+								{isScanning ? (
+									<Spinner className='mr-2 h-3 w-3' />
+								) : (
+									<Sparkles className='mr-2 h-3 w-3' />
+								)}
+								{isScanning ? 'Scanning...' : 'Scan Label'}
+							</Button>
+						)}
+					</div>
 				</DialogHeader>
+
+				<input
+					type='file'
+					ref={fileInputRef}
+					className='hidden'
+					accept='image/*'
+					capture='environment'
+					onChange={handleFileChange}
+				/>
 
 				{isFetching && isEditMode ? (
 					<div className='flex justify-center items-center py-8'>
@@ -187,7 +298,8 @@ export default function BeanFormModal({
 										<Input
 											{...field}
 											id='name'
-											placeholder='e.g., Ethiopia Yirgacheffe'
+											placeholder='Ethiopia Yirgacheffe'
+											className={isScanning ? animClass : ''}
 										/>
 										{fieldState.invalid && (
 											<FieldError errors={[fieldState.error]} />
@@ -206,7 +318,8 @@ export default function BeanFormModal({
 											{...field}
 											value={field.value || ''}
 											id='roaster'
-											placeholder='e.g., Heart Coffee Roasters'
+											placeholder='Heart Coffee Roasters'
+											className={isScanning ? animClass : ''}
 										/>
 									</Field>
 								)}
@@ -222,7 +335,42 @@ export default function BeanFormModal({
 											{...field}
 											value={field.value || ''}
 											id='origin'
-											placeholder='e.g., Ethiopia'
+											placeholder='Ethiopia'
+											className={isScanning ? animClass : ''}
+										/>
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='producer'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='producer'>Producer</FieldLabel>
+										<Input
+											{...field}
+											value={field.value || ''}
+											id='producer'
+											placeholder='Shale Village'
+											className={isScanning ? animClass : ''}
+										/>
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='process'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor='process'>Process</FieldLabel>
+										<Input
+											{...field}
+											value={field.value || ''}
+											id='process'
+											placeholder='Washed, Natural'
+											className={isScanning ? animClass : ''}
 										/>
 									</Field>
 								)}
@@ -239,7 +387,10 @@ export default function BeanFormModal({
 											defaultValue={field.value || ''}
 											value={field.value || ''}
 										>
-											<SelectTrigger id='roastLevel' className='w-full'>
+											<SelectTrigger
+												id='roastLevel'
+												className={isScanning ? animClass : ''}
+											>
 												<SelectValue placeholder='Select Roast Level' />
 											</SelectTrigger>
 											<SelectContent>
@@ -286,6 +437,7 @@ export default function BeanFormModal({
 															className={cn(
 																'w-full pl-3 text-left font-normal border-input-border bg-background hover:bg-background/90',
 																!field.value && 'text-muted-foreground',
+																isScanning ? animClass : '',
 															)}
 															ref={roastDateRef}
 														>
@@ -363,6 +515,7 @@ export default function BeanFormModal({
 															className={cn(
 																'w-full pl-3 text-left font-normal border-input-border bg-background hover:bg-background/90',
 																!field.value && 'text-muted-foreground',
+																isScanning ? animClass : '',
 															)}
 															ref={freezeDateRef}
 														>
@@ -427,6 +580,7 @@ export default function BeanFormModal({
 												min='1'
 												step='1'
 												onChange={(e) => field.onChange(Number(e.target.value))}
+												className={isScanning ? animClass : ''}
 											/>
 											{fieldState.invalid && (
 												<FieldError errors={[fieldState.error]} />
@@ -451,6 +605,7 @@ export default function BeanFormModal({
 												min='0'
 												step='1'
 												onChange={(e) => field.onChange(Number(e.target.value))}
+												className={isScanning ? animClass : ''}
 											/>
 										</Field>
 									)}
@@ -469,6 +624,7 @@ export default function BeanFormModal({
 											id='notes'
 											rows={4}
 											placeholder='Tasting notes, brewing recommendations, etc.'
+											className={isScanning ? animClass : ''}
 										/>
 									</Field>
 								)}
