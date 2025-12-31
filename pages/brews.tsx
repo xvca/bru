@@ -17,10 +17,14 @@ import {
 	Scale,
 	Settings2,
 	Store,
+	MoreVertical,
+	Copy,
 } from 'lucide-react'
 import BrewForm from '@/components/BrewFormModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { cn } from '@/lib/utils'
+import type { BrewFormData } from '@/lib/validators'
+import type { BrewWithRelations } from '@/hooks/useBrews'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -34,6 +38,12 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default function Brews() {
 	const { user } = useAuth()
@@ -44,6 +54,10 @@ export default function Brews() {
 	const [selectedBrew, setSelectedBrew] = useState<number | undefined>(
 		undefined,
 	)
+	const [cloneData, setCloneData] = useState<Partial<BrewFormData> | undefined>(
+		undefined,
+	)
+	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
 
 	const [deleteModal, setDeleteModal] = useState({
 		isOpen: false,
@@ -53,11 +67,37 @@ export default function Brews() {
 
 	const handleAddBrew = () => {
 		setSelectedBrew(undefined)
+		setCloneData(undefined)
 		setIsFormOpen(true)
 	}
 
 	const handleEditBrew = (id: number) => {
+		setOpenDropdownId(null)
 		setSelectedBrew(id)
+		setCloneData(undefined)
+		setIsFormOpen(true)
+	}
+
+	const handleCloneBrew = (brew: BrewWithRelations) => {
+		setOpenDropdownId(null)
+
+		const initialData: Partial<BrewFormData> = {
+			beanId: brew.beanId,
+			method: brew.method,
+			doseWeight: brew.doseWeight,
+			yieldWeight: brew.yieldWeight ?? undefined,
+			brewTime: brew.brewTime ?? 0,
+			grindSize: brew.grindSize ?? 0,
+			waterTemperature: brew.waterTemperature ?? undefined,
+			rating: brew.rating ?? 0,
+			tastingNotes: brew.tastingNotes ?? '',
+			barId: brew.barId ?? undefined,
+			brewerId: brew.brewerId ?? undefined,
+			grinderId: brew.grinderId ?? undefined,
+		}
+
+		setSelectedBrew(undefined)
+		setCloneData(initialData)
 		setIsFormOpen(true)
 	}
 
@@ -78,6 +118,7 @@ export default function Brews() {
 	}
 
 	const confirmDeleteBrew = (id: number, name: string) => {
+		setOpenDropdownId(null)
 		setDeleteModal({
 			isOpen: true,
 			brewId: id,
@@ -199,26 +240,47 @@ export default function Brews() {
 											</div>
 
 											{isMyBrew && (
-												<div className='flex gap-1 -mr-2 -mt-1'>
-													<Button
-														onClick={() => handleEditBrew(brew.id)}
-														variant='ghost'
-														size='icon'
-														className='h-8 w-8 text-muted-foreground hover:text-foreground'
-													>
-														<Edit size={14} />
-													</Button>
-													<Button
-														onClick={() =>
-															confirmDeleteBrew(brew.id, brew.bean.name)
-														}
-														variant='ghost'
-														size='icon'
-														className='h-8 w-8 text-muted-foreground hover:text-destructive'
-													>
-														<Trash size={14} />
-													</Button>
-												</div>
+												<DropdownMenu
+													open={openDropdownId === brew.id}
+													onOpenChange={(open) =>
+														setOpenDropdownId(open ? brew.id : null)
+													}
+												>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant='ghost'
+															size='icon'
+															className='h-8 w-8 text-muted-foreground hover:text-foreground -mr-2 -mt-1'
+														>
+															<MoreVertical size={16} />
+														</Button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align='end'>
+														<DropdownMenuItem
+															onClick={() => handleEditBrew(brew.id)}
+															className='cursor-pointer'
+														>
+															<Edit size={14} className='mr-2' />
+															Edit
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															onClick={() => handleCloneBrew(brew)}
+															className='cursor-pointer'
+														>
+															<Copy size={14} className='mr-2' />
+															Clone
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															onClick={() =>
+																confirmDeleteBrew(brew.id, brew.bean.name)
+															}
+															className='cursor-pointer text-destructive focus:text-destructive'
+														>
+															<Trash size={14} className='mr-2' />
+															Delete
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
 											)}
 										</div>
 									</CardHeader>
@@ -341,10 +403,14 @@ export default function Brews() {
 
 			<BrewForm
 				isOpen={isFormOpen}
-				onClose={() => setIsFormOpen(false)}
+				onClose={() => {
+					setIsFormOpen(false)
+					setCloneData(undefined)
+				}}
 				brewId={selectedBrew}
 				barId={activeBarId || undefined}
 				onSuccess={refresh}
+				initialData={cloneData}
 			/>
 
 			<ConfirmModal

@@ -189,8 +189,8 @@ export default function BeanFormModal({
 			if (data.tastingNotes) await simulateTyping('notes', data.tastingNotes)
 
 			if (data.weight) {
-				form.setValue('remainingWeight', data.weight)
-				form.setValue('initialWeight', data.weight)
+				await simulateTyping('initialWeight', data.initialWeight)
+				await simulateTyping('remainingWeight', data.remainingWeight)
 			}
 
 			toast.success('Label scanned successfully')
@@ -369,7 +369,7 @@ export default function BeanFormModal({
 											{...field}
 											value={field.value || ''}
 											id='process'
-											placeholder='Washed, Natural'
+											placeholder='Washed'
 											className={isScanning ? animClass : ''}
 										/>
 									</Field>
@@ -427,9 +427,9 @@ export default function BeanFormModal({
 													Roast Date <span className='text-error'>*</span>
 												</FieldLabel>
 												<Popover
-													modal={true}
 													open={isRoastDateOpen}
 													onOpenChange={setIsRoastDateOpen}
+													modal={true}
 												>
 													<PopoverTrigger asChild>
 														<Button
@@ -450,7 +450,8 @@ export default function BeanFormModal({
 														</Button>
 													</PopoverTrigger>
 													<PopoverContent
-														className='min-w-80 p-0'
+														className='w-auto p-0'
+														align='center'
 														onPointerDownOutside={(e) => {
 															if (
 																roastDateRef.current?.contains(e.target as Node)
@@ -472,7 +473,6 @@ export default function BeanFormModal({
 																date > new Date() ||
 																date < new Date('1900-01-01')
 															}
-															className='w-full'
 															fixedWeeks
 														/>
 													</PopoverContent>
@@ -505,9 +505,9 @@ export default function BeanFormModal({
 													Freeze Date (optional)
 												</FieldLabel>
 												<Popover
-													modal={true}
 													open={isFreezeDateOpen}
 													onOpenChange={setIsFreezeDateOpen}
+													modal={true}
 												>
 													<PopoverTrigger asChild>
 														<Button
@@ -528,7 +528,8 @@ export default function BeanFormModal({
 														</Button>
 													</PopoverTrigger>
 													<PopoverContent
-														className='min-w-80 p-0'
+														className='w-auto p-0'
+														align='center'
 														onPointerDownOutside={(e) => {
 															if (
 																freezeDateRef.current?.contains(
@@ -553,7 +554,6 @@ export default function BeanFormModal({
 																date < new Date('1900-01-01') ||
 																(minDate ? date < minDate : false)
 															}
-															className='w-full'
 															fixedWeeks
 														/>
 													</PopoverContent>
@@ -577,9 +577,10 @@ export default function BeanFormModal({
 												{...field}
 												id='initialWeight'
 												type='number'
+												inputMode='decimal'
 												min='1'
 												step='1'
-												onChange={(e) => field.onChange(Number(e.target.value))}
+												onFocus={(e) => e.target.select()}
 												className={isScanning ? animClass : ''}
 											/>
 											{fieldState.invalid && (
@@ -602,9 +603,10 @@ export default function BeanFormModal({
 												value={field.value ?? ''}
 												id='remainingWeight'
 												type='number'
-												min='0'
+												inputMode='decimal'
+												min='1'
 												step='1'
-												onChange={(e) => field.onChange(Number(e.target.value))}
+												onFocus={(e) => e.target.select()}
 												className={isScanning ? animClass : ''}
 											/>
 										</Field>

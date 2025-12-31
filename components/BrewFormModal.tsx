@@ -8,6 +8,7 @@ import { Star, X } from 'lucide-react'
 import type { Bean, Brewer, Grinder } from 'generated/prisma/client'
 import { BREW_METHODS, brewSchema, type BrewFormData } from '@/lib/validators'
 import { useBrew } from '@/hooks/useBrew'
+import { motion, AnimatePresence } from 'framer-motion'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -148,71 +149,75 @@ export default function BrewForm({
 				!watchedBeanId ||
 				!watchedBrewerId ||
 				isEditMode ||
-				!user ||
-				initialData
-			)
+				initialData ||
+				!user?.token ||
+				!isOpen
+			) {
 				return
+			}
 
 			try {
-				const response = await axios.get(`/api/brews/last-parameters`, {
+				const response = await axios.get('/api/brews/last', {
 					params: {
 						beanId: watchedBeanId,
 						brewerId: watchedBrewerId,
 					},
-					headers: { Authorization: `Bearer ${user.token}` },
-					validateStatus: (status) => status < 500,
+					headers: {
+						Authorization: `Bearer ${user.token}`,
+					},
+					validateStatus: (status) => status === 200 || status === 404,
 				})
 
+				const currentValues = form.getValues()
 				if (response.status === 200 && response.data) {
-					const currentValues = form.getValues()
-					form.reset({
-						...currentValues,
-						doseWeight: response.data.doseWeight,
-						yieldWeight: response.data.yieldWeight,
-						brewTime: response.data.brewTime,
-						grindSize: response.data.grindSize,
-						waterTemperature: response.data.waterTemperature,
-						brewerId: response.data.brewerId,
-						grinderId: response.data.grinderId,
-					})
-					toast.success('Loaded settings from last brew')
+					form.setValue('doseWeight', response.data.doseWeight)
+					form.setValue('yieldWeight', response.data.yieldWeight)
+					form.setValue('brewTime', response.data.brewTime)
+					form.setValue('grindSize', response.data.grindSize)
+					form.setValue('waterTemperature', response.data.waterTemperature)
+					form.setValue('brewerId', response.data.brewerId)
+					form.setValue('grinderId', response.data.grinderId)
 				}
 			} catch (error) {
-				console.error('Error fetching last params:', error)
+				console.error('Error fetching last brew:', error)
 			}
 		}
 
-		const timer = setTimeout(() => {
-			fetchLastBrew()
-		}, 100)
+		const timer = setTimeout(fetchLastBrew, 300)
 		return () => clearTimeout(timer)
-	}, [watchedBeanId, watchedBrewerId, isEditMode])
+	}, [watchedBeanId, watchedBrewerId, isEditMode, initialData, user, form])
 
 	const onSubmit = async (data: BrewFormData) => {
-		setIsLoading(true)
 		try {
-			if (!user?.token) return
+			setIsLoading(true)
 
 			if (isEditMode) {
 				await axios.put(`/api/brews/${brewId}`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
+					headers: { Authorization: `Bearer ${user?.token}` },
 				})
 				toast.success('Brew updated successfully')
 			} else {
 				await axios.post('/api/brews', data, {
-					headers: { Authorization: `Bearer ${user.token}` },
+					headers: { Authorization: `Bearer ${user?.token}` },
 				})
 				toast.success('Brew added successfully')
 			}
+
 			onSuccess?.()
 			onClose()
 		} catch (error) {
 			console.error('Error saving brew:', error)
-			toast.error(`Failed to ${isEditMode ? 'update' : 'add'} brew`)
+			toast.error('Failed to save brew')
 		} finally {
 			setIsLoading(false)
 		}
 	}
+
+	useEffect(() => {
+		if (!isOpen) {
+			form.reset()
+		}
+	}, [isOpen])
 
 	useEffect(() => {
 		if (watchedBrewerId) {
@@ -222,6 +227,8 @@ export default function BrewForm({
 			}
 		}
 	}, [watchedBrewerId, brewers, form])
+
+	const isDataLoading = isFetching || isFormDataLoading
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -235,381 +242,414 @@ export default function BrewForm({
 				}}
 			>
 				<DialogHeader>
-					<DialogTitle>{isEditMode ? 'Edit Brew' : 'Add New Brew'}</DialogTitle>
+					<DialogTitle className='text-left'>
+						{isEditMode ? 'Edit Brew' : 'Add New Brew'}
+					</DialogTitle>
 				</DialogHeader>
 
-				{isFetching || isFormDataLoading ? (
-					<div className='flex justify-center items-center py-8'>
-						<Spinner />
-					</div>
-				) : (
-					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-						<FieldGroup>
-							<Controller
-								name='beanId'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='beanId'>
-											Coffee Bean <span className='text-error'>*</span>
-										</FieldLabel>
-										<BeanSelect
-											beans={beans}
-											value={field.value?.toString() || ''}
-											onChange={(val) => field.onChange(Number(val))}
-											onOpenChange={(isOpen) =>
-												setActiveSelect(isOpen ? 'bean' : null)
-											}
-											open={activeSelect === 'bean'}
-										/>
-
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<Controller
-									name='brewerId'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='brewerId'>Brewer</FieldLabel>
-											<Select
-												onValueChange={(val) =>
-													field.onChange(val ? Number(val) : null)
-												}
-												value={field.value ? field.value.toString() : ''}
-												onOpenChange={(isOpen) =>
-													setActiveSelect(isOpen ? 'brewer' : null)
-												}
-												open={activeSelect === 'brewer'}
-											>
-												<SelectTrigger id='brewerId' className='w-full'>
-													<SelectValue placeholder='Select brewer' />
-												</SelectTrigger>
-												<SelectContent>
-													{brewers.map((brewer) => (
-														<SelectItem
-															key={brewer.id}
-															value={brewer.id.toString()}
-														>
-															{brewer.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</Field>
-									)}
-								/>
-
-								<Controller
-									name='method'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='method'>
-												Method <span className='text-error'>*</span>
-											</FieldLabel>
-											<Select
-												onValueChange={field.onChange}
-												value={field.value}
-												onOpenChange={(isOpen) =>
-													setActiveSelect(isOpen ? 'method' : null)
-												}
-												open={activeSelect === 'method'}
-											>
-												<SelectTrigger>
-													<SelectValue />
-												</SelectTrigger>
-												<SelectContent>
-													{BREW_METHODS.map((m) => (
-														<SelectItem key={m} value={m}>
-															{m}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-							</div>
-
-							<Controller
-								name='grinderId'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='grinderId'>
-											Grinder (Optional)
-										</FieldLabel>
-										<Select
-											onValueChange={(val) =>
-												field.onChange(val ? Number(val) : null)
-											}
-											value={field.value ? field.value.toString() : ''}
-											onOpenChange={(isOpen) =>
-												setActiveSelect(isOpen ? 'grinder' : null)
-											}
-											open={activeSelect === 'grinder'}
-										>
-											<SelectTrigger id='grinderId' className='w-full'>
-												<SelectValue placeholder='Select grinder' />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem
-													value='0'
-													className='text-muted-foreground italic'
-												>
-													None
-												</SelectItem>
-												{grinders.map((grinder) => (
-													<SelectItem
-														key={grinder.id}
-														value={grinder.id.toString()}
-													>
-														{grinder.name}&nbsp;
-														<span className='text-muted-foreground italic'>
-															{grinder.burrType}
-														</span>
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</Field>
-								)}
-							/>
-
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<Controller
-									name='doseWeight'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='doseWeight'>
-												Dose Weight (g) <span className='text-error'>*</span>
-											</FieldLabel>
-											<Input
-												{...field}
-												id='doseWeight'
-												type='number'
-												min='0.1'
-												step='0.1'
-												onFocus={(e) => e.target.select()}
-											/>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-
-								<Controller
-									name='yieldWeight'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='yieldWeight'>
-												Yield Weight (g)
-											</FieldLabel>
-											<Input
-												{...field}
-												value={field.value || ''}
-												id='yieldWeight'
-												type='number'
-												min='0.1'
-												step='0.1'
-												onFocus={(e) => e.target.select()}
-											/>
-										</Field>
-									)}
-								/>
-							</div>
-
-							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<Controller
-									name='brewTime'
-									control={form.control}
-									render={({ field, fieldState }) => {
-										const totalSeconds = field.value || 0
-										const minutes = Math.floor(totalSeconds / 60)
-										const seconds = totalSeconds % 60
-
-										const handleTimeChange = (
-											type: 'min' | 'sec',
-											val: string,
-										) => {
-											const num = parseInt(val) || 0
-											let newTotal = 0
-											if (type === 'min') {
-												newTotal = num * 60 + seconds
-											} else {
-												newTotal = minutes * 60 + num
-											}
-											field.onChange(newTotal > 0 ? newTotal : null)
-										}
-
-										return (
+				<AnimatePresence mode='wait'>
+					{isDataLoading ? (
+						<motion.div
+							key='loading'
+							initial={{ opacity: 0, height: 100 }}
+							animate={{ opacity: 1, height: 100 }}
+							exit={{ opacity: 0, height: 0 }}
+							transition={{ duration: 0.2 }}
+							className='flex justify-center items-center py-8'
+						>
+							<Spinner />
+						</motion.div>
+					) : (
+						<motion.div
+							key='form'
+							initial={{ opacity: 0, height: 0 }}
+							animate={{ opacity: 1, height: 'auto' }}
+							exit={{ opacity: 0, height: 0 }}
+							transition={{
+								height: { duration: 0.3, ease: 'easeOut' },
+								opacity: { duration: 0.2, delay: 0.1 },
+							}}
+							style={{ overflow: 'hidden' }}
+						>
+							<form
+								onSubmit={form.handleSubmit(onSubmit)}
+								className='space-y-6'
+							>
+								<FieldGroup>
+									<Controller
+										name='beanId'
+										control={form.control}
+										render={({ field, fieldState }) => (
 											<Field data-invalid={fieldState.invalid}>
-												<FieldLabel>Brew Time</FieldLabel>
-												<div className='flex items-center gap-2'>
-													<div className='relative flex-1'>
-														<Input
-															type='number'
-															min='0'
-															value={minutes.toString()}
-															onChange={(e) =>
-																handleTimeChange('min', e.target.value)
-															}
-															onFocus={(e) => e.target.select()}
-															className='pr-8'
-														/>
-														<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
-															min
-														</span>
-													</div>
-													<span className='text-muted-foreground font-bold'>
-														:
-													</span>
-													<div className='relative flex-1'>
-														<Input
-															type='number'
-															min='0'
-															max='59'
-															value={seconds.toString().padStart(2, '0')}
-															onChange={(e) =>
-																handleTimeChange('sec', e.target.value)
-															}
-															onFocus={(e) => e.target.select()}
-															className='pr-8'
-														/>
-														<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
-															sec
-														</span>
-													</div>
-												</div>
+												<FieldLabel htmlFor='beanId'>
+													Coffee Bean <span className='text-error'>*</span>
+												</FieldLabel>
+												<BeanSelect
+													beans={beans}
+													value={field.value?.toString() || ''}
+													onChange={(val) => field.onChange(Number(val))}
+													onOpenChange={(isOpen) =>
+														setActiveSelect(isOpen ? 'bean' : null)
+													}
+													open={activeSelect === 'bean'}
+												/>
+
 												{fieldState.invalid && (
 													<FieldError errors={[fieldState.error]} />
 												)}
 											</Field>
-										)
-									}}
-								/>
+										)}
+									/>
 
-								<Controller
-									name='waterTemperature'
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor='waterTemperature'>
-												Temperature (°C)
-											</FieldLabel>
-											<Input
-												{...field}
-												value={field.value || ''}
-												id='waterTemperature'
-												type='number'
-												step='1'
-												onFocus={(e) => e.target.select()}
-											/>
-										</Field>
-									)}
-								/>
-							</div>
-
-							<Controller
-								name='grindSize'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='grindSize'>Grind Size</FieldLabel>
-										<Input
-											{...field}
-											value={field.value || ''}
-											id='grindSize'
-											type='number'
-											step='0.1'
-											onFocus={(e) => e.target.select()}
-										/>
-									</Field>
-								)}
-							/>
-
-							<Controller
-								name='rating'
-								control={form.control}
-								render={({ field }) => (
-									<Field>
-										<FieldLabel>Rating</FieldLabel>
-										<div className='flex gap-1'>
-											{[1, 2, 3, 4, 5].map((star) => (
-												<button
-													key={star}
-													type='button'
-													onClick={() => field.onChange(star)}
-													className='focus:outline-none'
-												>
-													<Star
-														className={cn(
-															'h-8 w-8 transition-colors',
-															(field.value || 0) >= star
-																? 'fill-warning text-warning'
-																: 'fill-muted/20 text-muted-foreground/30 hover:text-warning/50',
-														)}
-													/>
-												</button>
-											))}
-											{(field.value || 0) > 0 && (
-												<button
-													type='button'
-													onClick={() => field.onChange(0)}
-													className='ml-2 text-muted-foreground hover:text-destructive'
-												>
-													<X className='h-5 w-5' />
-												</button>
+									<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+										<Controller
+											name='brewerId'
+											control={form.control}
+											render={({ field, fieldState }) => (
+												<Field data-invalid={fieldState.invalid}>
+													<FieldLabel htmlFor='brewerId'>Brewer</FieldLabel>
+													<Select
+														onValueChange={(val) =>
+															field.onChange(val ? Number(val) : null)
+														}
+														value={field.value ? field.value.toString() : ''}
+														onOpenChange={(isOpen) =>
+															setActiveSelect(isOpen ? 'brewer' : null)
+														}
+														open={activeSelect === 'brewer'}
+													>
+														<SelectTrigger id='brewerId' className='w-full'>
+															<SelectValue placeholder='Select brewer' />
+														</SelectTrigger>
+														<SelectContent>
+															{brewers.map((brewer) => (
+																<SelectItem
+																	key={brewer.id}
+																	value={brewer.id.toString()}
+																>
+																	{brewer.name}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</Field>
 											)}
-										</div>
-									</Field>
-								)}
-							/>
-
-							<Controller
-								name='tastingNotes'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='tastingNotes'>
-											Tasting Notes
-										</FieldLabel>
-										<Textarea
-											{...field}
-											value={field.value || ''}
-											id='tastingNotes'
-											placeholder='Describe the flavor profile...'
-											rows={3}
 										/>
-									</Field>
-								)}
-							/>
-						</FieldGroup>
 
-						<div className='flex justify-end gap-3 pt-2'>
-							<Button onClick={onClose} variant='outline' type='button'>
-								Cancel
-							</Button>
+										<Controller
+											name='method'
+											control={form.control}
+											render={({ field, fieldState }) => (
+												<Field data-invalid={fieldState.invalid}>
+													<FieldLabel htmlFor='method'>
+														Method <span className='text-error'>*</span>
+													</FieldLabel>
+													<Select
+														onValueChange={field.onChange}
+														value={field.value}
+														onOpenChange={(isOpen) =>
+															setActiveSelect(isOpen ? 'method' : null)
+														}
+														open={activeSelect === 'method'}
+													>
+														<SelectTrigger>
+															<SelectValue />
+														</SelectTrigger>
+														<SelectContent>
+															{BREW_METHODS.map((m) => (
+																<SelectItem key={m} value={m}>
+																	{m}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+													{fieldState.invalid && (
+														<FieldError errors={[fieldState.error]} />
+													)}
+												</Field>
+											)}
+										/>
+									</div>
 
-							<Button type='submit' disabled={isLoading}>
-								{isLoading && <Spinner className='mr-2' />}
-								{isEditMode ? 'Update Brew' : 'Add Brew'}
-							</Button>
-						</div>
-					</form>
-				)}
+									<Controller
+										name='grinderId'
+										control={form.control}
+										render={({ field, fieldState }) => (
+											<Field data-invalid={fieldState.invalid}>
+												<FieldLabel htmlFor='grinderId'>
+													Grinder (Optional)
+												</FieldLabel>
+												<Select
+													onValueChange={(val) =>
+														field.onChange(val ? Number(val) : null)
+													}
+													value={field.value ? field.value.toString() : ''}
+													onOpenChange={(isOpen) =>
+														setActiveSelect(isOpen ? 'grinder' : null)
+													}
+													open={activeSelect === 'grinder'}
+												>
+													<SelectTrigger id='grinderId' className='w-full'>
+														<SelectValue placeholder='Select grinder' />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem
+															value='0'
+															className='text-muted-foreground italic'
+														>
+															None
+														</SelectItem>
+														{grinders.map((grinder) => (
+															<SelectItem
+																key={grinder.id}
+																value={grinder.id.toString()}
+															>
+																{grinder.name}&nbsp;
+																<span className='text-muted-foreground italic'>
+																	{grinder.burrType}
+																</span>
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</Field>
+										)}
+									/>
+
+									<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+										<Controller
+											name='doseWeight'
+											control={form.control}
+											render={({ field, fieldState }) => (
+												<Field data-invalid={fieldState.invalid}>
+													<FieldLabel htmlFor='doseWeight'>
+														Dose Weight (g){' '}
+														<span className='text-error'>*</span>
+													</FieldLabel>
+													<Input
+														{...field}
+														id='doseWeight'
+														type='number'
+														inputMode='decimal'
+														min='0.1'
+														step='0.1'
+														onFocus={(e) => e.target.select()}
+													/>
+													{fieldState.invalid && (
+														<FieldError errors={[fieldState.error]} />
+													)}
+												</Field>
+											)}
+										/>
+
+										<Controller
+											name='yieldWeight'
+											control={form.control}
+											render={({ field, fieldState }) => (
+												<Field data-invalid={fieldState.invalid}>
+													<FieldLabel htmlFor='yieldWeight'>
+														Yield Weight (g)
+													</FieldLabel>
+													<Input
+														{...field}
+														value={field.value || ''}
+														id='yieldWeight'
+														type='number'
+														inputMode='decimal'
+														min='0.1'
+														step='0.1'
+														onFocus={(e) => e.target.select()}
+													/>
+												</Field>
+											)}
+										/>
+									</div>
+
+									<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+										<Controller
+											name='brewTime'
+											control={form.control}
+											render={({ field, fieldState }) => {
+												const totalSeconds = field.value || 0
+												const minutes = Math.floor(totalSeconds / 60)
+												const seconds = totalSeconds % 60
+
+												const handleTimeChange = (
+													type: 'min' | 'sec',
+													val: string,
+												) => {
+													const num = parseInt(val) || 0
+													let newTotal = 0
+													if (type === 'min') {
+														newTotal = num * 60 + seconds
+													} else {
+														newTotal = minutes * 60 + num
+													}
+													field.onChange(newTotal > 0 ? newTotal : null)
+												}
+
+												return (
+													<Field data-invalid={fieldState.invalid}>
+														<FieldLabel>Brew Time</FieldLabel>
+														<div className='flex items-center gap-2'>
+															<div className='relative flex-1'>
+																<Input
+																	type='number'
+																	inputMode='decimal'
+																	min='0'
+																	value={minutes.toString()}
+																	onChange={(e) =>
+																		handleTimeChange('min', e.target.value)
+																	}
+																	onFocus={(e) => e.target.select()}
+																	className='pr-8'
+																/>
+																<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
+																	min
+																</span>
+															</div>
+															<span className='text-muted-foreground font-bold'>
+																:
+															</span>
+															<div className='relative flex-1'>
+																<Input
+																	type='number'
+																	inputMode='decimal'
+																	min='0'
+																	max='59'
+																	value={seconds.toString().padStart(2, '0')}
+																	onChange={(e) =>
+																		handleTimeChange('sec', e.target.value)
+																	}
+																	onFocus={(e) => e.target.select()}
+																	className='pr-8'
+																/>
+																<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
+																	sec
+																</span>
+															</div>
+														</div>
+														{fieldState.invalid && (
+															<FieldError errors={[fieldState.error]} />
+														)}
+													</Field>
+												)
+											}}
+										/>
+
+										<Controller
+											name='waterTemperature'
+											control={form.control}
+											render={({ field, fieldState }) => (
+												<Field data-invalid={fieldState.invalid}>
+													<FieldLabel htmlFor='waterTemperature'>
+														Temperature (°C)
+													</FieldLabel>
+													<Input
+														{...field}
+														value={field.value || ''}
+														id='waterTemperature'
+														type='number'
+														inputMode='decimal'
+														step='1'
+														onFocus={(e) => e.target.select()}
+													/>
+												</Field>
+											)}
+										/>
+									</div>
+
+									<Controller
+										name='grindSize'
+										control={form.control}
+										render={({ field, fieldState }) => (
+											<Field data-invalid={fieldState.invalid}>
+												<FieldLabel htmlFor='grindSize'>Grind Size</FieldLabel>
+												<Input
+													{...field}
+													value={field.value || ''}
+													id='grindSize'
+													type='number'
+													inputMode='decimal'
+													step='0.1'
+													onFocus={(e) => e.target.select()}
+												/>
+											</Field>
+										)}
+									/>
+
+									<Controller
+										name='rating'
+										control={form.control}
+										render={({ field }) => (
+											<Field>
+												<FieldLabel>Rating</FieldLabel>
+												<div className='flex gap-1'>
+													{[1, 2, 3, 4, 5].map((star) => (
+														<button
+															key={star}
+															type='button'
+															onClick={() => field.onChange(star)}
+															className='focus:outline-none'
+														>
+															<Star
+																className={cn(
+																	'h-8 w-8 transition-colors',
+																	(field.value || 0) >= star
+																		? 'fill-warning text-warning'
+																		: 'fill-muted/20 text-muted-foreground/30 hover:text-warning/50',
+																)}
+															/>
+														</button>
+													))}
+													{(field.value || 0) > 0 && (
+														<button
+															type='button'
+															onClick={() => field.onChange(0)}
+															className='ml-2 text-muted-foreground hover:text-destructive'
+														>
+															<X className='h-5 w-5' />
+														</button>
+													)}
+												</div>
+											</Field>
+										)}
+									/>
+
+									<Controller
+										name='tastingNotes'
+										control={form.control}
+										render={({ field, fieldState }) => (
+											<Field data-invalid={fieldState.invalid}>
+												<FieldLabel htmlFor='tastingNotes'>
+													Tasting Notes
+												</FieldLabel>
+												<Textarea
+													{...field}
+													value={field.value || ''}
+													id='tastingNotes'
+													placeholder='Describe the flavor profile...'
+													rows={3}
+												/>
+											</Field>
+										)}
+									/>
+								</FieldGroup>
+
+								<div className='flex justify-end gap-3 pt-2'>
+									<Button onClick={onClose} variant='outline' type='button'>
+										Cancel
+									</Button>
+
+									<Button type='submit' disabled={isLoading}>
+										{isLoading && <Spinner className='mr-2' />}
+										{isEditMode ? 'Update Brew' : 'Add Brew'}
+									</Button>
+								</div>
+							</form>
+						</motion.div>
+					)}
+				</AnimatePresence>
 			</DialogContent>
 		</Dialog>
 	)

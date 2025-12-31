@@ -419,6 +419,7 @@ export default function ESPSettings() {
 												{...field}
 												id='regularPreset'
 												type='number'
+												inputMode='decimal'
 												step='0.1'
 												min='1'
 												max='100'
@@ -445,6 +446,7 @@ export default function ESPSettings() {
 												{...field}
 												id='decafPreset'
 												type='number'
+												inputMode='decimal'
 												step='0.1'
 												min='1'
 												max='100'
@@ -551,6 +553,7 @@ export default function ESPSettings() {
 														{...field}
 														id='learningRate'
 														type='number'
+														inputMode='decimal'
 														step='0.1'
 														min='0.1'
 														max='1'
@@ -583,6 +586,7 @@ export default function ESPSettings() {
 														{...field}
 														id='historyLength'
 														type='number'
+														inputMode='decimal'
 														min='1'
 														max='10'
 														step='1'

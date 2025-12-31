@@ -127,29 +127,31 @@ export default function CoffeeBrewControl() {
 		let animationFrameId: number
 
 		const updateInterpolation = () => {
-			if (!isBrewing || brewData.state !== BrewStates.BREWING) {
+			const currentData = latestShotRef.current
+
+			if (!isBrewing || currentData.state === BrewStates.IDLE) {
 				setDisplayData({
-					weight: brewData.weight,
-					time: brewData.time,
+					weight: currentData.weight,
+					time: currentData.time,
 				})
 				return
 			}
 
 			const now = Date.now()
-			const timeSinceLastPacket = now - (brewData.lastUpdated || now)
+			const timeSinceLastPacket = now - (currentData.lastUpdated || now)
 
 			if (timeSinceLastPacket > 2000) {
 				setDisplayData({
-					weight: brewData.weight,
-					time: brewData.time,
+					weight: currentData.weight,
+					time: currentData.time,
 				})
 				return
 			}
 
-			const predictedTime = brewData.time + timeSinceLastPacket
+			const predictedTime = currentData.time + timeSinceLastPacket
 
 			const predictedWeight =
-				brewData.weight + brewData.flowRate * (timeSinceLastPacket / 1000)
+				currentData.weight + currentData.flowRate * (timeSinceLastPacket / 1000)
 
 			setDisplayData({
 				weight: predictedWeight,
@@ -164,7 +166,7 @@ export default function CoffeeBrewControl() {
 		return () => {
 			if (animationFrameId) cancelAnimationFrame(animationFrameId)
 		}
-	}, [brewData, isBrewing])
+	}, [isBrewing])
 
 	const getBrewStateText = (state: number) => {
 		switch (state) {
@@ -560,14 +562,19 @@ export default function CoffeeBrewControl() {
 				</motion.div>
 
 				<AnimatePresence mode='wait'>
-					{user !== null && (
+					user !== null && (
+					<div
+						key='carousel-container'
+						className='flex flex-col justify-center items-center w-full'
+					>
 						<SmartCarousel
 							selectedBeanId={selectedSuggestion?.id ?? null}
 							onBeanToggle={handleSuggestionToggle}
 							onTargetRequest={handleTargetChange}
-							className='max-w-lg w-full mx-auto'
+							className='max-w-lg w-full'
 						/>
-					)}
+					</div>
+					)
 				</AnimatePresence>
 			</div>
 

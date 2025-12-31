@@ -1,5 +1,6 @@
 # Generated via Next.js
 .next
+next-env.d.ts
 
 # Generated via Node.js
 node_modules

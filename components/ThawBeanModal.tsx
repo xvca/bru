@@ -121,6 +121,7 @@ export default function ThawBeanModal({
 							<div className='w-20'>
 								<Input
 									type='number'
+									inputMode='decimal'
 									min='0'
 									max={remainingWeight}
 									value={thawWeight}
