@@ -29,6 +29,7 @@ import BrewForm from '@/components/BrewFormModal'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import { verifyEspReachable } from '@/utils/esp'
+import { BrewGraph } from '@/components/BrewGraph'
 
 enum BrewStates {
 	IDLE,
@@ -54,6 +55,7 @@ export default function CoffeeBrewControl() {
 
 	const [isWaking, setIsWaking] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
+	const [showGraph, setShowGraph] = useState(false)
 
 	const { brewData, isWsConnected } = useWebSocket()
 	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
@@ -87,6 +89,7 @@ export default function CoffeeBrewControl() {
 
 	const latestShotRef = useRef(brewData)
 	const previousStateRef = useRef(brewData.state)
+	const graphHideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const { activeBarId } = useBrewBar()
 
 	const { user } = useAuth()
@@ -114,14 +117,28 @@ export default function CoffeeBrewControl() {
 	useEffect(() => {
 		if (brewData.state === BrewStates.IDLE) {
 			setIsBrewing(false)
+
+			if (graphHideTimeoutRef.current) {
+				clearTimeout(graphHideTimeoutRef.current)
+			}
+
+			graphHideTimeoutRef.current = setTimeout(() => {
+				setShowGraph(false)
+			}, 8000)
 		} else {
 			setIsBrewing(true)
+			setShowGraph(true)
+
+			if (graphHideTimeoutRef.current) {
+				clearTimeout(graphHideTimeoutRef.current)
+				graphHideTimeoutRef.current = null
+			}
 		}
 
-		if (isBrewing) {
+		if (isBrewing && brewData.target) {
 			setTargetWeight(brewData.target)
 		}
-	}, [brewData, isBrewing])
+	}, [brewData.state, brewData.target, isBrewing])
 
 	useEffect(() => {
 		let animationFrameId: number
@@ -566,14 +583,31 @@ export default function CoffeeBrewControl() {
 				</motion.div>
 
 				<AnimatePresence mode='wait'>
-					user !== null && (
-					<SmartCarousel
-						selectedBeanId={selectedSuggestion?.id ?? null}
-						onBeanToggle={handleSuggestionToggle}
-						onTargetRequest={handleTargetChange}
-						className='mx-auto max-w-lg w-full'
-					/>
-					)
+					{!showGraph && user !== null && (
+						<SmartCarousel
+							selectedBeanId={selectedSuggestion?.id ?? null}
+							onBeanToggle={handleSuggestionToggle}
+							onTargetRequest={handleTargetChange}
+							className='mx-auto max-w-lg w-full'
+						/>
+					)}
+					{showGraph && (
+						<motion.div
+							key='graph'
+							initial={{ opacity: 0, y: 20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: 20 }}
+							transition={{ duration: 0.2 }}
+							className='w-full max-w-2xl mx-auto px-4'
+						>
+							<BrewGraph
+								currentWeight={displayData.weight}
+								currentFlowRate={brewData.flowRate}
+								currentTime={displayData.time}
+								isBrewing={isBrewing}
+							/>
+						</motion.div>
+					)}
 				</AnimatePresence>
 			</div>
 

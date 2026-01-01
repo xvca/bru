@@ -39,7 +39,6 @@ export function SmartCarousel({
 		decafStartHour,
 		isLoading,
 	} = useSuggestions()
-	const [activeIndex, setActiveIndex] = useState(0)
 
 	const suggestions = useMemo(() => {
 		const hour = new Date().getHours()
@@ -64,8 +63,6 @@ export function SmartCarousel({
 			return 0
 		})
 	}, [rawSuggestions, decafStartHour])
-
-	const handleSelect = (index: number) => setActiveIndex(index)
 
 	const handleCardClick = (bean: SmartSuggestion) => {
 		const isAlreadySelected = bean.id === selectedBeanId
@@ -120,11 +117,7 @@ export function SmartCarousel({
 						}
 
 						return (
-							<CarouselItem
-								key={bean.id}
-								onPointerUpCapture={() => handleSelect(index)}
-								onTouchEndCapture={() => handleSelect(index)}
-							>
+							<CarouselItem key={bean.id}>
 								<Card
 									onClick={() => handleCardClick(bean)}
 									className={cn(
