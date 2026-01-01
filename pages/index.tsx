@@ -129,7 +129,11 @@ export default function CoffeeBrewControl() {
 		const updateInterpolation = () => {
 			const currentData = latestShotRef.current
 
-			if (!isBrewing || currentData.state === BrewStates.IDLE) {
+			if (
+				!isBrewing ||
+				currentData.state === BrewStates.IDLE ||
+				currentData.state === BrewStates.DRIPPING
+			) {
 				setDisplayData({
 					weight: currentData.weight,
 					time: currentData.time,
