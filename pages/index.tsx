@@ -54,7 +54,6 @@ export default function CoffeeBrewControl() {
 
 	const [isWaking, setIsWaking] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
-	const [showGraph, setShowGraph] = useState(false)
 
 	const { brewData, isWsConnected } = useWebSocket()
 	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
@@ -130,11 +129,7 @@ export default function CoffeeBrewControl() {
 		const updateInterpolation = () => {
 			const currentData = latestShotRef.current
 
-			if (
-				!isBrewing ||
-				currentData.state === BrewStates.IDLE ||
-				currentData.state === BrewStates.DRIPPING
-			) {
+			if (!isBrewing || currentData.state === BrewStates.IDLE) {
 				setDisplayData({
 					weight: currentData.weight,
 					time: currentData.time,
@@ -153,7 +148,10 @@ export default function CoffeeBrewControl() {
 				return
 			}
 
-			const predictedTime = currentData.time + timeSinceLastPacket
+			// don't add time since last packet if state is DRIPPING
+			const predictedTime =
+				currentData.time +
+				(currentData.state === BrewStates.DRIPPING ? 0 : timeSinceLastPacket)
 
 			const predictedWeight =
 				currentData.weight + currentData.flowRate * (timeSinceLastPacket / 1000)
