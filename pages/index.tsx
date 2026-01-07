@@ -1,6 +1,5 @@
 import Page from '@/components/Page'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import CountUp from 'react-countup'
 import { Play, Square, ArrowUp, ArrowDown, Power } from 'lucide-react'
 import axios, { AxiosInstance } from 'axios'
 import { toast } from 'sonner'
@@ -29,6 +28,11 @@ import BrewForm from '@/components/BrewFormModal'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
 import { verifyEspReachable } from '@/utils/esp'
+import {
+	AnimatedNumber,
+	AnimatedNumberGroup,
+	StaticNumber,
+} from '@/components/AnimatedNumber'
 
 enum BrewStates {
 	IDLE,
@@ -75,10 +79,8 @@ export default function CoffeeBrewControl() {
 	const [isBrewFormOpen, setIsBrewFormOpen] = useState(false)
 	const [brewDraft, setBrewDraft] = useState<Partial<BrewFormData> | null>(null)
 
-	const [displayData, setDisplayData] = useState({
-		weight: 0,
-		time: 0,
-	})
+	const [displayWeight, setDisplayWeight] = useState(0)
+	const [displayTime, setDisplayTime] = useState(0)
 
 	const [showEspPrompt, setShowEspPrompt] = useState(false)
 	const [hasDismissedEspPrompt, setHasDismissedEspPrompt] = useState(false)
@@ -90,6 +92,11 @@ export default function CoffeeBrewControl() {
 	const { activeBarId } = useBrewBar()
 
 	const { user } = useAuth()
+
+	const clientBrewStartRef = useRef<number | null>(null)
+	const serverTimeOffsetRef = useRef(0)
+	const frozenTimeRef = useRef(0)
+	const smoothedWeightRef = useRef(0)
 
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
@@ -124,52 +131,104 @@ export default function CoffeeBrewControl() {
 	}, [brewData.state, brewData.target, isBrewing])
 
 	useEffect(() => {
-		let animationFrameId: number
+		const prevState = previousStateRef.current
+		const currentState = brewData.state
 
-		const updateInterpolation = () => {
-			const currentData = latestShotRef.current
+		const wasIdle = prevState === BrewStates.IDLE
+		const isActive =
+			currentState === BrewStates.PREINFUSION ||
+			currentState === BrewStates.BREWING
 
-			if (!isBrewing || currentData.state === BrewStates.IDLE) {
-				setDisplayData({
-					weight: currentData.weight,
-					time: currentData.time,
-				})
-				return
-			}
-
-			const now = Date.now()
-			const timeSinceLastPacket = now - (currentData.lastUpdated || now)
-
-			if (timeSinceLastPacket > 2000) {
-				setDisplayData({
-					weight: currentData.weight,
-					time: currentData.time,
-				})
-				return
-			}
-
-			// don't add time since last packet if state is DRIPPING
-			const predictedTime =
-				currentData.time +
-				(currentData.state === BrewStates.DRIPPING ? 0 : timeSinceLastPacket)
-
-			const predictedWeight =
-				currentData.weight + currentData.flowRate * (timeSinceLastPacket / 1000)
-
-			setDisplayData({
-				weight: predictedWeight,
-				time: predictedTime,
-			})
-
-			animationFrameId = requestAnimationFrame(updateInterpolation)
+		if (wasIdle && isActive) {
+			clientBrewStartRef.current = Date.now()
+			serverTimeOffsetRef.current = brewData.time
+			frozenTimeRef.current = 0
+			smoothedWeightRef.current = brewData.weight
 		}
 
-		updateInterpolation()
+		const wasActive =
+			prevState === BrewStates.PREINFUSION || prevState === BrewStates.BREWING
+		const isStopped =
+			currentState === BrewStates.DRIPPING || currentState === BrewStates.IDLE
+
+		if (wasActive && isStopped) {
+			if (clientBrewStartRef.current !== null) {
+				frozenTimeRef.current =
+					serverTimeOffsetRef.current +
+					(Date.now() - clientBrewStartRef.current)
+			}
+			clientBrewStartRef.current = null
+		}
+
+		previousStateRef.current = currentState
+	}, [brewData.state, brewData.time, brewData.weight])
+
+	useEffect(() => {
+		if (brewData.state !== BrewStates.IDLE) {
+			latestShotRef.current = brewData
+		}
+	}, [brewData])
+
+	useEffect(() => {
+		let animationFrameId: number
+
+		const update = () => {
+			const currentData = latestShotRef.current
+			const now = Date.now()
+
+			if (clientBrewStartRef.current !== null) {
+				const clientElapsed = now - clientBrewStartRef.current
+				const predictedTime = serverTimeOffsetRef.current + clientElapsed
+
+				const serverPredictedTime =
+					currentData.time + (now - currentData.lastUpdated)
+				const drift = serverPredictedTime - predictedTime
+
+				if (Math.abs(drift) > 300) {
+					serverTimeOffsetRef.current += drift * 0.1
+				}
+
+				setDisplayTime(predictedTime)
+			} else if (frozenTimeRef.current > 0) {
+				setDisplayTime(frozenTimeRef.current)
+			} else {
+				setDisplayTime(currentData.time)
+			}
+
+			const isActive =
+				currentData.state === BrewStates.PREINFUSION ||
+				currentData.state === BrewStates.BREWING ||
+				currentData.state === BrewStates.DRIPPING
+
+			if (isActive) {
+				const timeSinceLastPacket = now - (currentData.lastUpdated || now)
+
+				if (timeSinceLastPacket <= 2000) {
+					const targetWeight =
+						currentData.weight +
+						currentData.flowRate * (timeSinceLastPacket / 1000)
+					smoothedWeightRef.current =
+						smoothedWeightRef.current +
+						(targetWeight - smoothedWeightRef.current) * 0.15
+				} else {
+					smoothedWeightRef.current = currentData.weight
+				}
+
+				setDisplayWeight(Math.max(0, smoothedWeightRef.current))
+			} else {
+				smoothedWeightRef.current = currentData.weight
+				setDisplayWeight(Math.max(0, currentData.weight))
+			}
+
+			animationFrameId = requestAnimationFrame(update)
+		}
+
+		animationFrameId = requestAnimationFrame(update)
 
 		return () => {
 			if (animationFrameId) cancelAnimationFrame(animationFrameId)
 		}
-	}, [isBrewing])
+	}, [])
 
 	const getBrewStateText = (state: number) => {
 		switch (state) {
@@ -294,12 +353,6 @@ export default function CoffeeBrewControl() {
 	}, [api, brewData.isActive])
 
 	useEffect(() => {
-		if (brewData.state !== BrewStates.IDLE) {
-			latestShotRef.current = brewData
-		}
-	}, [brewData])
-
-	useEffect(() => {
 		const prevState = previousStateRef.current
 
 		if (
@@ -327,8 +380,6 @@ export default function CoffeeBrewControl() {
 			setBrewDraft(prefill)
 			setIsBrewFormOpen(true)
 		}
-
-		previousStateRef.current = brewData.state
 	}, [brewData.state, targetWeight, activeBarId, selectedSuggestion])
 
 	const openEspModal = () => {
@@ -362,6 +413,10 @@ export default function CoffeeBrewControl() {
 		setHasDismissedEspPrompt(true)
 		setShowEspPrompt(false)
 	}
+
+	const displayTimeSeconds = displayTime / 1000
+
+	const smoothTiming = { duration: 400, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
 
 	return (
 		<Page title='Autobru'>
@@ -438,9 +493,7 @@ export default function CoffeeBrewControl() {
 					<motion.div layout className='relative w-full -mt-8'>
 						<Gauge
 							value={
-								displayData.weight < 0
-									? 0
-									: (displayData.weight / targetWeight) * 100
+								displayWeight < 0 ? 0 : (displayWeight / targetWeight) * 100
 							}
 							min={0}
 							max={100}
@@ -455,25 +508,35 @@ export default function CoffeeBrewControl() {
 
 						<div className='absolute inset-0 flex flex-col items-center justify-center pt-16 sm:pt-8'>
 							<div className='flex flex-col items-center gap-1 mb-4'>
-								<div className='text-3xl sm:text-4xl font-mono font-bold tabular-nums tracking-tighter text-muted-foreground'>
-									{(displayData.time / 1000).toFixed(1)}s
-								</div>
-
-								<div className='text-5xl sm:text-7xl font-bold tabular-nums tracking-tighter leading-none'>
-									{displayData.weight.toFixed(1)}g
-								</div>
-
-								{isBrewing && (
-									<div className='h-8 text-xl font-medium tabular-nums text-muted-foreground'>
-										<CountUp
-											end={brewData.flowRate}
-											decimals={1}
-											duration={0.5}
-											preserveValue={true}
-											suffix=' g/s'
+								<AnimatedNumberGroup>
+									<div className='text-3xl sm:text-4xl font-mono font-bold tabular-nums tracking-tighter text-muted-foreground'>
+										<AnimatedNumber
+											value={displayTimeSeconds}
+											decimals={0}
+											suffix='s'
+											spinTiming={smoothTiming}
+											transformTiming={smoothTiming}
 										/>
 									</div>
-								)}
+
+									<div className='text-5xl sm:text-7xl font-bold tabular-nums tracking-tighter leading-none'>
+										<StaticNumber
+											value={displayWeight}
+											decimals={1}
+											suffix='g'
+										/>
+									</div>
+
+									{isBrewing && (
+										<div className='h-8 text-xl font-medium tabular-nums text-muted-foreground'>
+											<StaticNumber
+												value={brewData.flowRate}
+												decimals={1}
+												suffix=' g/s'
+											/>
+										</div>
+									)}
+								</AnimatedNumberGroup>
 							</div>
 
 							{!isBrewing && (
@@ -620,7 +683,8 @@ export default function CoffeeBrewControl() {
 						<DialogTitle>Connect to your Autobru ESP</DialogTitle>
 						<DialogDescription>
 							Enter the device IP address or hostname on your home network. You
-							can find it on the Autobru display or your router’s client list.
+							can find it on the Autobru display or your router&apos;s client
+							list.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -636,8 +700,8 @@ export default function CoffeeBrewControl() {
 							autoComplete='off'
 						/>
 						<p className='text-xs text-muted-foreground'>
-							No need to include the &apos;http://&apos;. We’ll use this for
-							both REST calls and live scale data.
+							No need to include the &apos;http://&apos;. We&apos;ll use this
+							for both REST calls and live scale data.
 						</p>
 					</div>
 
