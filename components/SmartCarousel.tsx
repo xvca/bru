@@ -45,7 +45,7 @@ export function SmartCarousel({
 		let isEvening = hour >= decafStartHour
 		if (decafStartHour === -1) isEvening = false
 
-		return [...rawSuggestions].sort((a, b) => {
+		const sorted = [...rawSuggestions].sort((a, b) => {
 			const isADecaf =
 				a.name.toLowerCase().includes('decaf') ||
 				(a.roaster && a.roaster.toLowerCase().includes('decaf'))
@@ -62,6 +62,12 @@ export function SmartCarousel({
 			}
 			return 0
 		})
+
+		if (sorted.length === 2) {
+			return [...sorted, ...sorted]
+		}
+
+		return sorted
 	}, [rawSuggestions, decafStartHour])
 
 	const handleCardClick = (bean: SmartSuggestion) => {
