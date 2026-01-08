@@ -10,6 +10,10 @@ You can set up iOS Shortcuts (or Android alternatives) to send requests directly
 
 ## How it works
 
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/cf124973-221d-4668-b239-3ec07b972bd0" width="200" alt="brew_control">
+</div>
+
 You can use this app in two ways:
 
 1.  **Just the Control Panel:** If you don't care about tracking data, you can just use the main dashboard to monitor weight/flow rate, start/stop brews and the settings page to update your ESP settings (weight presets, preinfusion mode, etc.) No account needed.
@@ -28,6 +32,10 @@ You can use this app in two ways:
 *   **Brew Bars:** Create shared spaces (like "Office" or "Home") to share inventory and logs with other members.
 *   **Equipment Manager:** Keep track of your grinders and brewers.
 * 	**Label Scanning:** Automatically extract coffee details (Roaster, Name, Roast Date, Tasting notes) by taking a photo of the bag.
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/14adab49-0ee8-420a-8b0f-94ea7e47e1be" width="200" alt="brew_control">
+</div>
 
 ## Hosting
 
