@@ -233,7 +233,7 @@ export default function BrewForm({
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent
-				className='max-w-xl max-h-[90vh] overflow-y-auto'
+				className='max-w-xl max-h-[90vh] overflow-y-auto p-6'
 				onEscapeKeyDown={(e) => {
 					if (activeSelect) {
 						e.preventDefault()
@@ -269,7 +269,6 @@ export default function BrewForm({
 								height: { duration: 0.3, ease: 'easeOut' },
 								opacity: { duration: 0.2, delay: 0.1 },
 							}}
-							style={{ overflow: 'hidden' }}
 						>
 							<form
 								onSubmit={form.handleSubmit(onSubmit)}

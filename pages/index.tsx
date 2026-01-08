@@ -220,11 +220,6 @@ export default function CoffeeBrewControl() {
 	}, [])
 
 	useEffect(() => {
-		setTimeout(() => setShowCompletionAnimation(true), 1000)
-		setTimeout(() => setShowCompletionAnimation(false), 3000)
-	}, [])
-
-	useEffect(() => {
 		if (brewData.state !== BrewStates.IDLE) {
 			latestShotRef.current = brewData
 		}
