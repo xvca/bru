@@ -58,6 +58,7 @@ export default function CoffeeBrewControl() {
 
 	const [isWaking, setIsWaking] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
+	const [showCompletionAnimation, setShowCompletionAnimation] = useState(false)
 
 	const { brewData, isWsConnected } = useWebSocket()
 	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
@@ -97,6 +98,7 @@ export default function CoffeeBrewControl() {
 	const serverTimeOffsetRef = useRef(0)
 	const frozenTimeRef = useRef(0)
 	const smoothedWeightRef = useRef(0)
+	const formTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
@@ -144,6 +146,12 @@ export default function CoffeeBrewControl() {
 			serverTimeOffsetRef.current = brewData.time
 			frozenTimeRef.current = 0
 			smoothedWeightRef.current = brewData.weight
+			setShowCompletionAnimation(false)
+
+			if (formTimeoutRef.current) {
+				clearTimeout(formTimeoutRef.current)
+				formTimeoutRef.current = null
+			}
 		}
 
 		const wasActive =
@@ -160,8 +168,61 @@ export default function CoffeeBrewControl() {
 			clientBrewStartRef.current = null
 		}
 
+		if (prevState === BrewStates.DRIPPING && currentState === BrewStates.IDLE) {
+			setShowCompletionAnimation(true)
+
+			if (selectedSuggestion) {
+				const snapshot = latestShotRef.current
+				const lastProfile = selectedSuggestion.lastBrew
+
+				const prefill: Partial<BrewFormData> = {
+					beanId: selectedSuggestion.id,
+					method: 'Espresso',
+					doseWeight: lastProfile?.doseWeight ?? targetWeight / 2,
+					yieldWeight: targetWeight,
+					brewTime: snapshot.time
+						? Math.round(snapshot.time / 1000)
+						: undefined,
+					grindSize: lastProfile?.grindSize ?? undefined,
+					waterTemperature: lastProfile?.waterTemperature ?? undefined,
+					grinderId: lastProfile?.grinderId,
+					brewerId: lastProfile?.brewerId,
+					barId: activeBarId || undefined,
+				}
+
+				setBrewDraft(prefill)
+
+				formTimeoutRef.current = setTimeout(() => {
+					setIsBrewFormOpen(true)
+					setShowCompletionAnimation(false)
+				}, 3000)
+			} else {
+				setTimeout(() => setShowCompletionAnimation(false), 2000)
+			}
+		}
+
 		previousStateRef.current = currentState
-	}, [brewData.state, brewData.time, brewData.weight])
+	}, [
+		brewData.state,
+		brewData.time,
+		brewData.weight,
+		targetWeight,
+		activeBarId,
+		selectedSuggestion,
+	])
+
+	useEffect(() => {
+		return () => {
+			if (formTimeoutRef.current) {
+				clearTimeout(formTimeoutRef.current)
+			}
+		}
+	}, [])
+
+	useEffect(() => {
+		setTimeout(() => setShowCompletionAnimation(true), 1000)
+		setTimeout(() => setShowCompletionAnimation(false), 3000)
+	}, [])
 
 	useEffect(() => {
 		if (brewData.state !== BrewStates.IDLE) {
@@ -352,36 +413,6 @@ export default function CoffeeBrewControl() {
 		}
 	}, [api, brewData.isActive])
 
-	useEffect(() => {
-		const prevState = previousStateRef.current
-
-		if (
-			prevState === BrewStates.DRIPPING &&
-			brewData.state === BrewStates.IDLE &&
-			selectedSuggestion
-		) {
-			const snapshot = latestShotRef.current
-
-			const lastProfile = selectedSuggestion.lastBrew
-
-			const prefill: Partial<BrewFormData> = {
-				beanId: selectedSuggestion.id,
-				method: 'Espresso',
-				doseWeight: lastProfile?.doseWeight ?? targetWeight / 2,
-				yieldWeight: targetWeight,
-				brewTime: snapshot.time ? Math.round(snapshot.time / 1000) : undefined,
-				grindSize: lastProfile?.grindSize ?? undefined,
-				waterTemperature: lastProfile?.waterTemperature ?? undefined,
-				grinderId: lastProfile?.grinderId,
-				brewerId: lastProfile?.brewerId,
-				barId: activeBarId || undefined,
-			}
-
-			setBrewDraft(prefill)
-			setIsBrewFormOpen(true)
-		}
-	}, [brewData.state, targetWeight, activeBarId, selectedSuggestion])
-
 	const openEspModal = () => {
 		setEspIpDraft(espIp ?? '')
 		setHasDismissedEspPrompt(false)
@@ -499,11 +530,13 @@ export default function CoffeeBrewControl() {
 							max={100}
 							arcSize={250}
 							gaugePrimaryColor={
-								isBrewing ? '#b54a35' : 'var(--muted-foreground)'
+								isBrewing ? 'var(--error)' : 'var(--muted-foreground)'
 							}
-							gaugePrimaryEndColor={isBrewing ? '#43694b' : ''}
+							gaugePrimaryEndColor={isBrewing ? 'var(--success)' : ''}
 							gaugeSecondaryColor='var(--secondary)'
 							className='mx-auto max-w-[80vw] sm:max-w-md -mb-12'
+							isCompleted={showCompletionAnimation}
+							completedColor='var(--success)'
 						/>
 
 						<div className='absolute inset-0 flex flex-col items-center justify-center pt-16 sm:pt-8'>

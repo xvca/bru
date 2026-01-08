@@ -1,3 +1,5 @@
+'use client'
+
 import NumberFlow, { NumberFlowGroup } from '@number-flow/react'
 
 export interface AnimatedNumberProps {
@@ -24,31 +26,22 @@ export function AnimatedNumber({
 	transformTiming = { duration: 500, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
 }: AnimatedNumberProps) {
 	return (
-		<span className={className}>
-			{prefix}
-			<NumberFlow
-				value={value}
-				format={{
-					minimumFractionDigits: decimals,
-					maximumFractionDigits: decimals,
-				}}
-				continuous={continuous}
-				trend={trend}
-				spinTiming={spinTiming}
-				transformTiming={transformTiming}
-				willChange
-			/>
-			{suffix}
-		</span>
+		<NumberFlow
+			value={value}
+			format={{
+				minimumFractionDigits: decimals,
+				maximumFractionDigits: decimals,
+			}}
+			suffix={suffix ? suffix : undefined}
+			prefix={prefix ? prefix : undefined}
+			continuous={continuous}
+			trend={trend}
+			spinTiming={spinTiming}
+			transformTiming={transformTiming}
+			willChange
+			className={className}
+		/>
 	)
-}
-
-export interface AnimatedNumberGroupProps {
-	children: React.ReactNode
-}
-
-export function AnimatedNumberGroup({ children }: AnimatedNumberGroupProps) {
-	return <NumberFlowGroup>{children}</NumberFlowGroup>
 }
 
 export interface StaticNumberProps {
@@ -73,6 +66,14 @@ export function StaticNumber({
 			{suffix}
 		</span>
 	)
+}
+
+export interface AnimatedNumberGroupProps {
+	children: React.ReactNode
+}
+
+export function AnimatedNumberGroup({ children }: AnimatedNumberGroupProps) {
+	return <NumberFlowGroup>{children}</NumberFlowGroup>
 }
 
 export default AnimatedNumber

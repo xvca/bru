@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
+import chroma from 'chroma-js'
 
 interface GaugeProps {
 	max: number
@@ -9,13 +11,10 @@ interface GaugeProps {
 	gaugePrimaryEndColor?: string
 	gaugeSecondaryColor: string
 	className?: string
+	isCompleted?: boolean
+	completedColor?: string
 }
 
-/**
- * Custom Hook: Smooths out value changes using Linear Interpolation (Lerp).
- * @param value The target value to animate to
- * @param speed The friction factor (0.0 - 1.0). Higher = faster, Lower = smoother/slower.
- */
 const useProgressiveValue = (targetValue: number, speed = 0.15) => {
 	const [value, setValue] = useState(targetValue)
 	const requestRef = useRef<number>(0)
@@ -49,6 +48,41 @@ const useProgressiveValue = (targetValue: number, speed = 0.15) => {
 	return value
 }
 
+const resolveColor = (color: string): string => {
+	if (!color) return 'rgb(128, 128, 128)'
+
+	if (color.startsWith('var(')) {
+		const temp = document.createElement('div')
+		temp.style.color = color
+		document.body.appendChild(temp)
+		const computed = getComputedStyle(temp).color
+		document.body.removeChild(temp)
+		return resolveColor(computed)
+	}
+
+	try {
+		return chroma(color).css()
+	} catch {
+		return 'rgb(128, 128, 128)'
+	}
+}
+
+const toRgba = (color: string, opacity: number): string => {
+	try {
+		return chroma(color).alpha(opacity).css()
+	} catch {
+		return `rgba(128, 128, 128, ${opacity})`
+	}
+}
+
+const mixColors = (color1: string, color2: string, ratio: number): string => {
+	try {
+		return chroma.mix(color1, color2, ratio, 'oklch').css()
+	} catch {
+		return color1
+	}
+}
+
 export function Gauge({
 	max = 100,
 	min = 0,
@@ -58,8 +92,23 @@ export function Gauge({
 	gaugePrimaryEndColor = '',
 	gaugeSecondaryColor,
 	className,
+	isCompleted = false,
+	completedColor = '#43694b',
 }: GaugeProps) {
 	const smoothValue = useProgressiveValue(value, 0.1)
+	const [resolvedColors, setResolvedColors] = useState({
+		primary: 'rgb(128, 128, 128)',
+		end: 'rgb(128, 128, 128)',
+		completed: 'rgb(67, 105, 75)',
+	})
+
+	useEffect(() => {
+		setResolvedColors({
+			primary: resolveColor(gaugePrimaryColor),
+			end: resolveColor(gaugePrimaryEndColor || gaugePrimaryColor),
+			completed: resolveColor(completedColor),
+		})
+	}, [gaugePrimaryColor, gaugePrimaryEndColor, completedColor])
 
 	arcSize = Math.min(Math.max(arcSize, 180), 360)
 
@@ -70,29 +119,11 @@ export function Gauge({
 	const angleOffset = 270 - arcSize
 	const circumference = (arcSize / 360) * (2 * Math.PI * radius)
 
-	const getCurrentColor = () => {
-		if (!gaugePrimaryEndColor) return gaugePrimaryColor
-
-		const hex2rgb = (hex: string) => {
-			const cleanHex = hex.replace('#', '')
-			const r = parseInt(cleanHex.slice(0, 2), 16)
-			const g = parseInt(cleanHex.slice(2, 4), 16)
-			const b = parseInt(cleanHex.slice(4, 6), 16)
-			return [r, g, b]
-		}
-
-		const startRGB = hex2rgb(gaugePrimaryColor)
-		const endRGB = hex2rgb(gaugePrimaryEndColor)
+	const getBaseColor = () => {
+		if (!gaugePrimaryEndColor) return resolvedColors.primary
 
 		const progress = Math.min(Math.max(currentPercent / 100, 0), 1)
-
-		const currentRGB = startRGB.map((start, i) => {
-			const end = endRGB[i]
-			const colorValue = Math.round(start + (end - start) * progress)
-			return colorValue
-		})
-
-		return `rgb(${currentRGB.join(',')})`
+		return mixColors(resolvedColors.primary, resolvedColors.end, progress)
 	}
 
 	const calculateArcPath = (percentage: number, arcSize: number = 360) => {
@@ -113,8 +144,33 @@ export function Gauge({
 		return `M ${start.x} ${start.y} A ${radius} ${radius} 0 1 1 ${end.x} ${end.y}`
 	}
 
+	const baseColor = getBaseColor()
+	const glowColor = toRgba(resolvedColors.completed, 0.1)
+
 	return (
-		<div className={className}>
+		<motion.div
+			className={className}
+			animate={
+				isCompleted
+					? {
+							scale: [1, 1.005, 1, 1.005, 1, 1.005, 1],
+							filter: [
+								'drop-shadow(0 0 0px transparent)',
+								`drop-shadow(0 0 2px ${glowColor})`,
+								'drop-shadow(0 0 0px transparent)',
+								`drop-shadow(0 0 2px ${glowColor})`,
+								'drop-shadow(0 0 0px transparent)',
+								`drop-shadow(0 0 2px ${glowColor})`,
+								'drop-shadow(0 0 0px transparent)',
+							],
+						}
+					: { scale: 1 }
+			}
+			transition={{
+				duration: 0.6,
+				ease: 'easeInOut',
+			}}
+		>
 			<svg fill='none' className='size-full' viewBox='0 0 100 100'>
 				<path
 					d={calculateArcPath(100, arcSize)}
@@ -124,15 +180,20 @@ export function Gauge({
 					fill='none'
 				/>
 
-				<path
+				<motion.path
 					d={calculateArcPath(100, arcSize)}
-					stroke={getCurrentColor()}
 					strokeWidth='2'
 					strokeLinecap='round'
 					fill='none'
 					strokeDasharray={`${(currentPercent * circumference) / 100} ${circumference}`}
+					animate={{
+						stroke: isCompleted ? resolvedColors.completed : baseColor,
+					}}
+					transition={{
+						stroke: { duration: 0.25, ease: 'easeOut' },
+					}}
 				/>
 			</svg>
-		</div>
+		</motion.div>
 	)
 }
