@@ -525,7 +525,7 @@ export default function CoffeeBrewControl() {
 							max={100}
 							arcSize={250}
 							gaugePrimaryColor={
-								isBrewing ? 'var(--error)' : 'var(--muted-foreground)'
+								isBrewing ? 'var(--destructive)' : 'var(--primary-foreground)'
 							}
 							gaugePrimaryEndColor={isBrewing ? 'var(--success)' : ''}
 							gaugeSecondaryColor='var(--secondary)'

@@ -23,7 +23,7 @@ import { ConfirmModal } from '@/components/ConfirmModal'
 import BeanFormModal from '@/components/BeanFormModal'
 import ThawBeanModal from '@/components/ThawBeanModal'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion' // Import framer-motion
+import { motion } from 'framer-motion'
 
 import { Button } from '@/components/ui/button'
 import {
