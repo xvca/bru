@@ -126,8 +126,8 @@ export const espPrefsSchema = z.object({
 			message: 'Use “Disabled” or choose an hour between 0 and 23.',
 		}),
 	timezone: z.string(),
-	learningRate: z.coerce.number().min(0.1).max(1.0),
-	historyLength: z.coerce.number().int().min(1).max(10),
+	learningRate: z.coerce.number().min(0).max(1.0),
+	systemLag: z.coerce.number().min(0).max(1.0),
 })
 
 export type ESPPrefsFormData = z.infer<typeof espPrefsSchema>

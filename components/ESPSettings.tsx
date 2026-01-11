@@ -3,7 +3,6 @@ import Section from '@/components/Section'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@/lib/authContext'
 import axios, { AxiosInstance } from 'axios'
-import { Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -64,14 +63,14 @@ interface Shot {
 }
 
 interface ShotDataResponse {
-	p0: { factor: number; shots: Shot[] }
-	p1: { factor: number; shots: Shot[] }
+	p0: { bias: number; shots: Shot[] }
+	p1: { bias: number; shots: Shot[] }
 }
 
 interface MergedShotData {
 	shots: Shot[]
-	factorP0: number
-	factorP1: number
+	biasP0: number
+	biasP1: number
 }
 
 const sanitizeIp = (value: string) =>
@@ -93,16 +92,13 @@ export default function ESPSettings() {
 	const [isViewDataOpen, setIsViewDataOpen] = useState(false)
 	const [shotData, setShotData] = useState<MergedShotData | null>(null)
 	const [isLoadingData, setIsLoadingData] = useState(false)
-	// const [isRecalcSpinning, setIsSpinning] = useState(false)
 
 	const [modalData, setModalData] = useState<{
 		isOpen: boolean
-		shotId: number | null
 		title: string
 		description: string
 	}>({
 		isOpen: false,
-		shotId: null,
 		title: '',
 		description: '',
 	})
@@ -128,8 +124,8 @@ export default function ESPSettings() {
 			pMode: PreinfusionMode.SIMPLE,
 			decafStartHour: -1,
 			timezone: 'GMT0',
-			learningRate: 0.4,
-			historyLength: 5,
+			learningRate: 0.5,
+			systemLag: 0.2,
 		},
 	})
 
@@ -149,9 +145,8 @@ export default function ESPSettings() {
 				decafStartHour:
 					data.decafStartHour === undefined ? -1 : data.decafStartHour,
 				timezone: data.timezone,
-				learningRate: data.learningRate === undefined ? 0.4 : data.learningRate,
-				historyLength:
-					data.historyLength === undefined ? 5 : data.historyLength,
+				learningRate: data.learningRate === undefined ? 0.5 : data.learningRate,
+				systemLag: data.systemLag === undefined ? 0.2 : data.systemLag,
 			})
 		} catch (error) {
 			console.error('Failed to get preferences:', error)
@@ -190,7 +185,7 @@ export default function ESPSettings() {
 			formData.append('decafStartHour', data.decafStartHour.toString())
 			formData.append('timezone', data.timezone)
 			formData.append('learningRate', data.learningRate.toString())
-			formData.append('historyLength', data.historyLength.toString())
+			formData.append('systemLag', data.systemLag.toString())
 
 			await api.post('/prefs', formData)
 
@@ -228,8 +223,8 @@ export default function ESPSettings() {
 			allShots.sort((a, b) => b.id - a.id)
 			setShotData({
 				shots: allShots,
-				factorP0: data.p0.factor,
-				factorP1: data.p1.factor,
+				biasP0: data.p0.bias,
+				biasP1: data.p1.bias,
 			})
 		} catch (error) {
 			toast.error('Failed to fetch shot data')
@@ -244,40 +239,14 @@ export default function ESPSettings() {
 			return
 		}
 
-		const id = modalData.shotId
 		try {
-			if (id === null) {
-				await api.post('/clear-data')
-				toast.success('All data cleared')
-			} else {
-				const formData = new FormData()
-				formData.append('id', id.toString())
-				await api.post('/clear-shot', formData)
-				toast.success(`Shot #${id} deleted`)
-			}
+			await api.post('/clear-data')
+			toast.success('All data cleared')
 			await fetchShotData()
 		} catch (error) {
-			toast.error('Failed to delete data')
+			toast.error('Failed to clear data')
 		}
 	}
-
-	// const handleRecalcClick = async () => {
-	// 	if (!api) {
-	// 		toast.error('Configure your ESP IP first.')
-	// 		return
-	// 	}
-
-	// 	setIsSpinning(true)
-	// 	try {
-	// 		await api.post('/recalc-comp-factor')
-	// 		toast.success('Factors recalculated')
-	// 		await fetchShotData()
-	// 	} catch {
-	// 		toast.error('Failed to recalculate')
-	// 	} finally {
-	// 		setTimeout(() => setIsSpinning(false), 1000)
-	// 	}
-	// }
 
 	const handleViewData = async () => {
 		if (!api) {
@@ -538,36 +507,66 @@ export default function ESPSettings() {
 								</AccordionTrigger>
 								<AccordionContent className='space-y-4 px-4 pb-4 text-sm text-muted-foreground'>
 									<p className='text-xs leading-relaxed text-muted-foreground/80'>
-										These settings control how quickly Autobru adapts to changes
-										in your bean and grinder workflow.
+										Autobru tries to hit your target weight by splitting the
+										&quot;overshoot&quot; into two parts
+									</p>
+
+									<p className='text-xs leading-relaxed text-muted-foreground/80'>
+										System Latency: accounts for how fast the water is moving.
+										If you pull a turbo shot, the pump needs be stopped earlier
+										to account for the extra momentum.
+									</p>
+									<p className='text-xs leading-relaxed text-muted-foreground/80'>
+										Drippage Bias: This accounts for the portafilter you&apos;re
+										using. Spouted portafilters hold onto a few grams of liquid
+										that fall into the cup after the shot stops, while
+										bottomless ones don&apos;t. Autobru learns this &quot;static
+										offset&quot; automatically over time.
 									</p>
 
 									<Controller
-										name='learningRate'
+										name='systemLag'
 										control={form.control}
 										render={({ field, fieldState }) => (
 											<Field data-invalid={fieldState.invalid}>
-												<FieldLabel>Adaptation Speed</FieldLabel>
+												<FieldLabel>System Latency</FieldLabel>
 												<div className='flex items-center gap-3'>
 													<Input
 														{...field}
-														id='learningRate'
+														id='systemLag'
 														type='number'
 														inputMode='decimal'
-														step='0.1'
-														min='0.1'
+														step='0.01'
+														min='0'
 														max='1'
 														className='w-24 text-right tabular-nums'
 														onFocus={(e) => e.target.select()}
 													/>
 													<span className='text-xs font-medium text-muted-foreground'>
-														{Math.round(field.value * 100)}%
+														seconds
 													</span>
 												</div>
 												<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
-													Lower values (≈20%) change slowly and ignore outliers.
-													Higher values (≈80%) correct after each shot.
+													Compensates for pump spin-down and flight time.
+													Typically 0.20s.
 												</p>
+
+												<div className='mt-2 rounded border border-border/40 bg-muted/40 p-2.5 text-[11px] text-muted-foreground'>
+													<p className='mb-1.5 leading-relaxed'>
+														<span className='font-semibold text-foreground/80'>
+															To calibrate:
+														</span>{' '}
+														Set this and Bias Adaptation Speed to 0. Pull a
+														typical slow shot (1-2 g/s) and a fast turbo shot
+														(4+ g/s). Record the overshoot (O) and ending flow
+														rate (F) for each.
+													</p>
+													<div className='rounded bg-background/50 px-2 py-1.5 text-center font-mono text-[10px] tracking-tight text-foreground/90 border border-border/20'>
+														(O<sub>fast</sub> - O<sub>slow</sub>) / (F
+														<sub>fast</sub> - F<sub>slow</sub>)
+													</div>
+												</div>
+
 												{fieldState.invalid && (
 													<FieldError errors={[fieldState.error]} />
 												)}
@@ -576,31 +575,79 @@ export default function ESPSettings() {
 									/>
 
 									<Controller
-										name='historyLength'
+										name='learningRate'
 										control={form.control}
 										render={({ field, fieldState }) => (
 											<Field data-invalid={fieldState.invalid}>
-												<FieldLabel>Shot Memory</FieldLabel>
+												<FieldLabel>Bias Adaptation Speed</FieldLabel>
 												<div className='flex items-center gap-3'>
 													<Input
 														{...field}
-														id='historyLength'
+														id='learningRate'
 														type='number'
 														inputMode='decimal'
-														min='1'
-														max='10'
-														step='1'
+														step='0.01'
+														min='0'
+														max='1'
 														className='w-24 text-right tabular-nums'
 														onFocus={(e) => e.target.select()}
 													/>
 													<span className='text-xs font-medium text-muted-foreground'>
-														shots
+														{Math.round(field.value * 100)}%
 													</span>
 												</div>
-												<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
-													Fewer shots = faster reaction to new beans. More shots
-													= smoother trends that shrug off one bad pull.
-												</p>
+
+												<div className='mt-2 rounded border border-border/40 bg-muted/40 p-2.5 text-[11px] text-muted-foreground'>
+													<p className='mb-2 leading-relaxed'>
+														Determines how strongly the most recent shot affects
+														future predictions.
+													</p>
+													<div className='grid gap-1.5'>
+														<div className='grid grid-cols-[30px_1fr] gap-2'>
+															<span className='font-mono font-bold text-foreground/80'>
+																0.2
+															</span>
+															<div className='flex flex-col gap-0.5'>
+																<span className='font-semibold text-foreground/70'>
+																	Conservative
+																</span>
+																<span>
+																	Latest shot is 20%. Takes ~14 shots to fully
+																	calibrate to new conditions.
+																</span>
+															</div>
+														</div>
+														<div className='grid grid-cols-[30px_1fr] gap-2'>
+															<span className='font-mono font-bold text-foreground/80'>
+																0.5
+															</span>
+															<div className='flex flex-col gap-0.5'>
+																<span className='font-semibold text-foreground/70'>
+																	Balanced
+																</span>
+																<span>
+																	Latest shot is 50%. Takes ~5 shots to fully
+																	calibrate.
+																</span>
+															</div>
+														</div>
+														<div className='grid grid-cols-[30px_1fr] gap-2'>
+															<span className='font-mono font-bold text-foreground/80'>
+																0.8
+															</span>
+															<div className='flex flex-col gap-0.5'>
+																<span className='font-semibold text-foreground/70'>
+																	Reactive
+																</span>
+																<span>
+																	Latest shot is 80%. Takes ~2 shots to fully
+																	calibrate.
+																</span>
+															</div>
+														</div>
+													</div>
+												</div>
+
 												{fieldState.invalid && (
 													<FieldError errors={[fieldState.error]} />
 												)}
@@ -658,18 +705,18 @@ export default function ESPSettings() {
 								<div className='grid grid-cols-2 gap-4 p-3 bg-muted rounded-lg text-sm shrink-0'>
 									<div>
 										<div className='text-muted-foreground text-xs uppercase tracking-wider'>
-											Split/Single Factor
+											Split/Single Bias
 										</div>
 										<div className='font-mono font-bold'>
-											{shotData.factorP0}
+											{shotData.biasP0.toFixed(2)}g
 										</div>
 									</div>
 									<div>
 										<div className='text-muted-foreground text-xs uppercase tracking-wider'>
-											Full/Double Factor
+											Full/Double Bias
 										</div>
 										<div className='font-mono font-bold'>
-											{shotData.factorP1}
+											{shotData.biasP1.toFixed(2)}g
 										</div>
 									</div>
 								</div>
@@ -705,24 +752,7 @@ export default function ESPSettings() {
 															{shot.finalWeight.toFixed(1)}g
 														</div>
 														<div>{shot.lastFlowRate.toFixed(1)}g/s</div>
-														<div className='flex justify-end'>
-															<Button
-																type='button'
-																onClick={() =>
-																	setModalData({
-																		isOpen: true,
-																		shotId: shot.id,
-																		description: `Delete shot #${shot.id}? This will recalculate the learning factor.`,
-																		title: 'Delete Shot',
-																	})
-																}
-																variant='ghost'
-																size='icon'
-																className='h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full'
-															>
-																<Trash2 size={16} />
-															</Button>
-														</div>
+														<div></div>
 													</div>
 												))}
 											</div>
@@ -747,15 +777,14 @@ export default function ESPSettings() {
 							onClick={() =>
 								setModalData({
 									isOpen: true,
-									shotId: null,
-									description: `Are you sure you want to clear ALL shot data? This resets learning factors to defaults.`,
+									description: `Are you sure you want to clear ALL shot data? This resets learned biases to defaults.`,
 									title: 'Clear All Data?',
 								})
 							}
 							variant='destructive'
 							className='w-full sm:w-auto'
 						>
-							Reset All Data & Factors
+							Reset All Data & Biases
 						</Button>
 					</div>
 				</DialogContent>
@@ -767,7 +796,6 @@ export default function ESPSettings() {
 					setModalData((prev) => ({
 						...prev,
 						isOpen: false,
-						shotId: null,
 					}))
 				}
 				onConfirm={clearShotData}
