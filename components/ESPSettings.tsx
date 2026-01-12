@@ -146,7 +146,7 @@ export default function ESPSettings() {
 					data.decafStartHour === undefined ? -1 : data.decafStartHour,
 				timezone: data.timezone,
 				learningRate: data.learningRate === undefined ? 0.5 : data.learningRate,
-				systemLag: data.systemLag === undefined ? 0.2 : data.systemLag,
+				systemLag: data.systemLag === undefined ? 1.0 : data.systemLag,
 			})
 		} catch (error) {
 			console.error('Failed to get preferences:', error)
@@ -547,8 +547,8 @@ export default function ESPSettings() {
 													</span>
 												</div>
 												<p className='mt-1 text-xs leading-relaxed text-muted-foreground/80'>
-													Compensates for pump spin-down and flight time.
-													Typically 0.20s.
+													Compensates for time to turn pump off + bluetooth lag.
+													Default is 1.0.
 												</p>
 
 												<div className='mt-2 rounded border border-border/40 bg-muted/40 p-2.5 text-[11px] text-muted-foreground'>
@@ -557,9 +557,11 @@ export default function ESPSettings() {
 															To calibrate:
 														</span>{' '}
 														Set this and Bias Adaptation Speed to 0. Pull a
-														typical slow shot (1-2 g/s) and a fast turbo shot
-														(4+ g/s). Record the overshoot (O) and ending flow
-														rate (F) for each.
+														typical slow shot (1-2 g/s) and a fast shot (4+
+														g/s). Record the overshoot (O) and ending flow rate
+														(F) for each. Ideally use a bottomless portafilter
+														to perform this calibration as coffee that sprays
+														off the scale detracts from the true flow rate.
 													</p>
 													<div className='rounded bg-background/50 px-2 py-1.5 text-center font-mono text-[10px] tracking-tight text-foreground/90 border border-border/20'>
 														(O<sub>fast</sub> - O<sub>slow</sub>) / (F
