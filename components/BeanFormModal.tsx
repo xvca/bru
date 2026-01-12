@@ -604,7 +604,7 @@ export default function BeanFormModal({
 												id='remainingWeight'
 												type='number'
 												inputMode='decimal'
-												min='1'
+												min='0'
 												step='1'
 												onFocus={(e) => e.target.select()}
 												className={isScanning ? animClass : ''}
