@@ -125,7 +125,7 @@ export default function ESPSettings() {
 			decafStartHour: -1,
 			timezone: 'GMT0',
 			learningRate: 0.5,
-			systemLag: 0.2,
+			systemLag: 1,
 		},
 	})
 
@@ -538,7 +538,7 @@ export default function ESPSettings() {
 														inputMode='decimal'
 														step='0.01'
 														min='0'
-														max='1'
+														max='2'
 														className='w-24 text-right tabular-nums'
 														onFocus={(e) => e.target.select()}
 													/>

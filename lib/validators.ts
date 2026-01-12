@@ -127,7 +127,7 @@ export const espPrefsSchema = z.object({
 		}),
 	timezone: z.string(),
 	learningRate: z.coerce.number().min(0).max(1.0),
-	systemLag: z.coerce.number().min(0).max(1.0),
+	systemLag: z.coerce.number().min(0).max(2.0),
 })
 
 export type ESPPrefsFormData = z.infer<typeof espPrefsSchema>
