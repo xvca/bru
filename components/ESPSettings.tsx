@@ -752,7 +752,6 @@ export default function ESPSettings() {
 															{shot.finalWeight.toFixed(1)}g
 														</div>
 														<div>{shot.lastFlowRate.toFixed(1)}g/s</div>
-														<div></div>
 													</div>
 												))}
 											</div>
