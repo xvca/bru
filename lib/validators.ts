@@ -49,6 +49,17 @@ export const beanSchema = z
 			path: ['freezeDate'],
 		},
 	)
+	.refine(
+		(data) => {
+			if (data.remainingWeight === null || data.remainingWeight === undefined)
+				return true
+			return data.remainingWeight <= data.initialWeight
+		},
+		{
+			message: "Remaining weight can't exceed initial weight",
+			path: ['remainingWeight'],
+		},
+	)
 
 export type BeanFormData = z.infer<typeof beanSchema>
 

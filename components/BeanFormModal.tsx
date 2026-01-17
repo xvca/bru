@@ -93,9 +93,9 @@ export default function BeanFormModal({
 	const roastDateWatcher = form.watch('roastDate')
 
 	useEffect(() => {
-		fetch('/api/ai/config')
-			.then((res) => res.json())
-			.then((data) => setIsAiEnabled(data.enabled))
+		axios
+			.get('/api/ai/config')
+			.then((res) => setIsAiEnabled(res.data.enabled))
 			.catch(() => setIsAiEnabled(false))
 	}, [])
 
@@ -581,6 +581,11 @@ export default function BeanFormModal({
 												min='1'
 												step='1'
 												onFocus={(e) => e.target.select()}
+												onBlur={(e) => {
+													field.onBlur()
+													const initialWeight = Number(e.target.value)
+													form.setValue('remainingWeight', initialWeight)
+												}}
 												className={isScanning ? animClass : ''}
 											/>
 											{fieldState.invalid && (

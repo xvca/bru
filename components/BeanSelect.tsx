@@ -52,22 +52,22 @@ export function BeanSelect({
 			onOpenChange={onOpenChange}
 		>
 			<SelectTrigger className='h-auto py-2'>
-				<SelectValue placeholder='Select a bean'>
-					{selectedBean && (
-						<div className='flex flex-col items-start text-left'>
-							<span className='font-medium flex items-center gap-2'>
-								{selectedBean.name}
-								{isSelectedFrozen && (
-									<Snowflake className='h-3 w-3 text-frozen-foreground' />
-								)}
-							</span>
-							<span className='text-xs text-muted-foreground'>
-								{selectedBean.roaster} •{' '}
-								{format(new Date(selectedBean.roastDate), 'MMM d')}
-							</span>
-						</div>
-					)}
-				</SelectValue>
+				{selectedBean ? (
+					<div className='flex flex-col items-start text-left w-full overflow-hidden'>
+						<span className='font-medium flex items-center gap-2 truncate w-full'>
+							{selectedBean.name}
+							{isSelectedFrozen && (
+								<Snowflake className='h-3 w-3 text-frozen-foreground shrink-0' />
+							)}
+						</span>
+						<span className='text-xs text-muted-foreground truncate w-full'>
+							{selectedBean.roaster} •{' '}
+							{format(new Date(selectedBean.roastDate), 'MMM d')}
+						</span>
+					</div>
+				) : (
+					<span className='text-muted-foreground'>Select a bean</span>
+				)}
 			</SelectTrigger>
 			<SelectContent>
 				<SelectGroup>
