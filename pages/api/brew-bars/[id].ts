@@ -3,6 +3,7 @@ import {
 	getBrewBarById,
 	updateBrewBar,
 	deleteBrewBar,
+	updateDefaultBeans,
 } from '@/services/brewBarService'
 import { withAuth, AuthRequest } from '@/lib/auth'
 import { brewBarSchema } from '@/lib/validators'
@@ -40,6 +41,8 @@ async function handleGet(req: AuthRequest, res: NextApiResponse) {
 		createdBy: brewBar.createdBy,
 		isOwner,
 		role: userRole,
+		defaultRegularBean: brewBar.defaultRegularBean,
+		defaultDecafBean: brewBar.defaultDecafBean,
 	})
 }
 
@@ -65,7 +68,20 @@ async function handlePut(req: AuthRequest, res: NextApiResponse) {
 		return
 	}
 
-	const updatedBrewBar = await updateBrewBar(brewBarId, validationResult.data)
+	const { defaultRegularBeanId, defaultDecafBeanId, ...basicData } =
+		validationResult.data
+
+	const updatedBrewBar = await updateBrewBar(brewBarId, basicData)
+
+	if (defaultRegularBeanId !== undefined || defaultDecafBeanId !== undefined) {
+		await updateDefaultBeans(
+			brewBarId,
+			userId,
+			defaultRegularBeanId,
+			defaultDecafBeanId,
+		)
+	}
+
 	res.status(200).json(updatedBrewBar)
 }
 

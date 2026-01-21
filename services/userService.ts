@@ -1,75 +1,86 @@
 import { prisma } from '@/lib/prisma'
-import { UserPreferencesFormData } from '@/lib/validators'
 import bcrypt from 'bcryptjs'
 
-export async function getUserById(id: number) {
-	return prisma.user.findUnique({
-		where: { id },
-	})
-}
-
-export async function updateUserPrefs(
-	id: number,
-	input: Partial<UserPreferencesFormData>,
+export async function updateUserAccount(
+	userId: number,
+	data: {
+		username?: string
+		currentPassword: string
+		newPassword?: string
+	},
 ) {
-	const { defaultBarId, ...rest } = input
-	const data: any = { ...rest }
-
-	if (defaultBarId !== undefined) {
-		data.defaultBarId =
-			defaultBarId === 'personal' ? null : Number(defaultBarId)
+	const user = await prisma.user.findUnique({ where: { id: userId } })
+	if (!user) {
+		throw new Error('User not found')
 	}
 
-	return prisma.user.update({
-		where: { id },
-		data,
-	})
-}
+	const isPasswordValid = await bcrypt.compare(
+		data.currentPassword,
+		user.password,
+	)
+	if (!isPasswordValid) {
+		throw new Error('Invalid current password')
+	}
 
-export async function checkUsernameAvailability(username: string) {
-	const user = await prisma.user.findUnique({
-		where: { username },
-	})
-	return !user
-}
-
-interface UpdateAccountInput {
-	username?: string
-	newPassword?: string
-	currentPassword?: string
-}
-
-export async function updateUserAccount(id: number, data: UpdateAccountInput) {
-	const user = await prisma.user.findUnique({ where: { id } })
-	if (!user) throw new Error('User not found')
-
-	if (data.currentPassword) {
-		const isValid = await bcrypt.compare(data.currentPassword, user.password)
-		if (!isValid) throw new Error('Invalid current password')
-	} else if (
-		data.newPassword ||
-		(data.username && data.username !== user.username)
-	) {
-		throw new Error('Current password is required')
+	if (data.username && data.username !== user.username) {
+		const existingUser = await prisma.user.findUnique({
+			where: { username: data.username },
+		})
+		if (existingUser) {
+			throw new Error('Username already taken')
+		}
 	}
 
 	const updateData: any = {}
-	if (data.username && data.username !== user.username) {
-		const existing = await prisma.user.findUnique({
-			where: { username: data.username },
-		})
-		if (existing) throw new Error('Username already taken')
+	if (data.username) {
 		updateData.username = data.username
 	}
-
 	if (data.newPassword) {
 		updateData.password = await bcrypt.hash(data.newPassword, 10)
 	}
 
-	if (Object.keys(updateData).length === 0) return user
+	return prisma.user.update({
+		where: { id: userId },
+		data: updateData,
+		select: {
+			id: true,
+			username: true,
+			createdAt: true,
+		},
+	})
+}
+
+export async function checkUsernameAvailability(username: string) {
+	const user = await prisma.user.findUnique({ where: { username } })
+	return !user
+}
+
+export async function getUserById(userId: number) {
+	return prisma.user.findUnique({
+		where: { id: userId },
+	})
+}
+
+export async function updateUserPrefs(
+	userId: number,
+	prefs: {
+		defaultBarId?: string | number | null
+		decafStartHour?: number
+	},
+) {
+	const updateData: any = {}
+	if (prefs.defaultBarId !== undefined) {
+		updateData.defaultBarId =
+			typeof prefs.defaultBarId === 'string'
+				? parseInt(prefs.defaultBarId)
+				: prefs.defaultBarId
+	}
+	if (prefs.decafStartHour !== undefined) {
+		updateData.decafStartHour = prefs.decafStartHour
+	}
 
 	return prisma.user.update({
-		where: { id },
+		where: { id: userId },
 		data: updateData,
 	})
 }

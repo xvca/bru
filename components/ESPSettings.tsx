@@ -2,6 +2,7 @@ import Page from '@/components/Page'
 import Section from '@/components/Section'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '@/lib/authContext'
+import { useBrewBar } from '@/lib/brewBarContext'
 import axios, { AxiosInstance } from 'axios'
 import { toast } from 'sonner'
 import { useForm, Controller } from 'react-hook-form'
@@ -36,6 +37,7 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from '@/components/ui/accordion'
+import { Info } from 'lucide-react'
 import { verifyEspReachable } from '@/utils/esp'
 
 const TIMEZONES = [
@@ -85,6 +87,10 @@ export default function ESPSettings() {
 
 	const { user } = useAuth()
 	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
+	const { availableBars } = useBrewBar()
+
+	const [linkedBarId, setLinkedBarId] = useState<number | null>(null)
+	const [isLinking, setIsLinking] = useState(false)
 
 	const [ipInput, setIpInput] = useState('')
 	const [isValidatingIp, setIsValidatingIp] = useState(false)
@@ -275,6 +281,58 @@ export default function ESPSettings() {
 			setIsValidatingIp(false)
 		}
 	}
+
+	const handleLinkDevice = async (barId: number) => {
+		if (!api || !user) return
+
+		setIsLinking(true)
+		try {
+			const tokenResponse = await axios.post(
+				`/api/brew-bars/${barId}/tokens`,
+				{ deviceName: 'Autobru ESP' },
+				{
+					headers: { Authorization: `Bearer ${user.token}` },
+				},
+			)
+
+			const { token } = tokenResponse.data
+
+			const apiUrl = window.location.origin
+			await api.post('/token', {
+				apiUrl,
+				apiToken: token,
+			})
+
+			setLinkedBarId(barId)
+			toast.success('Device linked to brew bar successfully')
+		} catch (error) {
+			console.error('Error linking device:', error)
+			toast.error('Failed to link device to brew bar')
+		} finally {
+			setIsLinking(false)
+		}
+	}
+
+	const handleUnlinkDevice = async () => {
+		if (!api) return
+
+		setIsLinking(true)
+		try {
+			await api.post('/token', {
+				apiUrl: '',
+				apiToken: '',
+			})
+
+			setLinkedBarId(null)
+			toast.success('Device unlinked from brew bar')
+		} catch (error) {
+			console.error('Error unlinking device:', error)
+			toast.error('Failed to unlink device')
+		} finally {
+			setIsLinking(false)
+		}
+	}
+
 	const isDeviceConfigured = Boolean(api)
 
 	if (isLoading) {
@@ -659,6 +717,100 @@ export default function ESPSettings() {
 								</AccordionContent>
 							</AccordionItem>
 						</Accordion>
+
+						{user && (
+							<div className='mb-6 pb-6 border-b border-input-border'>
+								<div className='flex flex-col gap-2 mb-4'>
+									<Label className='font-medium text-base'>
+										Brew Bar Integration
+									</Label>
+									<p className='text-xs text-muted-foreground'>
+										Link this device to a brew bar for automatic brew logging
+										when the app is closed
+									</p>
+								</div>
+
+								{linkedBarId ? (
+									<div className='space-y-3'>
+										<div className='p-3 bg-muted rounded-md'>
+											<p className='text-sm font-medium'>
+												Linked to:{' '}
+												{availableBars.find((b) => b.id === linkedBarId)
+													?.name || 'Unknown Bar'}
+											</p>
+										</div>
+										<Button
+											type='button'
+											onClick={handleUnlinkDevice}
+											variant='outline'
+											disabled={isLinking}
+										>
+											{isLinking ? 'Unlinking...' : 'Unlink Device'}
+										</Button>
+									</div>
+								) : (
+									<div className='space-y-3'>
+										<Select
+											onValueChange={(value) =>
+												handleLinkDevice(parseInt(value))
+											}
+											disabled={isLinking || !isDeviceConfigured}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder='Select brew bar...' />
+											</SelectTrigger>
+											<SelectContent>
+												{availableBars.map((bar) => (
+													<SelectItem key={bar.id} value={bar.id.toString()}>
+														{bar.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{!isDeviceConfigured && (
+											<p className='text-xs text-muted-foreground'>
+												Configure ESP device IP first to enable linking
+											</p>
+										)}
+									</div>
+								)}
+
+								{linkedBarId && (
+									<div className='mt-4 p-3 bg-muted/50 rounded-md border border-muted-foreground/20'>
+										<div className='flex items-start gap-2'>
+											<Info className='h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0' />
+											<div className='space-y-2 text-xs text-muted-foreground'>
+												<p className='font-medium text-foreground'>
+													How Auto-Logging Works
+												</p>
+												<ul className='space-y-1 list-disc list-inside'>
+													<li>
+														Brews are logged automatically only when the app is
+														closed (no active connections)
+													</li>
+													<li>
+														Bean selection is based on your decaf hour setting:
+														regular before, decaf after
+													</li>
+													<li>
+														Brews are attributed to the brew bar owner and use
+														settings from the last brew with that bean
+													</li>
+													<li>
+														The device will beep 4 times (instead of 3) when a
+														brew is successfully logged
+													</li>
+												</ul>
+												<p className='text-muted-foreground/80 italic mt-2'>
+													Configure default beans in the brew bar&apos;s
+													Auto-Logging settings
+												</p>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						)}
 
 						<div className='p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none w-full'>
 							<div className='pointer-events-auto flex flex-col gap-3'>

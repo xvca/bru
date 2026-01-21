@@ -10,6 +10,8 @@ export interface BrewBarDetail {
 	createdBy: number
 	isOwner: boolean
 	role: string
+	defaultRegularBean?: { id: number; name: string } | null
+	defaultDecafBean?: { id: number; name: string } | null
 }
 
 const fetcher = (url: string, token: string) =>

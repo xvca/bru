@@ -33,6 +33,20 @@ export async function getBrewBarById(id: number) {
 					role: true,
 				},
 			},
+			defaultRegularBean: {
+				select: {
+					id: true,
+					name: true,
+					roaster: true,
+				},
+			},
+			defaultDecafBean: {
+				select: {
+					id: true,
+					name: true,
+					roaster: true,
+				},
+			},
 		},
 	})
 }
@@ -157,4 +171,42 @@ export async function isBrewBarMember(barId: number, userId: number) {
 		},
 	})
 	return count > 0
+}
+
+export async function updateDefaultBeans(
+	barId: number,
+	userId: number,
+	regularBeanId?: number | null,
+	decafBeanId?: number | null,
+) {
+	const isOwner = await isBrewBarOwner(barId, userId)
+	if (!isOwner) {
+		throw new Error('Only brew bar owners can update default beans')
+	}
+
+	if (regularBeanId) {
+		const regularBean = await prisma.bean.findFirst({
+			where: { id: regularBeanId, barId },
+		})
+		if (!regularBean) {
+			throw new Error('Regular bean not found or does not belong to this bar')
+		}
+	}
+
+	if (decafBeanId) {
+		const decafBean = await prisma.bean.findFirst({
+			where: { id: decafBeanId, barId },
+		})
+		if (!decafBean) {
+			throw new Error('Decaf bean not found or does not belong to this bar')
+		}
+	}
+
+	return prisma.brewBar.update({
+		where: { id: barId },
+		data: {
+			defaultRegularBeanId: regularBeanId,
+			defaultDecafBeanId: decafBeanId,
+		},
+	})
 }

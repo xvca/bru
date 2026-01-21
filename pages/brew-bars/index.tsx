@@ -1,13 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import ProtectedPage from '@/components/ProtectedPage'
 import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import { toast } from 'sonner'
 import { useBrewBars } from '@/hooks/useBrewBars'
-import { Plus, Users, Edit, Trash, UserPlus, MapPin, Store } from 'lucide-react'
+import { Plus, Users, Edit, Trash, UserPlus, MapPin, Store, Zap } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewBarFormModal from '@/components/BrewBarFormModal'
 import BrewBarMembersModal from '@/components/BrewBarMembersModal'
+import BrewBarAutoLoggingModal from '@/components/BrewBarAutoLoggingModal'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +41,18 @@ export default function BrewBarsPage() {
 		isOwner: false,
 	})
 
+	const [autoLoggingModalData, setAutoLoggingModalData] = useState<{
+		isOpen: boolean
+		barId: number
+		barName: string
+	}>({
+		isOpen: false,
+		barId: -1,
+		barName: '',
+	})
+
+	const [tokenCounts, setTokenCounts] = useState<Record<number, number>>({})
+
 	const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false)
 	const [barToDelete, setBarToDelete] = useState<{
 		id: number
@@ -62,6 +75,14 @@ export default function BrewBarsPage() {
 			barId: id,
 			barName: name,
 			isOwner,
+		})
+	}
+
+	const handleManageAutoLogging = (id: number, name: string) => {
+		setAutoLoggingModalData({
+			isOpen: true,
+			barId: id,
+			barName: name,
 		})
 	}
 
@@ -92,6 +113,33 @@ export default function BrewBarsPage() {
 			setBarToDelete(null)
 		}
 	}
+
+	useEffect(() => {
+		if (!user?.token || !brewBars || brewBars.length === 0) return
+
+		const fetchTokenCounts = async () => {
+			const ownerBars = brewBars.filter((bar) => bar.isOwner)
+			const counts: Record<number, number> = {}
+
+			await Promise.all(
+				ownerBars.map(async (bar) => {
+					try {
+						const res = await axios.get(`/api/brew-bars/${bar.id}/tokens`, {
+							headers: { Authorization: `Bearer ${user.token}` },
+						})
+						counts[bar.id] = res.data.length
+					} catch (error) {
+						console.error(`Error fetching tokens for bar ${bar.id}:`, error)
+						counts[bar.id] = 0
+					}
+				}),
+			)
+
+			setTokenCounts(counts)
+		}
+
+		fetchTokenCounts()
+	}, [user?.token, brewBars])
 
 	return (
 		<ProtectedPage title='Brew Bars'>
@@ -216,6 +264,18 @@ export default function BrewBarsPage() {
 											<UserPlus className='mr-2 h-3.5 w-3.5' />
 											{bar.isOwner ? 'Manage Members' : 'View Members'}
 										</Button>
+
+										{bar.isOwner && (tokenCounts[bar.id] ?? 0) > 0 && (
+											<Button
+												variant='outline'
+												size='sm'
+												className='flex-1 text-xs'
+												onClick={() => handleManageAutoLogging(bar.id, bar.name)}
+											>
+												<Zap className='mr-2 h-3.5 w-3.5' />
+												Auto-Logging
+											</Button>
+										)}
 									</div>
 								</CardFooter>
 							</Card>
@@ -239,6 +299,15 @@ export default function BrewBarsPage() {
 				brewBarId={membersModalData.barId}
 				brewBarName={membersModalData.barName}
 				isOwner={membersModalData.isOwner}
+			/>
+
+			<BrewBarAutoLoggingModal
+				isOpen={autoLoggingModalData.isOpen}
+				onClose={() =>
+					setAutoLoggingModalData({ ...autoLoggingModalData, isOpen: false })
+				}
+				brewBarId={autoLoggingModalData.barId}
+				brewBarName={autoLoggingModalData.barName}
 			/>
 
 			<ConfirmModal

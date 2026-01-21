@@ -24,6 +24,7 @@ model User {
   grinders       Grinder[]
   brewers        Brewer[]
   barMemberships BrewBarMember[]
+  deviceTokens   DeviceToken[]
 
   @@map("users")
 }
@@ -51,6 +52,9 @@ model Bean {
 
   createdAt DateTime @default(now()) @map("created_at")
   brews     Brew[]
+
+  regularBeanForBars BrewBar[] @relation("DefaultRegularBean")
+  decafBeanForBars   BrewBar[] @relation("DefaultDecafBean")
 
   @@map("beans")
 }
@@ -96,6 +100,9 @@ model BrewBar {
   createdBy Int      @map("created_by")
   createdAt DateTime @default(now()) @map("created_at")
 
+  defaultRegularBeanId Int? @map("default_regular_bean_id")
+  defaultDecafBeanId   Int? @map("default_decaf_bean_id")
+
   members BrewBarMember[]
 
   beans    Bean[]
@@ -103,6 +110,10 @@ model BrewBar {
   grinders Grinder[]
 
   brews Brew[]
+
+  deviceTokens       DeviceToken[]
+  defaultRegularBean Bean?         @relation("DefaultRegularBean", fields: [defaultRegularBeanId], references: [id])
+  defaultDecafBean   Bean?         @relation("DefaultDecafBean", fields: [defaultDecafBeanId], references: [id])
 
   @@map("brew_bars")
 }
@@ -141,6 +152,7 @@ model Brew {
   pourPattern      String?  @map("pour_pattern")
   rating           Int?     @default(0)
   tastingNotes     String?  @map("tasting_notes")
+  autoCreated      Boolean  @default(false) @map("auto_created")
   createdAt        DateTime @default(now()) @map("created_at")
 
   user    User     @relation(fields: [userId], references: [id])
@@ -152,4 +164,19 @@ model Brew {
   brewBar BrewBar? @relation(fields: [barId], references: [id])
 
   @@map("brews")
+}
+
+model DeviceToken {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  barId      Int      @map("bar_id")
+  createdBy  Int      @map("created_by")
+  deviceName String?  @map("device_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  brewBar BrewBar @relation(fields: [barId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("device_tokens")
 }

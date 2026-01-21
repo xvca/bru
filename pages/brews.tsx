@@ -1,7 +1,7 @@
 import ProtectedPage from '@/components/ProtectedPage'
 import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -19,6 +19,7 @@ import {
 	Store,
 	MoreVertical,
 	Copy,
+	Zap,
 } from 'lucide-react'
 import BrewForm from '@/components/BrewFormModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -64,6 +65,27 @@ export default function Brews() {
 		brewId: 0,
 		brewName: '',
 	})
+
+	useEffect(() => {
+		if (!brews || brews.length === 0) return
+
+		const lastVisit = localStorage.getItem('lastBrewsVisit')
+		const now = new Date().toISOString()
+
+		if (lastVisit) {
+			const newAutoBrews = brews.filter(
+				(b) => b.autoCreated && new Date(b.createdAt) > new Date(lastVisit),
+			)
+
+			if (newAutoBrews.length > 0) {
+				toast.success(
+					`${newAutoBrews.length} brew${newAutoBrews.length > 1 ? 's' : ''} logged automatically`,
+				)
+			}
+		}
+
+		localStorage.setItem('lastBrewsVisit', now)
+	}, [brews])
 
 	const handleAddBrew = () => {
 		setSelectedBrew(undefined)
@@ -229,6 +251,15 @@ export default function Brews() {
 														>
 															<Store size={10} />
 															{brew.brewBar.name}
+														</Badge>
+													)}
+													{brew.autoCreated && (
+														<Badge
+															variant='secondary'
+															className='font-normal text-xs flex items-center gap-1'
+														>
+															<Zap size={10} />
+															Auto
 														</Badge>
 													)}
 												</div>

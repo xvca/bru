@@ -105,6 +105,8 @@ export type GrinderFormData = z.infer<typeof grinderSchema>
 export const brewBarSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	location: z.string().optional().nullable(),
+	defaultRegularBeanId: z.coerce.number().optional().nullable(),
+	defaultDecafBeanId: z.coerce.number().optional().nullable(),
 })
 
 export type BrewBarFormData = z.infer<typeof brewBarSchema>
