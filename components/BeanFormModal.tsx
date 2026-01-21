@@ -186,7 +186,7 @@ export default function BeanFormModal({
 			if (data.roastLevel) form.setValue('roastLevel', data.roastLevel)
 			if (data.roastDate) form.setValue('roastDate', data.roastDate)
 
-			if (data.tastingNotes) await simulateTyping('notes', data.tastingNotes)
+			if (data.notes) await simulateTyping('notes', data.notes)
 
 			if (data.weight) {
 				await simulateTyping('initialWeight', data.initialWeight)

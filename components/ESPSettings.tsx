@@ -778,7 +778,7 @@ export default function ESPSettings() {
 								{linkedBarId && (
 									<div className='mt-4 p-3 bg-muted/50 rounded-md border border-muted-foreground/20'>
 										<div className='flex items-start gap-2'>
-											<Info className='h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0' />
+											<Info className='h-4 w-4 mt-0.5 text-muted-foreground shrink-0' />
 											<div className='space-y-2 text-xs text-muted-foreground'>
 												<p className='font-medium text-foreground'>
 													How Auto-Logging Works

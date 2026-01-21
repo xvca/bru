@@ -17,6 +17,7 @@ interface BeanSelectProps {
 	onChange: (value: string) => void
 	open?: boolean
 	onOpenChange?: (open: boolean) => void
+	showAllBeans?: boolean
 }
 
 export function BeanSelect({
@@ -25,21 +26,34 @@ export function BeanSelect({
 	onChange,
 	open,
 	onOpenChange,
+	showAllBeans = false,
 }: BeanSelectProps) {
-	const availableBeans = beans.filter(
-		(b) =>
-			b.remainingWeight === null ||
-			b.remainingWeight > 0 ||
-			b.id.toString() === value,
-	)
+	const availableBeans = showAllBeans
+		? beans
+		: beans.filter(
+				(b) =>
+					b.remainingWeight === null ||
+					b.remainingWeight > 0 ||
+					b.id.toString() === value,
+		  )
 
-	const activeBeans = availableBeans.filter(
-		(b) => !b.freezeDate || !!b.thawDate,
-	)
+	const activeBeans = availableBeans
+		.filter((b) => !b.freezeDate || !!b.thawDate)
+		.sort((a, b) => {
+			if (a.batchId !== b.batchId) {
+				return (a.batchId || '').localeCompare(b.batchId || '')
+			}
+			return b.id - a.id
+		})
 
-	const frozenBeans = availableBeans.filter(
-		(b) => !!b.freezeDate && !b.thawDate,
-	)
+	const frozenBeans = availableBeans
+		.filter((b) => !!b.freezeDate && !b.thawDate)
+		.sort((a, b) => {
+			if (a.batchId !== b.batchId) {
+				return (a.batchId || '').localeCompare(b.batchId || '')
+			}
+			return b.id - a.id
+		})
 
 	const selectedBean = beans.find((b) => b.id.toString() === value)
 	const isSelectedFrozen = selectedBean?.freezeDate && !selectedBean?.thawDate
@@ -69,7 +83,7 @@ export function BeanSelect({
 					<span className='text-muted-foreground'>Select a bean</span>
 				)}
 			</SelectTrigger>
-			<SelectContent>
+			<SelectContent className='max-h-[400px]'>
 				<SelectGroup>
 					<SelectLabel>Active Stash</SelectLabel>
 					{activeBeans.map((bean) => (

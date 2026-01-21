@@ -13,6 +13,11 @@ const Textarea = React.forwardRef<
         className
       )}
       ref={ref}
+      style={{
+        WebkitUserSelect: 'text',
+        userSelect: 'text',
+        touchAction: 'manipulation',
+      }}
       {...props}
     />
   )

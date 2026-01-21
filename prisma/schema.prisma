@@ -31,6 +31,7 @@ model User {
 
 model Bean {
   id              Int       @id @default(autoincrement())
+  batchId         String?   @map("batch_id")
   name            String
   roaster         String?
   origin          String?
@@ -56,6 +57,7 @@ model Bean {
   regularBeanForBars BrewBar[] @relation("DefaultRegularBean")
   decafBeanForBars   BrewBar[] @relation("DefaultDecafBean")
 
+  @@index([batchId])
   @@map("beans")
 }
 
@@ -149,10 +151,9 @@ model Brew {
   grindSize        Float?   @map("grind_size")
   waterTemperature Float?   @map("water_temperature")
   bloomTime        Int?     @map("bloom_time")
-  pourPattern      String?  @map("pour_pattern")
-  rating           Int?     @default(0)
-  tastingNotes     String?  @map("tasting_notes")
-  autoCreated      Boolean  @default(false) @map("auto_created")
+  rating      Int?     @default(0)
+  notes       String?
+  autoCreated Boolean  @default(false) @map("auto_created")
   createdAt        DateTime @default(now()) @map("created_at")
 
   user    User     @relation(fields: [userId], references: [id])

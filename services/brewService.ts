@@ -69,7 +69,7 @@ interface CreateBrewInput {
 	grindSize?: number | null
 	waterTemperature?: number | null
 	rating?: number | null
-	tastingNotes?: string | null
+	notes?: string | null
 	barId?: number | null
 	brewerId?: number | null
 	grinderId?: number | null

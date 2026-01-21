@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { v4 as uuidv4 } from 'uuid'
 
 export async function getBeanById(id: number) {
 	return prisma.bean.findUnique({
@@ -43,6 +44,7 @@ export async function createBean(input: CreateBeanInput) {
 	return prisma.bean.create({
 		data: {
 			...input,
+			batchId: uuidv4(),
 			roastDate: new Date(input.roastDate),
 			freezeDate: input.freezeDate ? new Date(input.freezeDate) : null,
 			thawDate: input.thawDate ? new Date(input.thawDate) : null,
@@ -110,6 +112,7 @@ export async function thawBean(id: number, weight: number, thawDate: Date) {
 			return tx.bean.create({
 				data: {
 					...beanData,
+					batchId: bean.batchId,
 					thawDate: thawDate,
 					initialWeight: weight,
 					remainingWeight: weight,

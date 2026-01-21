@@ -29,23 +29,21 @@ export async function getSuggestionsForBar(
 		}
 	}
 
-	const beanNames = [...new Set(activeBeans.map((b) => b.name))]
+	const batchIds = [...new Set(activeBeans.map((b) => b.batchId).filter((id): id is string => id !== null))]
 
 	const relevantBrews = await prisma.brew.findMany({
 		where: {
 			barId,
 			method: 'Espresso',
 			bean: {
-				name: { in: beanNames },
+				batchId: { in: batchIds },
 			},
 		},
 		orderBy: { createdAt: 'desc' },
 		include: {
 			bean: {
 				select: {
-					name: true,
-					roaster: true,
-					roastDate: true,
+					batchId: true,
 				},
 			},
 		},
@@ -53,25 +51,15 @@ export async function getSuggestionsForBar(
 
 	const batchGroups: Record<string, typeof activeBeans> = {}
 	activeBeans.forEach((bean) => {
-		const key = `${bean.name}|${bean.roaster}|${new Date(bean.roastDate).toISOString().split('T')[0]}`
+		const key = bean.batchId || `fallback-${bean.id}`
 		if (!batchGroups[key]) batchGroups[key] = []
 		batchGroups[key].push(bean)
 	})
 
 	const suggestions = []
 
-	for (const beans of Object.values(batchGroups)) {
-		const sample = beans[0]
-		const sampleRoastTime = new Date(sample.roastDate).getTime()
-
-		const matchingBrew = relevantBrews.find((brew) => {
-			const b = brew.bean
-			return (
-				b.name === sample.name &&
-				b.roaster === sample.roaster &&
-				new Date(b.roastDate).getTime() === sampleRoastTime
-			)
-		})
+	for (const [batchId, beans] of Object.entries(batchGroups)) {
+		const matchingBrew = relevantBrews.find((brew) => brew.bean.batchId === batchId)
 
 		if (!matchingBrew) continue
 

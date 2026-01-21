@@ -23,7 +23,7 @@ Instructions:
   origin: The country or region (e.g., "Ethiopia", "Yirgacheffe").
   process: The processing method (e.g., "Washed", "Natural", "Honey", "Anaerobic").
   roastLevel: One of ["Light", "Medium-Light", "Medium", "Medium-Dark", "Dark"]. ONLY provide this if explicitly stated by the roaster. If not specified, return null. Do NOT guess based on color.
-  tastingNotes: A single string of comma-separated notes (e.g., "Jasmine, Peach, Honey").
+  notes: A single string of comma-separated notes (e.g., "Jasmine, Peach, Honey").
   roastDate: Format YYYY-MM-DD. Look for "Roasted on", "RD", or stamped dates on the bag. If not found, return null. the current year is ${new Date().getFullYear()}, for any dates that don't include a year, use this year.
   weight: Weight of beans in the bag, if visible, return a number only if the amount is in grams (ie "200" rather than "200g").
   producer: name of the producer of the coffee if available

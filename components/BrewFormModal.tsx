@@ -15,6 +15,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { BeanSelect } from '@/components/BeanSelect'
+import { TimeInput } from '@/components/TimeInput'
 import {
 	Field,
 	FieldLabel,
@@ -77,7 +78,7 @@ export default function BrewForm({
 		grindSize: 0,
 		waterTemperature: 93,
 		rating: 0,
-		tastingNotes: '',
+		notes: '',
 		barId: barId || undefined,
 		brewerId: undefined,
 		grinderId: undefined,
@@ -433,6 +434,8 @@ export default function BrewForm({
 														min='0.1'
 														step='0.1'
 														onFocus={(e) => e.target.select()}
+														placeholder='18'
+														enterKeyHint='next'
 													/>
 													{fieldState.invalid && (
 														<FieldError errors={[fieldState.error]} />
@@ -458,6 +461,8 @@ export default function BrewForm({
 														min='0.1'
 														step='0.1'
 														onFocus={(e) => e.target.select()}
+														placeholder='36'
+														enterKeyHint='next'
 													/>
 												</Field>
 											)}
@@ -468,72 +473,20 @@ export default function BrewForm({
 										<Controller
 											name='brewTime'
 											control={form.control}
-											render={({ field, fieldState }) => {
-												const totalSeconds = field.value || 0
-												const minutes = Math.floor(totalSeconds / 60)
-												const seconds = totalSeconds % 60
-
-												const handleTimeChange = (
-													type: 'min' | 'sec',
-													val: string,
-												) => {
-													const num = parseInt(val) || 0
-													let newTotal = 0
-													if (type === 'min') {
-														newTotal = num * 60 + seconds
-													} else {
-														newTotal = minutes * 60 + num
-													}
-													field.onChange(newTotal > 0 ? newTotal : null)
-												}
-
-												return (
-													<Field data-invalid={fieldState.invalid}>
-														<FieldLabel>Brew Time</FieldLabel>
-														<div className='flex items-center gap-2'>
-															<div className='relative flex-1'>
-																<Input
-																	type='number'
-																	inputMode='decimal'
-																	min='0'
-																	value={minutes.toString()}
-																	onChange={(e) =>
-																		handleTimeChange('min', e.target.value)
-																	}
-																	onFocus={(e) => e.target.select()}
-																	className='pr-8'
-																/>
-																<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
-																	min
-																</span>
-															</div>
-															<span className='text-muted-foreground font-bold'>
-																:
-															</span>
-															<div className='relative flex-1'>
-																<Input
-																	type='number'
-																	inputMode='decimal'
-																	min='0'
-																	max='59'
-																	value={seconds.toString().padStart(2, '0')}
-																	onChange={(e) =>
-																		handleTimeChange('sec', e.target.value)
-																	}
-																	onFocus={(e) => e.target.select()}
-																	className='pr-8'
-																/>
-																<span className='absolute right-3 top-2.5 text-xs text-muted-foreground pointer-events-none'>
-																	sec
-																</span>
-															</div>
-														</div>
-														{fieldState.invalid && (
-															<FieldError errors={[fieldState.error]} />
-														)}
-													</Field>
-												)
-											}}
+											render={({ field, fieldState }) => (
+												<Field data-invalid={fieldState.invalid}>
+													<FieldLabel htmlFor='brewTime'>Brew Time</FieldLabel>
+													<TimeInput
+														id='brewTime'
+														value={field.value || null}
+														onChange={field.onChange}
+														onBlur={field.onBlur}
+													/>
+													{fieldState.invalid && (
+														<FieldError errors={[fieldState.error]} />
+													)}
+												</Field>
+											)}
 										/>
 
 										<Controller
@@ -552,6 +505,8 @@ export default function BrewForm({
 														inputMode='decimal'
 														step='1'
 														onFocus={(e) => e.target.select()}
+														enterKeyHint='next'
+														placeholder='93'
 													/>
 												</Field>
 											)}
@@ -572,6 +527,8 @@ export default function BrewForm({
 													inputMode='decimal'
 													step='0.1'
 													onFocus={(e) => e.target.select()}
+													placeholder='4.5'
+													enterKeyHint='done'
 												/>
 											</Field>
 										)}
@@ -616,18 +573,16 @@ export default function BrewForm({
 									/>
 
 									<Controller
-										name='tastingNotes'
+										name='notes'
 										control={form.control}
 										render={({ field, fieldState }) => (
 											<Field data-invalid={fieldState.invalid}>
-												<FieldLabel htmlFor='tastingNotes'>
-													Tasting Notes
-												</FieldLabel>
+												<FieldLabel htmlFor='notes'>Notes</FieldLabel>
 												<Textarea
 													{...field}
 													value={field.value || ''}
-													id='tastingNotes'
-													placeholder='Describe the flavor profile...'
+													id='notes'
+													placeholder='Describe the flavor or other brewing variables...'
 													rows={3}
 												/>
 											</Field>

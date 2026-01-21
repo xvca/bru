@@ -184,9 +184,9 @@ export function SmartCarousel({
 														: 'Not rated'}
 												</div>
 												<div className='grow rounded-lg border border-muted/40 bg-muted/20 p-3 text-xs text-muted-foreground line-clamp-2 sm:text-sm'>
-													{currentBrew.tastingNotes
-														? `“${currentBrew.tastingNotes}”`
-														: 'No tasting notes yet. Add one after your next shot.'}
+													{currentBrew.notes
+														? `"${currentBrew.notes}"`
+														: 'No notes yet. Add one after your next shot.'}
 												</div>
 											</div>
 										</div>

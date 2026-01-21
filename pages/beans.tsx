@@ -1,5 +1,6 @@
 import ProtectedPage from '@/components/ProtectedPage'
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/router'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
@@ -17,11 +18,14 @@ import {
 	Droplets,
 	ChevronDown,
 	ChevronUp,
+	MoreVertical,
+	List,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BeanFormModal from '@/components/BeanFormModal'
 import ThawBeanModal from '@/components/ThawBeanModal'
+import BrewFormModal from '@/components/BrewFormModal'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
@@ -36,8 +40,15 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export default function BeansPage() {
+	const router = useRouter()
 	const { user } = useAuth()
 	const { activeBarId, availableBars } = useBrewBar()
 	const { beans, isLoading, refresh } = useBeans()
@@ -60,6 +71,11 @@ export default function BeansPage() {
 		undefined,
 	)
 	const [showFinished, setShowFinished] = useState(false)
+	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
+	const [isBrewFormOpen, setIsBrewFormOpen] = useState(false)
+	const [selectedBeanForBrew, setSelectedBeanForBrew] = useState<
+		number | undefined
+	>(undefined)
 
 	const handleAddNew = () => {
 		setSelectedBeanId(undefined)
@@ -67,6 +83,7 @@ export default function BeansPage() {
 	}
 
 	const handleEdit = (id: number) => {
+		setOpenDropdownId(null)
 		setSelectedBeanId(id)
 		setIsFormOpen(true)
 	}
@@ -77,6 +94,22 @@ export default function BeansPage() {
 			beanId: id,
 			beanName: name,
 			remainingWeight: weight,
+		})
+	}
+
+	const handleCreateBrew = (beanId: number) => {
+		setOpenDropdownId(null)
+		setSelectedBeanForBrew(beanId)
+		setIsBrewFormOpen(true)
+	}
+
+	const handleViewBrews = (beanId: number) => {
+		const bean = beans?.find((b) => b.id === beanId)
+		if (!bean) return
+
+		router.push({
+			pathname: '/brews',
+			query: { batchId: bean.batchId || '' },
 		})
 	}
 
@@ -100,6 +133,7 @@ export default function BeansPage() {
 	}
 
 	const confirmDelete = (id: number, name: string) => {
+		setOpenDropdownId(null)
 		setModalData({
 			isOpen: true,
 			beanId: id,
@@ -151,9 +185,9 @@ export default function BeansPage() {
 
 		const batches: Record<string, typeof beans> = {}
 		beans.forEach((bean) => {
-			const batchKey = `${bean.name}-${bean.roaster}-${new Date(bean.roastDate).toISOString().split('T')[0]}`
-			if (!batches[batchKey]) batches[batchKey] = []
-			batches[batchKey].push(bean)
+			const batchId = bean.batchId || `fallback-${bean.id}`
+			if (!batches[batchId]) batches[batchId] = []
+			batches[batchId].push(bean)
 		})
 
 		const getBeanScore = (bean: (typeof beans)[0]) => {
@@ -163,7 +197,7 @@ export default function BeansPage() {
 			return 3
 		}
 
-		const sortedBatchKeys = Object.keys(batches).sort((a, b) => {
+		const sortedBatchIds = Object.keys(batches).sort((a, b) => {
 			const batchA = batches[a]
 			const batchB = batches[b]
 
@@ -179,8 +213,8 @@ export default function BeansPage() {
 			return batchA[0].name.localeCompare(batchB[0].name)
 		})
 
-		return sortedBatchKeys.flatMap((key) => {
-			const batchBeans = batches[key]
+		return sortedBatchIds.flatMap((batchId) => {
+			const batchBeans = batches[batchId]
 			return batchBeans.sort((a, b) => {
 				const scoreA = getBeanScore(a)
 				const scoreB = getBeanScore(b)
@@ -208,8 +242,7 @@ export default function BeansPage() {
 			bean.thawDate,
 		)
 
-		const batchKey = `${bean.name}-${bean.roaster}-${new Date(bean.roastDate).toISOString().split('T')[0]}`
-		const batchColor = getBatchColor(batchKey)
+		const batchColor = getBatchColor(bean.batchId || `fallback-${bean.id}`)
 
 		return (
 			<motion.div
@@ -252,22 +285,52 @@ export default function BeansPage() {
 										<ThermometerSun size={16} />
 									</Button>
 								)}
-								<Button
-									onClick={() => handleEdit(bean.id)}
-									variant='ghost'
-									size='icon'
-									className='h-8 w-8 text-muted-foreground hover:text-foreground'
+								<DropdownMenu
+									open={openDropdownId === bean.id}
+									onOpenChange={(open) =>
+										setOpenDropdownId(open ? bean.id : null)
+									}
 								>
-									<Edit size={14} />
-								</Button>
-								<Button
-									onClick={() => confirmDelete(bean.id, bean.name)}
-									variant='ghost'
-									size='icon'
-									className='h-8 w-8 text-muted-foreground hover:text-destructive'
-								>
-									<Trash size={14} />
-								</Button>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant='ghost'
+											size='icon'
+											className='h-8 w-8 text-muted-foreground hover:text-foreground'
+										>
+											<MoreVertical size={16} />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align='end'>
+										<DropdownMenuItem
+											onClick={() => handleCreateBrew(bean.id)}
+											className='cursor-pointer'
+										>
+											<Coffee size={14} className='mr-2' />
+											Brew
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => handleViewBrews(bean.id)}
+											className='cursor-pointer'
+										>
+											<List size={14} className='mr-2' />
+											View Brews
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => handleEdit(bean.id)}
+											className='cursor-pointer'
+										>
+											<Edit size={14} className='mr-2' />
+											Edit
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={() => confirmDelete(bean.id, bean.name)}
+											className='cursor-pointer text-destructive focus:text-destructive'
+										>
+											<Trash size={14} className='mr-2' />
+											Delete
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</div>
 						</div>
 					</CardHeader>
@@ -463,6 +526,19 @@ export default function BeansPage() {
 				onConfirm={() => handleDelete(modalData.beanId)}
 				title='Delete Coffee Bean'
 				description={`Are you sure you want to delete "${modalData.beanName}"? This action cannot be undone.`}
+			/>
+
+			<BrewFormModal
+				isOpen={isBrewFormOpen}
+				onClose={() => {
+					setIsBrewFormOpen(false)
+					setSelectedBeanForBrew(undefined)
+				}}
+				barId={activeBarId || undefined}
+				onSuccess={refresh}
+				initialData={
+					selectedBeanForBrew ? { beanId: selectedBeanForBrew } : undefined
+				}
 			/>
 		</ProtectedPage>
 	)

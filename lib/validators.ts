@@ -73,7 +73,7 @@ export const brewSchema = z.object({
 	grindSize: z.coerce.number().min(0).optional().nullable(),
 	waterTemperature: z.coerce.number().min(1).max(100).optional().nullable(),
 	rating: z.coerce.number().min(0).max(5).optional().nullable(),
-	tastingNotes: z.string().optional().nullable(),
+	notes: z.string().optional().nullable(),
 	barId: z.coerce.number().optional().nullable(),
 	brewerId: z.coerce.number().optional().nullable(),
 	grinderId: z.coerce.number().optional().nullable(),
