@@ -47,7 +47,7 @@ const sanitizeIp = (value: string) =>
 		.replace(/^https?:\/\//i, '')
 		.replace(/\/+$/, '')
 
-export default function CoffeeBrewControl() {
+export default function Dashboard() {
 	const [targetWeight, setTargetWeight] = useState(() => {
 		if (typeof window !== 'undefined') {
 			const saved = localStorage.getItem('targetWeight')
@@ -61,7 +61,7 @@ export default function CoffeeBrewControl() {
 	const [showCompletionAnimation, setShowCompletionAnimation] = useState(false)
 
 	const { brewData, isWsConnected } = useWebSocket()
-	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
+	const { espIp, setEspIp, isReady: isEspConfigReady, prefs } = useEspConfig()
 
 	const sanitizedIp = useMemo(() => (espIp ? sanitizeIp(espIp) : null), [espIp])
 

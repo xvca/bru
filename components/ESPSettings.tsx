@@ -75,18 +75,26 @@ interface MergedShotData {
 	biasP1: number
 }
 
-const sanitizeIp = (value: string) =>
-	value
+const sanitizeIp = (value: string | null) => {
+	if (!value) return ''
+	return value
 		.trim()
 		.replace(/^https?:\/\//i, '')
 		.replace(/\/+$/, '')
+}
 
 export default function ESPSettings() {
-	const [isLoading, setIsLoading] = useState(true)
 	const [isSaving, setIsSaving] = useState(false)
 
 	const { user } = useAuth()
-	const { espIp, setEspIp, isReady: isEspConfigReady } = useEspConfig()
+	const {
+		espIp,
+		setEspIp,
+		isReady: isEspConfigReady,
+		prefs,
+		isLoadingPrefs,
+		refreshPrefs,
+	} = useEspConfig()
 	const { availableBars } = useBrewBar()
 
 	const [linkedBarId, setLinkedBarId] = useState<number | null>(null)
@@ -109,10 +117,11 @@ export default function ESPSettings() {
 		description: '',
 	})
 
-	const sanitizedIp = useMemo(() => (espIp ? sanitizeIp(espIp) : null), [espIp])
+	const sanitizedIp = useMemo(() => sanitizeIp(espIp), [espIp])
 
-	const api: AxiosInstance | null = useMemo(() => {
+	const api = useMemo(() => {
 		if (!sanitizedIp) return null
+
 		return axios.create({
 			baseURL: `http://${sanitizedIp}`,
 			headers: {
@@ -135,45 +144,16 @@ export default function ESPSettings() {
 		},
 	})
 
-	const getPrefs = useCallback(async () => {
-		if (!api) {
-			setIsLoading(false)
-			return
+	useEffect(() => {
+		if (prefs) {
+			form.reset(prefs)
 		}
-
-		try {
-			const { data } = await api.get('/prefs', { timeout: 5000 })
-			form.reset({
-				isEnabled: data.isEnabled,
-				regularPreset: data.regularPreset,
-				decafPreset: data.decafPreset,
-				pMode: data.pMode,
-				decafStartHour:
-					data.decafStartHour === undefined ? -1 : data.decafStartHour,
-				timezone: data.timezone,
-				learningRate: data.learningRate === undefined ? 0.5 : data.learningRate,
-				systemLag: data.systemLag === undefined ? 1.0 : data.systemLag,
-			})
-		} catch (error) {
-			console.error('Failed to get preferences:', error)
-			toast.error('Failed to fetch esp settings')
-		} finally {
-			setIsLoading(false)
-		}
-	}, [api, form])
+	}, [prefs])
 
 	useEffect(() => {
 		if (!isEspConfigReady) return
 		setIpInput(espIp ?? '')
-
-		if (!api) {
-			setIsLoading(false)
-			return
-		}
-
-		setIsLoading(true)
-		getPrefs()
-	}, [api, espIp, getPrefs, isEspConfigReady])
+	}, [isEspConfigReady, espIp])
 
 	const onSubmit = async (data: ESPPrefsFormData) => {
 		if (!api) {
@@ -206,6 +186,8 @@ export default function ESPSettings() {
 
 			form.reset(data)
 			toast.success('Settings saved successfully')
+
+			await refreshPrefs()
 		} catch (error) {
 			console.error('Failed to update preferences:', error)
 			toast.error('Failed to save settings')
@@ -335,7 +317,7 @@ export default function ESPSettings() {
 
 	const isDeviceConfigured = Boolean(api)
 
-	if (isLoading) {
+	if (isLoadingPrefs) {
 		return (
 			<Page>
 				<Section>
@@ -499,7 +481,11 @@ export default function ESPSettings() {
 								render={({ field }) => (
 									<Field>
 										<FieldLabel>Timezone</FieldLabel>
-										<Select onValueChange={field.onChange} value={field.value}>
+										<Select
+											key={field.value}
+											onValueChange={field.onChange}
+											value={field.value}
+										>
 											<SelectTrigger>
 												<SelectValue placeholder='Select timezone' />
 											</SelectTrigger>
@@ -522,6 +508,7 @@ export default function ESPSettings() {
 									<Field data-invalid={fieldState.invalid}>
 										<FieldLabel>Auto-Decaf Start Time</FieldLabel>
 										<Select
+											key={field.value}
 											onValueChange={(val) => field.onChange(Number(val))}
 											value={field.value.toString()}
 										>
