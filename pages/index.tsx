@@ -440,6 +440,41 @@ export default function CoffeeBrewControl() {
 		setShowEspPrompt(false)
 	}
 
+	const handleSaveDefault = useCallback(async () => {
+        if (!api) {
+            toast.error('Connect to ESP to save defaults')
+            return
+        }
+
+        toast.promise(
+            async () => {
+                // Get current config
+                const { data: current } = await api.get('/prefs')
+
+                const formData = new FormData()
+                
+                Object.entries(current).forEach(([key, value]) => {
+                    // If this is the regularPreset field update it
+                    if (key === 'regularPreset') {
+                        formData.append(key, targetWeight.toString())
+                    } 
+                    // Otherwise, pass the existing value through untouched
+                    else if (value !== null && value !== undefined) {
+                        formData.append(key, value.toString())
+                    }
+                })
+
+                // Send it back
+                await api.post('/prefs', formData)
+            },
+            {
+                loading: 'Updating preset...',
+                success: `Saved ${targetWeight}g as Regular Preset`,
+                error: 'Failed to save preset',
+            }
+        )
+    }, [api, targetWeight])
+
 	const displayTimeSeconds = displayTime / 1000
 
 	const smoothTiming = { duration: 400, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
@@ -646,6 +681,16 @@ export default function CoffeeBrewControl() {
 											2×
 										</Button>
 									</div>
+
+									<Button
+                                        variant='outline'
+                                        size='sm'
+                                        onClick={handleSaveDefault}
+                                        className='h-auto py-1 px-3 mt-2 text-xs text-muted-foreground hover:text-primary font-normal'
+                                    >
+                                        Save as Regular Preset
+                                    </Button>
+
 								</div>
 							)}
 						</div>
