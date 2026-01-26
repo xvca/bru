@@ -1,6 +1,20 @@
 import { prisma } from '@/lib/prisma'
 
-export async function getBrews(userId: number, barId?: number | null) {
+interface GetBrewsOptions {
+	cursor?: number
+	limit?: number
+	filters?: {
+		beanId?: number
+		batchId?: string
+		method?: string
+	}
+}
+
+export async function getBrews(
+	userId: number,
+	barId?: number | null,
+	options?: GetBrewsOptions,
+) {
 	let whereClause: any = {}
 
 	if (barId) {
@@ -20,17 +34,39 @@ export async function getBrews(userId: number, barId?: number | null) {
 		}
 	}
 
-	return prisma.brew.findMany({
+	if (options?.filters) {
+		const { beanId, batchId, method } = options.filters
+
+		if (batchId) {
+			whereClause.bean = { batchId }
+		} else if (beanId) {
+			whereClause.beanId = beanId
+		}
+
+		if (method) {
+			whereClause.method = method
+		}
+	}
+
+	const limit = options?.limit ?? 25
+	const effectiveLimit = Math.min(limit, 100)
+
+	const brews = await prisma.brew.findMany({
+		...(options?.cursor && {
+			cursor: { id: options.cursor },
+			skip: 1,
+		}),
 		where: whereClause,
 		include: {
 			bean: { select: { name: true, roaster: true } },
 			user: { select: { id: true, username: true } },
 			brewBar: { select: { id: true, name: true } },
 		},
-		orderBy: {
-			createdAt: 'desc',
-		},
+		orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+		take: effectiveLimit,
 	})
+
+	return brews
 }
 
 export async function getBrewById(id: number, userId: number) {
