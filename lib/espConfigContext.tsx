@@ -59,6 +59,7 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 
 			const prefsData: ESPPrefsFormData = {
 				isEnabled: data.isEnabled ?? true,
+				autoSavePreset: data.autoSavePreset ?? true,
 				regularPreset: data.regularPreset ?? 40,
 				decafPreset: data.decafPreset ?? 40,
 				pMode: data.pMode ?? PreinfusionMode.SIMPLE,

@@ -130,6 +130,7 @@ export type UserPreferencesFormData = z.infer<typeof userPreferencesSchema>
 // ESP preferences
 export const espPrefsSchema = z.object({
 	isEnabled: z.boolean(),
+	autoSavePreset: z.boolean(),
 	regularPreset: z.coerce.number().min(0).max(100),
 	decafPreset: z.coerce.number().min(0).max(100),
 	pMode: z.coerce.number(),

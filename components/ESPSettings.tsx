@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/accordion'
 import { Info } from 'lucide-react'
 import { verifyEspReachable } from '@/utils/esp'
+import { Separator } from './ui/separator'
 
 const TIMEZONES = [
 	{ label: 'UTC (GMT)', value: 'GMT0' },
@@ -134,6 +135,7 @@ export default function ESPSettings() {
 		resolver: zodResolver(espPrefsSchema),
 		defaultValues: {
 			isEnabled: true,
+			autoSavePreset: false,
 			regularPreset: 40,
 			decafPreset: 40,
 			pMode: PreinfusionMode.SIMPLE,
@@ -165,6 +167,7 @@ export default function ESPSettings() {
 		try {
 			const formData = new FormData()
 			formData.append('isEnabled', data.isEnabled.toString())
+			formData.append('autoSavePreset', data.autoSavePreset.toString())
 			formData.append('regularPreset', data.regularPreset.toString())
 			formData.append('decafPreset', data.decafPreset.toString())
 			formData.append('pMode', data.pMode.toString())
@@ -368,53 +371,92 @@ export default function ESPSettings() {
 					</div>
 				)}
 
+				<Separator />
+
 				<form onSubmit={form.handleSubmit(onSubmit)}>
 					<fieldset
 						disabled={!isDeviceConfigured}
 						className={`flex flex-col gap-4
 							${isDeviceConfigured ? '' : 'pointer-events-none opacity-50'}`}
 					>
-						<div className='flex items-center justify-between'>
-							<Label htmlFor='isEnabled' className='font-medium text-base'>
-								Enable Device
-							</Label>
-							<Controller
-								name='isEnabled'
-								control={form.control}
-								render={({ field }) => (
-									<Switch
-										id='isEnabled'
-										checked={field.value}
-										onCheckedChange={field.onChange}
-									/>
-								)}
-							/>
+						<div className='flex flex-col gap-1'>
+							<div className='flex items-center justify-between'>
+								<Label htmlFor='isEnabled' className='font-medium text-base'>
+									Enable Device
+								</Label>
+								<Controller
+									name='isEnabled'
+									control={form.control}
+									render={({ field }) => (
+										<Switch
+											id='isEnabled'
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									)}
+								/>
+							</div>
+							<p className='text-xs text-muted-foreground w-[80%]'>
+								When off, the machine works normally without auto-stop.
+							</p>
 						</div>
 
-						<div className='flex items-center justify-between'>
-							<Label htmlFor='pMode' className='font-medium text-base'>
-								Weight-Triggered Preinfusion
-							</Label>
-							<Controller
-								name='pMode'
-								control={form.control}
-								render={({ field }) => (
-									<Switch
-										id='pMode'
-										checked={field.value === PreinfusionMode.WEIGHT_TRIGGERED}
-										onCheckedChange={(checked) =>
-											field.onChange(
-												checked
-													? PreinfusionMode.WEIGHT_TRIGGERED
-													: PreinfusionMode.SIMPLE,
-											)
-										}
-									/>
-								)}
-							/>
+						<div className='flex flex-col gap-1'>
+							<div className='flex items-center justify-between'>
+								<Label htmlFor='pMode' className='font-medium text-base'>
+									Weight-Triggered Preinfusion
+								</Label>
+								<Controller
+									name='pMode'
+									control={form.control}
+									render={({ field }) => (
+										<Switch
+											id='pMode'
+											checked={field.value === PreinfusionMode.WEIGHT_TRIGGERED}
+											onCheckedChange={(checked) =>
+												field.onChange(
+													checked
+														? PreinfusionMode.WEIGHT_TRIGGERED
+														: PreinfusionMode.SIMPLE,
+												)
+											}
+										/>
+									)}
+								/>
+							</div>
+							<p className='text-xs text-muted-foreground w-[80%]'>
+								Holds preinfusion until the scale reads 2+ grams.
+							</p>
 						</div>
 
-						<hr className='border-input-border' />
+						<div className='flex flex-col gap-1'>
+							<div className='flex items-center justify-between'>
+								<Label
+									htmlFor='autoSavePreset'
+									className='font-medium text-base'
+								>
+									Auto save preset
+								</Label>
+								<Controller
+									name='autoSavePreset'
+									control={form.control}
+									render={({ field }) => (
+										<Switch
+											id='autoSavePreset'
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									)}
+								/>
+							</div>
+							<p className='text-xs text-muted-foreground w-[80%]'>
+								After a successful brew, saves the target weight as the new
+								preset. Saves to decaf preset if you have a decaf start time set
+								and it&apos;s past that hour.
+							</p>
+						</div>
+
+						<Separator />
 
 						<div className='space-y-4'>
 							<Controller
@@ -541,12 +583,14 @@ export default function ESPSettings() {
 							/>
 						</div>
 
+						<Separator />
+
 						<Accordion
 							type='single'
 							collapsible
 							className='rounded-xl border border-border/60 bg-muted/20'
 						>
-							<AccordionItem value='advanced'>
+							<AccordionItem value='advanced' className='border-none'>
 								<AccordionTrigger className='px-4 text-sm font-semibold'>
 									Advanced Flow Tuning
 								</AccordionTrigger>
@@ -705,8 +749,10 @@ export default function ESPSettings() {
 							</AccordionItem>
 						</Accordion>
 
+						<Separator />
+
 						{user && (
-							<div className='mb-6 pb-6 border-b border-input-border'>
+							<div>
 								<div className='flex flex-col gap-2 mb-4'>
 									<Label className='font-medium text-base'>
 										Brew Bar Integration
@@ -798,6 +844,8 @@ export default function ESPSettings() {
 								)}
 							</div>
 						)}
+
+						<Separator />
 
 						<div className='p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none w-full'>
 							<div className='pointer-events-auto flex flex-col gap-3'>

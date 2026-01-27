@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma'
 export interface AutoBrewInput {
 	yieldWeight: number
 	brewTime: number
-	targetWeight: number
 	isDecaf: boolean
 }
 
@@ -44,7 +43,7 @@ export async function createAutoBrewFromDevice(
 			orderBy: { createdAt: 'desc' },
 		})
 
-		const doseWeight = lastBrew?.doseWeight ?? input.targetWeight / 2
+		const doseWeight = lastBrew?.doseWeight ?? input.yieldWeight / 2
 
 		const brew = await tx.brew.create({
 			data: {
