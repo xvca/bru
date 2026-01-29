@@ -178,7 +178,7 @@ export function SmartCarousel({
 
 											<div className='flex items-center gap-4'>
 												<div className='flex items-center gap-1.5'>
-													<Star className='h-3.5 w-3.5 text-amber-400' />
+													<Star className='h-3.5 w-3.5 text-warning fill-warning' />
 													{currentBrew.rating !== null
 														? `${currentBrew.rating}/5`
 														: 'Not rated'}
