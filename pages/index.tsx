@@ -303,17 +303,17 @@ export default function Dashboard() {
 
 	const getConnectionState = () => {
 		if (!isEspConfigured) {
-			return { label: 'ESP not configured', color: 'warning' }
+			return { label: 'ESP not configured', color: 'bg-warning' }
 		}
 
-		if (!isWsConnected) return { label: 'Offline', color: 'destructive' }
+		if (!isWsConnected) return { label: 'Offline', color: 'bg-destructive' }
 
 		if (brewData.isScaleConnected)
-			return { label: 'Connected', color: 'success' }
+			return { label: 'Connected', color: 'bg-success' }
 
-		if (brewData.isActive) return { label: 'Scanning...', color: 'warning' }
+		if (brewData.isActive) return { label: 'Scanning...', color: 'bg-warning' }
 
-		return { label: 'Sleeping', color: 'secondary' }
+		return { label: 'Sleeping', color: 'bg-secondary' }
 	}
 
 	const handleTargetChange = useCallback(
@@ -478,7 +478,7 @@ export default function Dashboard() {
 				<div className='flex justify-between items-center rounded-lg z-10 mb-0'>
 					<div className='flex items-center gap-2'>
 						<div
-							className={`w-2.5 h-2.5 rounded-full ${'bg-' + connectionState.color} animate-pulse`}
+							className={`w-2.5 h-2.5 rounded-full ${connectionState.color} animate-pulse`}
 						/>
 						<span className='text-sm font-medium text-muted-foreground'>
 							{connectionState.label}

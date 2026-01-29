@@ -262,9 +262,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			}
 		}
 
-		const initialTimeout = setTimeout(() => {
-			connect()
-		}, 500)
+		connect()
 
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === 'visible') {
@@ -288,7 +286,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		window.addEventListener('online', handleOnline)
 
 		return () => {
-			clearTimeout(initialTimeout)
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
 			window.removeEventListener('focus', handleFocus)
 			window.removeEventListener('online', handleOnline)
