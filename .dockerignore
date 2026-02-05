@@ -1,6 +1,7 @@
 .git
 .gitignore
 node_modules
+.next
 Dockerfile
 .dockerignore
 .env.local
@@ -8,3 +9,4 @@ Dockerfile
 .env.test.local
 .env.production.local
 README.md
+fly.toml

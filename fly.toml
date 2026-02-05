@@ -1,10 +1,21 @@
+app = 'bru'
+primary_region = 'syd'
+
 [build]
 	[build.args]
 	    LITE = "true"
 
 [[services]]
-	internal_port = 3000
+  internal_port = 3000
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
 
-[[services.ports]]
-    port = 80
-    handlers = ["http"]
+  [[services.ports]]
+  	port = 80
+   	handlers = ["http"]
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256
