@@ -110,7 +110,7 @@ docker run -d -p 3000:3000 --name bru --restart unless-stopped -v $(pwd)/prisma:
 
 ### Lite mode
 
-Don't need the database stuff? There's a lite build that skips all of it. No accounts, no brew logging, no tracking. This is what's running on [bru.xvca.dev](https://bru.xvca.dev).
+Don't need the database stuff? There's a lite build that skips all of it. No accounts, no brew logging, no tracking. This is what's running on [bru.xvca.me](http://bru.xvca.me).
 
 It's meant for shared hosting situations. Since it has to run on HTTP to reach ESPs on private networks, a database doesn't really make sense anyway.
 
