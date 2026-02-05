@@ -1,0 +1,10 @@
+[build]
+	[build.args]
+	    LITE = "true"
+
+[[services]]
+	internal_port = 3000
+
+[[services.ports]]
+    port = 80
+    handlers = ["http"]
