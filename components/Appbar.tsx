@@ -189,7 +189,7 @@ const Appbar = () => {
 											Logout
 										</button>
 									</>
-								) : (
+								) : process.env.NEXT_PUBLIC_LITE !== 'true' ? (
 									<>
 										<Separator />
 										<Link
@@ -201,7 +201,7 @@ const Appbar = () => {
 											Login / Sign Up
 										</Link>
 									</>
-								)}
+								) : null}
 							</div>
 						</SheetContent>
 					</Sheet>

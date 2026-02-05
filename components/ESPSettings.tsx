@@ -842,10 +842,9 @@ export default function ESPSettings() {
 										</div>
 									</div>
 								)}
+								<Separator />
 							</div>
 						)}
-
-						<Separator />
 
 						<div className='p-4 flex flex-col gap-3 max-w-md mx-auto z-40 pointer-events-none w-full'>
 							<div className='pointer-events-auto flex flex-col gap-3'>
