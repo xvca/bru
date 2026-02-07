@@ -11,10 +11,12 @@ RUN npm install
 
 COPY . .
 
+RUN npm run prisma:generate
+
 RUN if [ "$LITE" = "true" ]; then \
       npm run build:lite; \
     else \
-      npm run prisma:generate && npm run build; \
+      npm run build; \
     fi
 
 FROM node:22-alpine
