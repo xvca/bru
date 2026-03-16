@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import chroma from 'chroma-js'
 
@@ -50,6 +50,7 @@ const useProgressiveValue = (targetValue: number, speed = 0.15) => {
 
 const resolveColor = (color: string): string => {
 	if (!color) return 'rgb(128, 128, 128)'
+	if (typeof document === 'undefined') return color
 
 	if (color.startsWith('var(')) {
 		const temp = document.createElement('div')
@@ -96,19 +97,14 @@ export function Gauge({
 	completedColor = '#43694b',
 }: GaugeProps) {
 	const smoothValue = useProgressiveValue(value, 0.1)
-	const [resolvedColors, setResolvedColors] = useState({
-		primary: 'rgb(128, 128, 128)',
-		end: 'rgb(128, 128, 128)',
-		completed: 'rgb(67, 105, 75)',
-	})
-
-	useEffect(() => {
-		setResolvedColors({
+	const resolvedColors = useMemo(
+		() => ({
 			primary: resolveColor(gaugePrimaryColor),
 			end: resolveColor(gaugePrimaryEndColor || gaugePrimaryColor),
 			completed: resolveColor(completedColor),
-		})
-	}, [gaugePrimaryColor, gaugePrimaryEndColor, completedColor])
+		}),
+		[gaugePrimaryColor, gaugePrimaryEndColor, completedColor],
+	)
 
 	arcSize = Math.min(Math.max(arcSize, 180), 360)
 

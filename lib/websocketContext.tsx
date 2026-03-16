@@ -118,8 +118,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		}
 	}
 
-	// Clean up WebSocket connection
-	const cleanupWebSocket = () => {
+	const teardownWebSocket = () => {
 		if (wsRef.current) {
 			console.log('Cleaning up WebSocket connection')
 			wsRef.current.close()
@@ -136,9 +135,14 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 			pingTimeoutRef.current = null
 		}
 
+		isReconnecting.current = false
+	}
+
+	// Clean up WebSocket connection
+	const cleanupWebSocket = () => {
+		teardownWebSocket()
 		setWs(null)
 		setWsConnected(false)
-		isReconnecting.current = false
 	}
 
 	useEffect(() => {
@@ -149,7 +153,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	useEffect(() => {
 		// Only connect on the main page
 		if (!isEspConfigReady || !wsUrl || !isMainPage) {
-			cleanupWebSocket()
+			teardownWebSocket()
 			return
 		}
 

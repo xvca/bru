@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 
 interface TimeInputProps {
@@ -17,22 +17,16 @@ export function TimeInput({
 	placeholder = '0:28',
 }: TimeInputProps) {
 	const totalSeconds = value || 0
-	const minutes = Math.floor(totalSeconds / 60)
-	const seconds = totalSeconds % 60
+	const [draftValue, setDraftValue] = useState<string | null>(null)
 
-	const [displayValue, setDisplayValue] = useState(
-		totalSeconds > 0 ? `${minutes}:${seconds.toString().padStart(2, '0')}` : '',
-	)
+	const formattedValue =
+		totalSeconds > 0
+			? `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60)
+					.toString()
+					.padStart(2, '0')}`
+			: ''
 
-	useEffect(() => {
-		if (totalSeconds > 0) {
-			const mins = Math.floor(totalSeconds / 60)
-			const secs = totalSeconds % 60
-			setDisplayValue(`${mins}:${secs.toString().padStart(2, '0')}`)
-		} else {
-			setDisplayValue('')
-		}
-	}, [totalSeconds])
+	const displayValue = draftValue ?? formattedValue
 
 	const parseTimeInput = (input: string): number => {
 		const digits = input.replace(/\D/g, '')
@@ -49,21 +43,14 @@ export function TimeInput({
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const input = e.target.value
-		setDisplayValue(input)
+		setDraftValue(input)
 
 		const totalSecs = parseTimeInput(input)
 		onChange(totalSecs > 0 ? totalSecs : null)
 	}
 
 	const handleBlur = () => {
-		const totalSecs = value || 0
-		if (totalSecs > 0) {
-			const mins = Math.floor(totalSecs / 60)
-			const secs = totalSecs % 60
-			setDisplayValue(`${mins}:${secs.toString().padStart(2, '0')}`)
-		} else {
-			setDisplayValue('')
-		}
+		setDraftValue(null)
 		onBlur?.()
 	}
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -118,7 +118,6 @@ export function BrewGraph({
 		scale: { maxWeight: 1, maxFlowRate: 1 },
 		colors: { primary: '#3b82f6', flow: '#94a3b8', bg: '#ffffff' },
 	})
-	const [isEmpty, setIsEmpty] = useState(true)
 	const lastBrewStateRef = useRef(isBrewing)
 
 	useEffect(() => {
@@ -278,7 +277,6 @@ export function BrewGraph({
 
 		state.target = newPoint
 		state.animated = state.animated ?? { ...newPoint }
-		setIsEmpty(false)
 	}, [currentWeight, currentFlowRate, currentTime, isBrewing])
 
 	useEffect(() => {
@@ -290,13 +288,10 @@ export function BrewGraph({
 				target: null,
 				scale: { maxWeight: 1, maxFlowRate: 1 },
 			}
-			setIsEmpty(true)
 		}
 
 		lastBrewStateRef.current = isBrewing
 	}, [isBrewing])
-
-	if (isEmpty && !isBrewing) return null
 
 	return (
 		<motion.div

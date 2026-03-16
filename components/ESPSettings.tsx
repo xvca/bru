@@ -29,6 +29,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
@@ -40,6 +41,19 @@ import {
 import { Info } from 'lucide-react'
 import { verifyEspReachable } from '@/utils/esp'
 import { Separator } from './ui/separator'
+import {
+	ChartContainer,
+	ChartTooltip,
+	type ChartConfig,
+} from './ui/chart'
+import {
+	ComposedChart,
+	CartesianGrid,
+	Line,
+	Scatter,
+	XAxis,
+	YAxis,
+} from 'recharts'
 
 const TIMEZONES = [
 	{ label: 'UTC (GMT)', value: 'GMT0' },
@@ -63,17 +77,83 @@ interface Shot {
 	targetWeight: number
 	finalWeight: number
 	lastFlowRate: number
+	stopWeight: number
+	drippage: number
+}
+
+interface ProfileShotData {
+	bias: number
+	shots: Shot[]
 }
 
 interface ShotDataResponse {
-	p0: { bias: number; shots: Shot[] }
-	p1: { bias: number; shots: Shot[] }
+	p0: ProfileShotData
+	p1: ProfileShotData
 }
 
-interface MergedShotData {
+interface ChartShot extends Shot {
+	profile: 0 | 1
+}
+
+interface ShotHistoryData {
 	shots: Shot[]
-	biasP0: number
-	biasP1: number
+	chartShots: ChartShot[]
+	p0: ProfileShotData
+	p1: ProfileShotData
+}
+
+interface RegressionSeries {
+	points: ChartShot[]
+	line: Array<{ lastFlowRate: number; drippage: number }>
+	color: string
+	xDomain: [number, number]
+}
+
+const regressionChartConfig = {
+	shots: {
+		label: 'Shots',
+		color: 'var(--chart-1)',
+	},
+	fit: {
+		label: 'Regression fit',
+		color: 'var(--chart-1)',
+	},
+} satisfies ChartConfig
+
+function RegressionTooltipContent(props: {
+	active?: boolean
+	payload?: Array<{ payload?: Partial<ChartShot> }>
+}) {
+	if (!props.active || !props.payload?.length) return null
+
+	const datum = props.payload[0]?.payload
+	if (!datum || typeof datum.id !== 'number') return null
+
+	return (
+		<div className='min-w-[10rem] rounded-lg border border-border/60 bg-background/95 px-3 py-2 text-xs shadow-xl backdrop-blur-sm'>
+			<div className='mb-2 font-medium text-foreground'>Shot #{datum.id}</div>
+			<div className='grid gap-1.5'>
+				<div className='flex items-center justify-between gap-3'>
+					<span className='text-muted-foreground'>Drippage</span>
+					<span className='font-mono font-medium text-foreground'>
+						{Number(datum.drippage).toFixed(2)} g
+					</span>
+				</div>
+				<div className='flex items-center justify-between gap-3'>
+					<span className='text-muted-foreground'>Flow</span>
+					<span className='font-mono font-medium text-foreground'>
+						{Number(datum.lastFlowRate).toFixed(2)} g/s
+					</span>
+				</div>
+				<div className='flex items-center justify-between gap-3'>
+					<span className='text-muted-foreground'>Final</span>
+					<span className='font-mono font-medium text-foreground'>
+						{Number(datum.finalWeight).toFixed(2)} g
+					</span>
+				</div>
+			</div>
+		</div>
+	)
 }
 
 const sanitizeIp = (value: string | null) => {
@@ -82,6 +162,30 @@ const sanitizeIp = (value: string | null) => {
 		.trim()
 		.replace(/^https?:\/\//i, '')
 		.replace(/\/+$/, '')
+}
+
+const buildRegressionSeries = (
+	points: ChartShot[],
+	bias: number,
+	systemLag: number,
+	color: string,
+): RegressionSeries | null => {
+	if (points.length === 0) return null
+
+	const flowRates = points.map((shot) => shot.lastFlowRate)
+	const maxFlow = Math.max(...flowRates)
+	const xMin = 0
+	const xMax = Math.max(1, Math.ceil(maxFlow))
+
+	return {
+		points,
+		color,
+		xDomain: [xMin, xMax],
+		line: [
+			{ lastFlowRate: xMin, drippage: xMin * systemLag + bias },
+			{ lastFlowRate: xMax, drippage: xMax * systemLag + bias },
+		],
+	}
 }
 
 export default function ESPSettings() {
@@ -105,7 +209,7 @@ export default function ESPSettings() {
 	const [isValidatingIp, setIsValidatingIp] = useState(false)
 
 	const [isViewDataOpen, setIsViewDataOpen] = useState(false)
-	const [shotData, setShotData] = useState<MergedShotData | null>(null)
+	const [shotData, setShotData] = useState<ShotHistoryData | null>(null)
 	const [isLoadingData, setIsLoadingData] = useState(false)
 
 	const [modalData, setModalData] = useState<{
@@ -131,6 +235,26 @@ export default function ESPSettings() {
 		})
 	}, [sanitizedIp])
 
+	const regressionChart = useMemo(() => {
+		if (!shotData || !prefs) return null
+		if (shotData.chartShots.length === 0) return null
+
+		return {
+			p0: buildRegressionSeries(
+				shotData.chartShots.filter((shot) => shot.profile === 0),
+				shotData.p0.bias,
+				prefs.systemLag,
+				'var(--chart-1)',
+			),
+			p1: buildRegressionSeries(
+				shotData.chartShots.filter((shot) => shot.profile === 1),
+				shotData.p1.bias,
+				prefs.systemLag,
+				'var(--chart-2)',
+			),
+		}
+	}, [prefs, shotData])
+
 	const form = useForm<ESPPrefsFormData>({
 		resolver: zodResolver(espPrefsSchema),
 		defaultValues: {
@@ -152,6 +276,11 @@ export default function ESPSettings() {
 			form.reset(prefs)
 		}
 	}, [prefs])
+
+	useEffect(() => {
+		if (!isEspConfigReady || !espIp) return
+		void refreshPrefs()
+	}, [espIp, isEspConfigReady, refreshPrefs])
 
 	useEffect(() => {
 		if (!isEspConfigReady) return
@@ -216,8 +345,12 @@ export default function ESPSettings() {
 			allShots.sort((a, b) => b.id - a.id)
 			setShotData({
 				shots: allShots,
-				biasP0: data.p0.bias,
-				biasP1: data.p1.bias,
+				chartShots: [
+					...data.p0.shots.map((shot) => ({ ...shot, profile: 0 as const })),
+					...data.p1.shots.map((shot) => ({ ...shot, profile: 1 as const })),
+				],
+				p0: data.p0,
+				p1: data.p1,
 			})
 		} catch (error) {
 			toast.error('Failed to fetch shot data')
@@ -915,13 +1048,13 @@ export default function ESPSettings() {
 							</div>
 						) : shotData ? (
 							<div className='spacey-6 h-full flex flex-col'>
-								<div className='grid grid-cols-2 gap-4 p-3 bg-muted rounded-lg text-sm shrink-0'>
+								<div className='grid grid-cols-3 gap-4 p-3 bg-muted rounded-lg text-sm shrink-0'>
 									<div>
 										<div className='text-muted-foreground text-xs uppercase tracking-wider'>
 											Split/Single Bias
 										</div>
 										<div className='font-mono font-bold'>
-											{shotData.biasP0.toFixed(2)}g
+											{shotData.p0.bias.toFixed(2)}g
 										</div>
 									</div>
 									<div>
@@ -929,13 +1062,161 @@ export default function ESPSettings() {
 											Full/Double Bias
 										</div>
 										<div className='font-mono font-bold'>
-											{shotData.biasP1.toFixed(2)}g
+											{shotData.p1.bias.toFixed(2)}g
+										</div>
+									</div>
+									<div>
+										<div className='text-muted-foreground text-xs uppercase tracking-wider'>
+											System Lag
+										</div>
+										<div className='font-mono font-bold'>
+											{prefs?.systemLag?.toFixed(2) ?? '--'}s
 										</div>
 									</div>
 								</div>
 
 								{shotData.shots.length > 0 ? (
 									<div className='space-y-2 flex-1 flex flex-col min-h-0 mt-2'>
+										{regressionChart && (
+											<div className='rounded-lg border border-border/60 bg-background/70 p-4'>
+												<div className='mb-3'>
+													<div>
+														<div className='text-sm font-medium'>
+															Flow vs drippage
+														</div>
+													</div>
+												</div>
+												<Tabs defaultValue='p0' className='w-full'>
+													<TabsList className='mb-3 grid w-full grid-cols-2'>
+														<TabsTrigger value='p0'>Split / Single</TabsTrigger>
+														<TabsTrigger value='p1'>Full / Double</TabsTrigger>
+													</TabsList>
+													<TabsContent value='p0' className='mt-0'>
+														{regressionChart.p0 ? (
+															<ChartContainer
+																config={regressionChartConfig}
+																className='h-64 w-full'
+															>
+																<ComposedChart
+																	margin={{
+																		top: 10,
+																		right: 12,
+																		bottom: 8,
+																		left: 0,
+																	}}
+																>
+																	<CartesianGrid strokeDasharray='3 3' vertical={false} />
+																	<XAxis
+																		type='number'
+																		dataKey='lastFlowRate'
+																		name='lastFlowRate'
+																		unit='g/s'
+																		domain={regressionChart.p0.xDomain}
+																		tick={{ fontSize: 12 }}
+																		stroke='var(--muted-foreground)'
+																	/>
+																	<YAxis
+																		type='number'
+																		dataKey='drippage'
+																		name='drippage'
+																		unit='g'
+																		tick={{ fontSize: 12 }}
+																		stroke='var(--muted-foreground)'
+																	/>
+																	<ChartTooltip
+																		cursor={{ strokeDasharray: '3 3' }}
+																		content={<RegressionTooltipContent />}
+																	/>
+																	<Scatter
+																		name='shots'
+																		data={regressionChart.p0.points}
+																		fill={regressionChart.p0.color}
+																	/>
+																	<Line
+																		type='linear'
+																		data={regressionChart.p0.line}
+																		dataKey='drippage'
+																		name='fit'
+																		stroke={regressionChart.p0.color}
+																		strokeWidth={2}
+																		dot={false}
+																		activeDot={false}
+																		isAnimationActive={false}
+																		legendType='none'
+																	/>
+																</ComposedChart>
+															</ChartContainer>
+														) : (
+															<div className='flex h-64 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground'>
+																No split/single shots yet.
+															</div>
+														)}
+													</TabsContent>
+													<TabsContent value='p1' className='mt-0'>
+														{regressionChart.p1 ? (
+															<ChartContainer
+																config={regressionChartConfig}
+																className='h-64 w-full'
+															>
+																<ComposedChart
+																	margin={{
+																		top: 10,
+																		right: 12,
+																		bottom: 8,
+																		left: 0,
+																	}}
+																>
+																	<CartesianGrid strokeDasharray='3 3' vertical={false} />
+																	<XAxis
+																		type='number'
+																		dataKey='lastFlowRate'
+																		name='lastFlowRate'
+																		unit='g/s'
+																		domain={regressionChart.p1.xDomain}
+																		tick={{ fontSize: 12 }}
+																		stroke='var(--muted-foreground)'
+																	/>
+																	<YAxis
+																		type='number'
+																		dataKey='drippage'
+																		name='drippage'
+																		unit='g'
+																		tick={{ fontSize: 12 }}
+																		stroke='var(--muted-foreground)'
+																	/>
+																	<ChartTooltip
+																		cursor={{ strokeDasharray: '3 3' }}
+																		content={<RegressionTooltipContent />}
+																	/>
+																	<Scatter
+																		name='shots'
+																		data={regressionChart.p1.points}
+																		fill={regressionChart.p1.color}
+																	/>
+																	<Line
+																		type='linear'
+																		data={regressionChart.p1.line}
+																		dataKey='drippage'
+																		name='fit'
+																		stroke={regressionChart.p1.color}
+																		strokeWidth={2}
+																		dot={false}
+																		activeDot={false}
+																		isAnimationActive={false}
+																		legendType='none'
+																	/>
+																</ComposedChart>
+															</ChartContainer>
+														) : (
+															<div className='flex h-64 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground'>
+																No full/double shots yet.
+															</div>
+														)}
+													</TabsContent>
+												</Tabs>
+											</div>
+										)}
+
 										<div className='grid grid-cols-5 gap-2 font-medium text-xs text-muted-foreground uppercase tracking-wider px-2 shrink-0'>
 											<div>ID</div>
 											<div>Target</div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import Page from '@/components/Page'
 import Section from '@/components/Section'
 import { useAuth } from '@/lib/authContext'
@@ -55,13 +55,9 @@ export default function Settings() {
 	}, [user])
 
 	const [activeTab, setActiveTab] = useState(tabs[0]?.id || 'esp')
-
-	useEffect(() => {
-		const exists = tabs.find((t) => t.id === activeTab)
-		if (!exists && tabs.length > 0) {
-			setActiveTab(tabs[0].id)
-		}
-	}, [user, tabs, activeTab])
+	const resolvedActiveTab = tabs.some((t) => t.id === activeTab)
+		? activeTab
+		: (tabs[0]?.id ?? 'esp')
 
 	return (
 		<Page title='Settings'>
@@ -70,22 +66,22 @@ export default function Settings() {
 					<h1 className='text-2xl font-bold mb-6'>Settings</h1>
 
 					<Tabs
-						value={activeTab}
+						value={resolvedActiveTab}
 						onValueChange={setActiveTab}
 						orientation='vertical'
 						className='flex flex-col lg:flex-row gap-6'
 					>
 						<div className='lg:hidden w-full'>
-							<Select value={activeTab} onValueChange={setActiveTab}>
+							<Select value={resolvedActiveTab} onValueChange={setActiveTab}>
 								<SelectTrigger className='w-full'>
 									<SelectValue placeholder='Select setting'>
 										<div className='flex items-center gap-2'>
-											{tabs.find((t) => t.id === activeTab)?.icon &&
+											{tabs.find((t) => t.id === resolvedActiveTab)?.icon &&
 												React.createElement(
-													tabs.find((t) => t.id === activeTab)!.icon,
+													tabs.find((t) => t.id === resolvedActiveTab)!.icon,
 													{ size: 16 },
 												)}
-											<span>{tabs.find((t) => t.id === activeTab)?.name}</span>
+											<span>{tabs.find((t) => t.id === resolvedActiveTab)?.name}</span>
 										</div>
 									</SelectValue>
 								</SelectTrigger>
