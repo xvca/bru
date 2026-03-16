@@ -143,6 +143,7 @@ export default function ESPSettings() {
 			timezone: 'GMT0',
 			learningRate: 0.5,
 			systemLag: 1,
+			earlyStop: false,
 		},
 	})
 
@@ -175,6 +176,7 @@ export default function ESPSettings() {
 			formData.append('timezone', data.timezone)
 			formData.append('learningRate', data.learningRate.toString())
 			formData.append('systemLag', data.systemLag.toString())
+			formData.append('earlyStop', data.earlyStop.toString())
 
 			await api.post('/prefs', formData)
 
@@ -453,6 +455,29 @@ export default function ESPSettings() {
 								After a successful brew, saves the target weight as the new
 								preset. Saves to decaf preset if you have a decaf start time set
 								and it&apos;s past that hour.
+							</p>
+						</div>
+
+						<div className='flex flex-col gap-1'>
+							<div className='flex items-center justify-between'>
+								<Label htmlFor='earlyStop' className='font-medium text-base'>
+									Early Stop
+								</Label>
+								<Controller
+									name='earlyStop'
+									control={form.control}
+									render={({ field }) => (
+										<Switch
+											id='earlyStop'
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									)}
+								/>
+							</div>
+							<p className='text-xs text-muted-foreground w-[80%]'>
+								Ends the drip phase early if weight hasn&apos;t increased by
+								0.1g in 2 seconds.
 							</p>
 						</div>
 
