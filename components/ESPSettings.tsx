@@ -144,6 +144,8 @@ export default function ESPSettings() {
 			learningRate: 0.5,
 			systemLag: 1,
 			earlyStop: false,
+			swapButtons: false,
+			halfForTwoCup: true,
 		},
 	})
 
@@ -177,6 +179,8 @@ export default function ESPSettings() {
 			formData.append('learningRate', data.learningRate.toString())
 			formData.append('systemLag', data.systemLag.toString())
 			formData.append('earlyStop', data.earlyStop.toString())
+			formData.append('swapButtons', data.swapButtons.toString())
+			formData.append('halfForTwoCup', data.halfForTwoCup.toString())
 
 			await api.post('/prefs', formData)
 
@@ -375,6 +379,64 @@ export default function ESPSettings() {
 
 				<Separator />
 
+										<div className='flex items-start justify-center gap-8 text-center'>
+							<Controller
+								name='regularPreset'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel>Regular Preset</FieldLabel>
+										<div className='flex items-center justify-left gap-2'>
+											<Input
+												{...field}
+												id='regularPreset'
+												type='number'
+												inputMode='decimal'
+												step='0.1'
+												min='1'
+												max='100'
+												className='w-24 text-right text-2xl font-bold tabular-nums'
+												onFocus={(e) => e.target.select()}
+											/>
+											<span className='text-base text-muted-foreground'>g</span>
+										</div>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
+
+							<Controller
+								name='decafPreset'
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel>Decaf Preset</FieldLabel>
+										<div className='flex items-center justify-left gap-2'>
+											<Input
+												{...field}
+												id='decafPreset'
+												type='number'
+												inputMode='decimal'
+												step='0.1'
+												min='1'
+												max='100'
+												className='w-24 text-right text-2xl font-bold tabular-nums'
+												onFocus={(e) => e.target.select()}
+											/>
+											<span className='text-base text-muted-foreground'>g</span>
+										</div>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
+						</div>
+
+				<Separator />
+
 				<form onSubmit={form.handleSubmit(onSubmit)}>
 					<fieldset
 						disabled={!isDeviceConfigured}
@@ -481,62 +543,51 @@ export default function ESPSettings() {
 							</p>
 						</div>
 
-						<Separator />
+						<div className='flex flex-col gap-1'>
+							<div className='flex items-center justify-between'>
+								<Label
+									htmlFor='swapButtons'
+									className='font-medium text-base'
+								>
+									Swap Cup Buttons
+								</Label>
+								<Controller
+									name='swapButtons'
+									control={form.control}
+									render={({ field }) => (
+										<Switch
+											id='swapButtons'
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									)}
+								/>
+							</div>
+							<p className='text-xs text-muted-foreground w-[80%]'>
+								Swaps the functions of the 1-Cup & 2-Cup buttons. By default 2-cup button wakes the ESP, when enabled the 1-cup button wakes the ESP.
+							</p>
+						</div>
 
-						<div className='space-y-4'>
-							<Controller
-								name='regularPreset'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel>Regular Preset</FieldLabel>
-										<div className='flex items-center gap-2'>
-											<Input
-												{...field}
-												id='regularPreset'
-												type='number'
-												inputMode='decimal'
-												step='0.1'
-												min='1'
-												max='100'
-												className='w-24 text-right text-2xl font-bold tabular-nums'
-												onFocus={(e) => e.target.select()}
-											/>
-											<span className='text-base text-muted-foreground'>g</span>
-										</div>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							<Controller
-								name='decafPreset'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel>Decaf Preset</FieldLabel>
-										<div className='flex items-center gap-2 '>
-											<Input
-												{...field}
-												id='decafPreset'
-												type='number'
-												inputMode='decimal'
-												step='0.1'
-												min='1'
-												max='100'
-												className='w-24 text-right text-2xl font-bold tabular-nums'
-												onFocus={(e) => e.target.select()}
-											/>
-											<span className='text-base text-muted-foreground'>g</span>
-										</div>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
+						<div className='flex flex-col gap-1'>
+							<div className='flex items-center justify-between'>
+								<Label htmlFor='halfForTwoCup' className='font-medium text-base'>
+									Use Half Weight for Volumetric Brew
+								</Label>
+								<Controller
+									name='halfForTwoCup'
+									control={form.control}
+									render={({ field }) => (
+										<Switch
+											id='halfForTwoCup'
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									)}
+								/>
+							</div>
+							<p className='text-xs text-muted-foreground w-[80%]'>
+								The volumetric brew button (1-cup by default) will use half of the preset weight.
+							</p>
 						</div>
 
 						<hr className='border-input-border' />

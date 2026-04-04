@@ -69,6 +69,8 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 				learningRate: data.learningRate === undefined ? 0.5 : data.learningRate,
 				systemLag: data.systemLag === undefined ? 1.0 : data.systemLag,
 				earlyStop: data.earlyStop ?? false,
+				swapButtons: data.swapButtons ?? false,
+				halfForTwoCup: data.halfForTwoCup ?? true,
 			}
 
 			setPrefs(prefsData)

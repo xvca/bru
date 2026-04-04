@@ -143,6 +143,8 @@ export const espPrefsSchema = z.object({
 	learningRate: z.coerce.number().min(0).max(1.0),
 	systemLag: z.coerce.number().min(0).max(2.0),
 	earlyStop: z.boolean(),
+	swapButtons: z.boolean(),
+	halfForTwoCup: z.boolean(),
 })
 
 export type ESPPrefsFormData = z.infer<typeof espPrefsSchema>
