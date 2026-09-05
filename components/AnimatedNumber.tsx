@@ -1,6 +1,10 @@
 'use client'
 
-import NumberFlow, { NumberFlowGroup } from '@number-flow/react'
+import NumberFlow, {
+	NumberFlowGroup,
+	continuous as continuousPlugin,
+} from '@number-flow/react'
+import type { ComponentProps } from 'react'
 
 export interface AnimatedNumberProps {
 	value: number
@@ -9,7 +13,7 @@ export interface AnimatedNumberProps {
 	prefix?: string
 	className?: string
 	continuous?: boolean
-	trend?: boolean
+	trend?: ComponentProps<typeof NumberFlow>['trend']
 	spinTiming?: { duration: number; easing: string }
 	transformTiming?: { duration: number; easing: string }
 }
@@ -21,7 +25,7 @@ export function AnimatedNumber({
 	prefix = '',
 	className = '',
 	continuous = true,
-	trend = true,
+	trend = 1,
 	spinTiming = { duration: 500, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
 	transformTiming = { duration: 500, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
 }: AnimatedNumberProps) {
@@ -34,7 +38,7 @@ export function AnimatedNumber({
 			}}
 			suffix={suffix ? suffix : undefined}
 			prefix={prefix ? prefix : undefined}
-			continuous={continuous}
+			plugins={continuous ? [continuousPlugin] : undefined}
 			trend={trend}
 			spinTiming={spinTiming}
 			transformTiming={transformTiming}
