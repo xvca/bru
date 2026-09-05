@@ -484,18 +484,13 @@ export default function BeansPage() {
 									</div>
 								</div>
 
-								<div
-									className={cn(
-										'grid gap-4 md:grid-cols-2 transition-all duration-500 ease-in-out overflow-hidden',
-										showFinished
-											? 'mt-6 opacity-100 max-h-[2000px]'
-											: 'mt-0 opacity-0 max-h-0',
-									)}
-								>
-									{finishedBeans.map((bean, index) =>
-										renderBeanCard(bean, index),
-									)}
-								</div>
+								{showFinished && (
+									<div className='mt-6 grid gap-4 md:grid-cols-2'>
+										{finishedBeans.map((bean, index) =>
+											renderBeanCard(bean, index),
+										)}
+									</div>
+								)}
 							</div>
 						)}
 					</div>
