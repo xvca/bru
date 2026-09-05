@@ -6,7 +6,6 @@ import { z } from 'zod'
 const autoBrewSchema = z.object({
 	yieldWeight: z.number().positive(),
 	brewTime: z.number().int().nonnegative(),
-	targetWeight: z.number().positive(),
 	isDecaf: z.boolean(),
 })
 

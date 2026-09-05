@@ -28,7 +28,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Field, FieldLabel, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -1224,7 +1223,7 @@ export default function ESPSettings() {
 											<div>Flow</div>
 											<div></div>
 										</div>
-										<ScrollArea className='h-72 min-h-24 flex-auto rounded-md border'>
+										<div className='h-72 min-h-24 flex-auto overflow-y-auto rounded-md border'>
 											<div className='p-2 space-y-1'>
 												{shotData.shots.map((shot) => (
 													<div
@@ -1249,7 +1248,7 @@ export default function ESPSettings() {
 													</div>
 												))}
 											</div>
-										</ScrollArea>
+										</div>
 									</div>
 								) : (
 									<div className='text-center py-8 text-muted-foreground italic'>
