@@ -4,11 +4,17 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	type PropsWithChildren,
 } from 'react'
 import axios from 'axios'
-import type { ESPPrefsFormData } from './validators'
+import {
+	MAX_CONFIGURABLE_SHOT_WEIGHT,
+	type ESPPrefsFormData,
+} from './validators'
+
+import { parseEspIntegration, type EspIntegration } from './espIntegration'
 
 const STORAGE_KEY = 'bru:esp_ip'
 
@@ -22,6 +28,7 @@ interface EspConfigContextValue {
 	setEspIp: (value: string | null) => void
 	isReady: boolean
 	prefs: ESPPrefsFormData | null
+	integration: EspIntegration | null
 	isLoadingPrefs: boolean
 	prefsError: string | null
 	refreshPrefs: () => Promise<void>
@@ -37,6 +44,9 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 	const [prefs, setPrefs] = useState<ESPPrefsFormData | null>(null)
 	const [isLoadingPrefs, setIsLoadingPrefs] = useState(false)
 	const [prefsError, setPrefsError] = useState<string | null>(null)
+	const [integration, setIntegration] = useState<EspIntegration | null>(null)
+	const prefsRequestId = useRef(0)
+	const selectedIp = useRef<string | null>(null)
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return
@@ -46,8 +56,11 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 	}, [])
 
 	const fetchPrefs = useCallback(async (ip: string) => {
+		if (ip !== selectedIp.current) return
+		const requestId = ++prefsRequestId.current
 		setIsLoadingPrefs(true)
 		setPrefsError(null)
+		setIntegration(null)
 
 		try {
 			const sanitizedIp = ip.trim().replace(/^https?:\/\//, '')
@@ -56,12 +69,20 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 			})
 
 			const { data } = await api.get('/prefs', { timeout: 5000 })
+			if (requestId !== prefsRequestId.current) return
 
 			const prefsData: ESPPrefsFormData = {
 				isEnabled: data.isEnabled ?? true,
 				autoSavePreset: data.autoSavePreset ?? true,
 				regularPreset: data.regularPreset ?? 40,
 				decafPreset: data.decafPreset ?? 40,
+				maxShotWeight:
+					typeof data.maxShotWeight === 'number' &&
+					Number.isFinite(data.maxShotWeight) &&
+					data.maxShotWeight >= 1 &&
+					data.maxShotWeight <= MAX_CONFIGURABLE_SHOT_WEIGHT
+						? data.maxShotWeight
+						: undefined,
 				pMode: data.pMode ?? PreinfusionMode.SIMPLE,
 				decafStartHour:
 					data.decafStartHour === undefined ? -1 : data.decafStartHour,
@@ -74,23 +95,31 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 			}
 
 			setPrefs(prefsData)
+			setIntegration(parseEspIntegration(data.autoLogging))
 		} catch (error) {
+			if (requestId !== prefsRequestId.current) return
 			console.error('Failed to fetch ESP preferences:', error)
 			setPrefsError(
 				error instanceof Error ? error.message : 'Failed to fetch preferences',
 			)
 			setPrefs(null)
 		} finally {
-			setIsLoadingPrefs(false)
+			if (requestId === prefsRequestId.current) setIsLoadingPrefs(false)
 		}
 	}, [])
 
 	useEffect(() => {
+		selectedIp.current = espIp
 		if (isReady && espIp) {
 			fetchPrefs(espIp)
 		} else if (isReady && !espIp) {
 			setPrefs(null)
 			setPrefsError(null)
+			setIntegration(null)
+			setIsLoadingPrefs(false)
+		}
+		return () => {
+			prefsRequestId.current += 1
 		}
 	}, [isReady, espIp, fetchPrefs])
 
@@ -119,11 +148,21 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 			setEspIp,
 			isReady,
 			prefs,
+			integration,
 			isLoadingPrefs,
 			prefsError,
 			refreshPrefs,
 		}),
-		[espIp, setEspIp, isReady, prefs, isLoadingPrefs, prefsError, refreshPrefs],
+		[
+			espIp,
+			setEspIp,
+			isReady,
+			prefs,
+			integration,
+			isLoadingPrefs,
+			prefsError,
+			refreshPrefs,
+		],
 	)
 
 	return (

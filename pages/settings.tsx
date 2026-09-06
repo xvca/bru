@@ -26,7 +26,14 @@ export default function Settings() {
 	const { user } = useAuth()
 
 	const tabs = useMemo(() => {
-		const items = []
+		const items = [
+			{
+				id: 'esp',
+				name: 'ESP Settings',
+				icon: SettingsIcon,
+				content: <ESPSettings />,
+			},
+		]
 
 		if (user) {
 			items.push({
@@ -44,17 +51,10 @@ export default function Settings() {
 			})
 		}
 
-		items.push({
-			id: 'esp',
-			name: 'ESP Settings',
-			icon: SettingsIcon,
-			content: <ESPSettings />,
-		})
-
 		return items
 	}, [user])
 
-	const [activeTab, setActiveTab] = useState(tabs[0]?.id || 'esp')
+	const [activeTab, setActiveTab] = useState('esp')
 
 	useEffect(() => {
 		const exists = tabs.find((t) => t.id === activeTab)

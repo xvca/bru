@@ -128,23 +128,44 @@ export const userPreferencesSchema = z.object({
 export type UserPreferencesFormData = z.infer<typeof userPreferencesSchema>
 
 // ESP preferences
-export const espPrefsSchema = z.object({
-	isEnabled: z.boolean(),
-	autoSavePreset: z.boolean(),
-	regularPreset: z.coerce.number().min(0).max(100),
-	decafPreset: z.coerce.number().min(0).max(100),
-	pMode: z.coerce.number(),
-	decafStartHour: z.coerce
-		.number()
-		.refine((val) => val === -1 || (val >= 0 && val <= 23), {
-			message: 'Use “Disabled” or choose an hour between 0 and 23.',
-		}),
-	timezone: z.string(),
-	learningRate: z.coerce.number().min(0).max(1.0),
-	systemLag: z.coerce.number().min(0).max(2.0),
-	earlyStop: z.boolean(),
-	swapButtons: z.boolean(),
-	halfForTwoCup: z.boolean(),
-})
+export const DEFAULT_MAX_SHOT_WEIGHT = 100
+export const MAX_CONFIGURABLE_SHOT_WEIGHT = 1000
+
+export const espPrefsSchema = z
+	.object({
+		isEnabled: z.boolean(),
+		autoSavePreset: z.boolean(),
+		regularPreset: z.coerce.number().min(1).max(MAX_CONFIGURABLE_SHOT_WEIGHT),
+		decafPreset: z.coerce.number().min(1).max(MAX_CONFIGURABLE_SHOT_WEIGHT),
+		maxShotWeight: z.coerce
+			.number()
+			.min(1)
+			.max(MAX_CONFIGURABLE_SHOT_WEIGHT)
+			.optional(),
+		pMode: z.coerce.number(),
+		decafStartHour: z.coerce
+			.number()
+			.refine((val) => val === -1 || (val >= 0 && val <= 23), {
+				message: 'Use “Disabled” or choose an hour between 0 and 23.',
+			}),
+		timezone: z.string(),
+		learningRate: z.coerce.number().min(0).max(1.0),
+		systemLag: z.coerce.number().min(0).max(2.0),
+		earlyStop: z.boolean(),
+		swapButtons: z.boolean(),
+		halfForTwoCup: z.boolean(),
+	})
+	.superRefine((prefs, ctx) => {
+		const max = prefs.maxShotWeight ?? DEFAULT_MAX_SHOT_WEIGHT
+		for (const field of ['regularPreset', 'decafPreset'] as const) {
+			if (prefs[field] > max) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: [field],
+					message: `Must not exceed maximum shot yield (${max}g).`,
+				})
+			}
+		}
+	})
 
 export type ESPPrefsFormData = z.infer<typeof espPrefsSchema>

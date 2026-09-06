@@ -22,7 +22,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { SmartCarousel, type SmartSuggestion } from '@/components/SmartCarousel'
-import { BrewFormData } from '@/lib/validators'
+import { DEFAULT_MAX_SHOT_WEIGHT, type BrewFormData } from '@/lib/validators'
 import { useBrewBar } from '@/lib/brewBarContext'
 import BrewForm from '@/components/BrewFormModal'
 import Link from 'next/link'
@@ -51,7 +51,8 @@ export default function Dashboard() {
 	const [targetWeight, setTargetWeight] = useState(() => {
 		if (typeof window !== 'undefined') {
 			const saved = localStorage.getItem('targetWeight')
-			return saved ? parseFloat(saved) : 20
+			const value = saved ? parseFloat(saved) : 20
+			return Number.isFinite(value) && value >= 1 ? value : 20
 		}
 		return 20
 	})
@@ -61,7 +62,13 @@ export default function Dashboard() {
 	const [showCompletionAnimation, setShowCompletionAnimation] = useState(false)
 
 	const { brewData, isWsConnected } = useWebSocket()
-	const { espIp, setEspIp, isReady: isEspConfigReady, prefs } = useEspConfig()
+	const { espIp, setEspIp, prefs, isReady: isEspConfigReady } = useEspConfig()
+	const maxShotWeight = prefs?.maxShotWeight ?? DEFAULT_MAX_SHOT_WEIGHT
+	const clampTargetWeight = useCallback(
+		(weight: number) => Math.min(maxShotWeight, Math.max(1, Number.isFinite(weight) ? weight : 20)),
+		[maxShotWeight],
+	)
+	const isTargetValid = Number.isFinite(targetWeight) && targetWeight >= 1 && targetWeight <= maxShotWeight
 
 	const sanitizedIp = useMemo(() => (espIp ? sanitizeIp(espIp) : null), [espIp])
 
@@ -99,6 +106,10 @@ export default function Dashboard() {
 	const frozenTimeRef = useRef(0)
 	const smoothedWeightRef = useRef(0)
 	const formTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+	useEffect(() => {
+		if (prefs && !isBrewing) setTargetWeight(clampTargetWeight)
+	}, [prefs, isBrewing, clampTargetWeight])
 
 	useEffect(() => {
 		localStorage.setItem('targetWeight', targetWeight.toString())
@@ -318,7 +329,7 @@ export default function Dashboard() {
 
 	const handleTargetChange = useCallback(
 		(weight: number) => {
-			const next = Number(weight.toFixed(1))
+			const next = clampTargetWeight(Number(weight.toFixed(1)))
 
 			setTargetWeight((prev) => (prev === next ? prev : next))
 
@@ -326,7 +337,7 @@ export default function Dashboard() {
 				toast.success(`Target set to ${next}g`)
 			}
 		},
-		[targetWeight],
+		[targetWeight, clampTargetWeight],
 	)
 
 	const handleSuggestionToggle = useCallback(
@@ -354,6 +365,11 @@ export default function Dashboard() {
 			return
 		}
 
+		if (!isTargetValid) {
+			toast.error(`Target weight must be between 1 and ${maxShotWeight}g.`)
+			return
+		}
+
 		try {
 			const formData = new FormData()
 			formData.append('weight', targetWeight.toString())
@@ -368,7 +384,7 @@ export default function Dashboard() {
 				toast.error(error.response?.data?.error || 'Failed to start brew')
 			}
 		}
-	}, [api, targetWeight])
+	}, [api, targetWeight, isTargetValid, maxShotWeight])
 
 	const stopBrew = useCallback(async () => {
 		if (!api) {
@@ -572,7 +588,7 @@ export default function Dashboard() {
 									<div className='flex items-center justify-center gap-4'>
 										<Button
 											onClick={() =>
-												setTargetWeight((prev) => Math.max(prev - 1, 1))
+												setTargetWeight((prev) => clampTargetWeight(prev - 1))
 											}
 											variant='ghost'
 											size='icon'
@@ -589,18 +605,19 @@ export default function Dashboard() {
 															inputMode='decimal'
 															type='number'
 															min='1'
-															max='100'
+															max={maxShotWeight}
+															step='0.1'
+															aria-label='Target weight'
 															value={targetWeight || ''}
 															onChange={(e) => {
 																let value =
 																	e.target.value === ''
 																		? 0
 																		: parseFloat(e.target.value)
-																if (value > 100) {
-																	value = 100
-																}
-																setTargetWeight(value)
+																if (!Number.isFinite(value)) value = 0
+																setTargetWeight(Math.min(maxShotWeight, Math.max(0, value)))
 															}}
+															onBlur={() => setTargetWeight(clampTargetWeight)}
 															onFocus={(e) => e.target.select()}
 															className='h-auto w-20 border-none bg-transparent p-0 text-center text-3xl md:text-3xl font-bold shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 														/>
@@ -614,7 +631,7 @@ export default function Dashboard() {
 
 										<Button
 											onClick={() =>
-												setTargetWeight((prev) => Math.min(prev + 1, 100))
+												setTargetWeight((prev) => clampTargetWeight(prev + 1))
 											}
 											variant='ghost'
 											size='icon'
@@ -629,7 +646,7 @@ export default function Dashboard() {
 											size='sm'
 											variant='outline'
 											onClick={() =>
-												setTargetWeight((prev) => Math.max(prev / 2, 1))
+												setTargetWeight((prev) => clampTargetWeight(prev / 2))
 											}
 											className='text-xs font-mono h-7 px-2.5'
 										>
@@ -639,7 +656,7 @@ export default function Dashboard() {
 											size='sm'
 											variant='outline'
 											onClick={() =>
-												setTargetWeight((prev) => Math.min(prev * 2, 100))
+												setTargetWeight((prev) => clampTargetWeight(prev * 2))
 											}
 											className='text-xs font-mono h-7 px-2.5'
 										>
@@ -667,7 +684,7 @@ export default function Dashboard() {
 			<div className='fixed bottom-4 left-0 right-0 p-6 flex justify-center z-50 pointer-events-none'>
 				<Button
 					onClick={isBrewing ? stopBrew : startBrew}
-					disabled={!brewData.isScaleConnected}
+					disabled={!brewData.isScaleConnected || (!isBrewing && !isTargetValid)}
 					size='lg'
 					variant={isBrewing ? 'destructive' : 'default'}
 					className='w-9/10 rounded-full h-12 text-lg font-semibold pointer-events-auto transition-all active:scale-95 max-w-2xl'

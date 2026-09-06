@@ -7,7 +7,12 @@ import axios, { AxiosInstance } from 'axios'
 import { toast } from 'sonner'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { espPrefsSchema, type ESPPrefsFormData } from '@/lib/validators'
+import {
+	DEFAULT_MAX_SHOT_WEIGHT,
+	MAX_CONFIGURABLE_SHOT_WEIGHT,
+	espPrefsSchema,
+	type ESPPrefsFormData,
+} from '@/lib/validators'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import { useEspConfig } from '@/lib/espConfigContext'
 
@@ -39,6 +44,7 @@ import {
 } from '@/components/ui/accordion'
 import { Info } from 'lucide-react'
 import { verifyEspReachable } from '@/utils/esp'
+import { isSameBruServer } from '@/lib/espIntegration'
 import { Separator } from './ui/separator'
 import { ChartContainer, ChartTooltip, type ChartConfig } from './ui/chart'
 import {
@@ -239,12 +245,26 @@ export default function ESPSettings() {
 		setEspIp,
 		isReady: isEspConfigReady,
 		prefs,
+		integration,
+		prefsError,
 		isLoadingPrefs,
 		refreshPrefs,
 	} = useEspConfig()
 	const { availableBars } = useBrewBar()
 
-	const [linkedBarId, setLinkedBarId] = useState<number | null>(null)
+	const isFullMode = process.env.NEXT_PUBLIC_LITE !== 'true'
+	const isLinked = integration?.configured === true
+	const isLocalIntegration =
+		integration !== null &&
+		typeof window !== 'undefined' &&
+		isSameBruServer(integration.apiUrl, window.location.origin)
+	const linkedBarId = isLocalIntegration ? integration?.barId : null
+	const linkedBarName = linkedBarId
+		? (availableBars.find((bar) => bar.id === linkedBarId)?.name ??
+			`Brew bar #${linkedBarId} (not available to this account)`)
+		: isLocalIntegration
+			? 'Brew bar not recorded'
+			: 'Another or unknown Bru server'
 	const [isLinking, setIsLinking] = useState(false)
 
 	const [ipInput, setIpInput] = useState('')
@@ -304,6 +324,7 @@ export default function ESPSettings() {
 			autoSavePreset: false,
 			regularPreset: 40,
 			decafPreset: 40,
+			maxShotWeight: DEFAULT_MAX_SHOT_WEIGHT,
 			pMode: PreinfusionMode.SIMPLE,
 			decafStartHour: -1,
 			timezone: 'GMT0',
@@ -314,6 +335,17 @@ export default function ESPSettings() {
 			halfForTwoCup: true,
 		},
 	})
+
+	const supportsMaxShotWeight = prefs?.maxShotWeight !== undefined
+	const watchedMax = Number(
+		form.watch('maxShotWeight') ?? DEFAULT_MAX_SHOT_WEIGHT,
+	)
+	const maxPresetWeight =
+		Number.isFinite(watchedMax) &&
+		watchedMax >= 1 &&
+		watchedMax <= MAX_CONFIGURABLE_SHOT_WEIGHT
+			? watchedMax
+			: DEFAULT_MAX_SHOT_WEIGHT
 
 	useEffect(() => {
 		if (prefs) {
@@ -344,6 +376,9 @@ export default function ESPSettings() {
 			formData.append('autoSavePreset', data.autoSavePreset.toString())
 			formData.append('regularPreset', data.regularPreset.toString())
 			formData.append('decafPreset', data.decafPreset.toString())
+			if (supportsMaxShotWeight && data.maxShotWeight !== undefined) {
+				formData.append('maxShotWeight', data.maxShotWeight.toString())
+			}
 			formData.append('pMode', data.pMode.toString())
 			formData.append('decafStartHour', data.decafStartHour.toString())
 			formData.append('timezone', data.timezone)
@@ -356,13 +391,9 @@ export default function ESPSettings() {
 			await api.post('/prefs', formData)
 
 			if (user)
-				await axios.put(
-					'/api/user/preferences',
-					{
-						decafStartHour: data.decafStartHour,
-					},
-					{ headers: { Authorization: `Bearer ${user.token}` } },
-				)
+				await axios.put('/api/user/preferences', {
+					decafStartHour: data.decafStartHour,
+				}, { headers: { Authorization: `Bearer ${user.token}` } })
 
 			form.reset(data)
 			toast.success('Settings saved successfully')
@@ -449,17 +480,13 @@ export default function ESPSettings() {
 	}
 
 	const handleLinkDevice = async (barId: number) => {
-		if (!api || !user) return
+		if (!isFullMode || !api || !user) return
 
 		setIsLinking(true)
 		try {
-			const tokenResponse = await axios.post(
-				`/api/brew-bars/${barId}/tokens`,
-				{ deviceName: 'Autobru ESP' },
-				{
-					headers: { Authorization: `Bearer ${user.token}` },
-				},
-			)
+			const tokenResponse = await axios.post(`/api/brew-bars/${barId}/tokens`, {
+				deviceName: 'Autobru ESP',
+			}, { headers: { Authorization: `Bearer ${user.token}` } })
 
 			const { token } = tokenResponse.data
 
@@ -467,9 +494,10 @@ export default function ESPSettings() {
 			await api.post('/token', {
 				apiUrl,
 				apiToken: token,
+				barId,
 			})
 
-			setLinkedBarId(barId)
+			await refreshPrefs()
 			toast.success('Device linked to brew bar successfully')
 		} catch (error) {
 			console.error('Error linking device:', error)
@@ -480,7 +508,7 @@ export default function ESPSettings() {
 	}
 
 	const handleUnlinkDevice = async () => {
-		if (!api) return
+		if (!isFullMode || !api || !user) return
 
 		setIsLinking(true)
 		try {
@@ -489,7 +517,7 @@ export default function ESPSettings() {
 				apiToken: '',
 			})
 
-			setLinkedBarId(null)
+			await refreshPrefs()
 			toast.success('Device unlinked from brew bar')
 		} catch (error) {
 			console.error('Error unlinking device:', error)
@@ -569,7 +597,7 @@ export default function ESPSettings() {
 										inputMode='decimal'
 										step='0.1'
 										min='1'
-										max='100'
+										max={maxPresetWeight}
 										className='w-24 text-right text-2xl font-bold tabular-nums'
 										onFocus={(e) => e.target.select()}
 									/>
@@ -596,7 +624,7 @@ export default function ESPSettings() {
 										inputMode='decimal'
 										step='0.1'
 										min='1'
-										max='100'
+										max={maxPresetWeight}
 										className='w-24 text-right text-2xl font-bold tabular-nums'
 										onFocus={(e) => e.target.select()}
 									/>
@@ -618,6 +646,53 @@ export default function ESPSettings() {
 						className={`flex flex-col gap-4
 							${isDeviceConfigured ? '' : 'pointer-events-none opacity-50'}`}
 					>
+						<Controller
+							name='maxShotWeight'
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor='maxShotWeight'>
+										Maximum shot yield
+									</FieldLabel>
+									<div className='flex items-center gap-2'>
+										<Input
+											{...field}
+											id='maxShotWeight'
+											value={field.value ?? DEFAULT_MAX_SHOT_WEIGHT}
+											type='number'
+											inputMode='decimal'
+											min={1}
+											max={MAX_CONFIGURABLE_SHOT_WEIGHT}
+											step='0.1'
+											disabled={!supportsMaxShotWeight}
+											aria-describedby='max-shot-weight-description'
+											className='w-24'
+										/>
+										<span className='text-sm text-muted-foreground'>g</span>
+									</div>
+									<p
+										id='max-shot-weight-description'
+										className='text-xs text-muted-foreground'
+									>
+										Safety cap for target and preset weights, mainly to prevent
+										accidentally starting an oversized shot. Increase only for
+										intentionally larger yields. The separate 90-second brew
+										timeout still applies.
+									</p>
+									{!supportsMaxShotWeight && (
+										<p className='text-xs text-muted-foreground'>
+											Update the ESP firmware to configure this limit. Older
+											firmware uses 100g.
+										</p>
+									)}
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
+							)}
+						/>
+						<Separator />
+
 						<div className='flex flex-col gap-1'>
 							<div className='flex items-center justify-between'>
 								<Label htmlFor='isEnabled' className='font-medium text-base'>
@@ -1005,7 +1080,7 @@ export default function ESPSettings() {
 
 						<Separator />
 
-						{user && (
+						{isFullMode && user && (
 							<div>
 								<div className='flex flex-col gap-2 mb-4'>
 									<Label className='font-medium text-base'>
@@ -1017,14 +1092,38 @@ export default function ESPSettings() {
 									</p>
 								</div>
 
-								{linkedBarId ? (
+								{prefsError && (
+									<p className='text-xs text-muted-foreground mb-3'>
+										Unable to read the device’s saved integration. Check its
+										connection and refresh settings.
+									</p>
+								)}
+								{prefs && integration === null && (
+									<p className='text-xs text-muted-foreground mb-3'>
+										This firmware cannot report its saved link status.
+										Auto-logging may already be configured; selecting a bar will
+										replace that link.
+									</p>
+								)}
+
+								{isLinked ? (
 									<div className='space-y-3'>
 										<div className='p-3 bg-muted rounded-md'>
 											<p className='text-sm font-medium'>
-												Linked to:{' '}
-												{availableBars.find((b) => b.id === linkedBarId)
-													?.name || 'Unknown Bar'}
+												Linked to: {linkedBarName}
 											</p>
+											{!isLocalIntegration && (
+												<p className='text-xs text-muted-foreground mt-1 break-all'>
+													Server: {integration?.apiUrl || 'Not reported'}. This
+													is not the current Bru server.
+												</p>
+											)}
+											{isLocalIntegration && !linkedBarId && (
+												<p className='text-xs text-muted-foreground mt-1'>
+													This link was saved without a brew bar ID. Unlink and
+													link it again once to show the bar here.
+												</p>
+											)}
 										</div>
 										<Button
 											type='button'
@@ -1041,7 +1140,7 @@ export default function ESPSettings() {
 											onValueChange={(value) =>
 												handleLinkDevice(parseInt(value))
 											}
-											disabled={isLinking || !isDeviceConfigured}
+											disabled={isLinking || !isDeviceConfigured || !prefs}
 										>
 											<SelectTrigger>
 												<SelectValue placeholder='Select brew bar...' />
@@ -1054,6 +1153,16 @@ export default function ESPSettings() {
 												))}
 											</SelectContent>
 										</Select>
+										{prefs && integration === null && (
+											<Button
+												type='button'
+												variant='outline'
+												onClick={handleUnlinkDevice}
+												disabled={isLinking}
+											>
+												Clear Device Link
+											</Button>
+										)}
 										{!isDeviceConfigured && (
 											<p className='text-xs text-muted-foreground'>
 												Configure ESP device IP first to enable linking
@@ -1062,7 +1171,7 @@ export default function ESPSettings() {
 									</div>
 								)}
 
-								{linkedBarId && (
+								{isLinked && (
 									<div className='mt-4 p-3 bg-muted/50 rounded-md border border-muted-foreground/20'>
 										<div className='flex items-start gap-2'>
 											<Info className='h-4 w-4 mt-0.5 text-muted-foreground shrink-0' />
