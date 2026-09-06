@@ -4,10 +4,7 @@ import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
 import type { Bean } from '@/generated/prisma/client'
 
-const fetcher = (url: string, token: string) =>
-	axios
-		.get(url, { headers: { Authorization: `Bearer ${token}` } })
-		.then((res) => res.data)
+const fetcher = (url: string) => axios.get(url).then((res) => res.data)
 
 export function useBeans() {
 	const { user } = useAuth()
@@ -15,11 +12,11 @@ export function useBeans() {
 
 	const barIdParam = activeBarId === null ? 'null' : activeBarId
 
-	const shouldFetch = !!user?.token
+	const shouldFetch = !!user
 
 	const { data, error, isLoading, mutate } = useSWR<Bean[]>(
-		shouldFetch ? [`/api/beans?barId=${barIdParam}`, user!.token] : null,
-		([url, token]: [string, string]) => fetcher(url, token),
+		shouldFetch ? [`/api/beans?barId=${barIdParam}`, user!.id] : null,
+		([url]: [string, number]) => fetcher(url),
 	)
 
 	return {

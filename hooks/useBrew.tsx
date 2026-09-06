@@ -12,19 +12,16 @@ export type BrewDetail = Prisma.BrewGetPayload<{
 	}
 }>
 
-const fetcher = (url: string, token: string) =>
-	axios
-		.get(url, { headers: { Authorization: `Bearer ${token}` } })
-		.then((res) => res.data)
+const fetcher = (url: string) => axios.get(url).then((res) => res.data)
 
 export function useBrew(brewId: number | undefined) {
 	const { user } = useAuth()
 
-	const shouldFetch = !!user?.token && typeof brewId === 'number'
+	const shouldFetch = !!user && typeof brewId === 'number'
 
 	const { data, error, isLoading, mutate } = useSWR<BrewDetail>(
-		shouldFetch ? [`/api/brews/${brewId}`, user!.token] : null,
-		([url, token]: [string, string]) => fetcher(url, token),
+		shouldFetch ? [`/api/brews/${brewId}`, user!.id] : null,
+		([url]: [string, number]) => fetcher(url),
 	)
 
 	return {

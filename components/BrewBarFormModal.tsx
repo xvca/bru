@@ -77,17 +77,13 @@ export default function BrewBarFormModal({
 		setIsSubmitting(true)
 
 		try {
-			if (!user?.token) return
+			if (!user) return
 
 			if (isEditMode) {
-				await axios.put(`/api/brew-bars/${brewBarId}`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.put(`/api/brew-bars/${brewBarId}`, data)
 				toast.success('Brew bar updated successfully')
 			} else {
-				await axios.post('/api/brew-bars', data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.post('/api/brew-bars', data)
 				toast.success('Brew bar created successfully')
 			}
 

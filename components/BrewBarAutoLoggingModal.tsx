@@ -46,18 +46,14 @@ export default function BrewBarAutoLoggingModal({
 	} | null>(null)
 
 	useEffect(() => {
-		if (!isOpen || !user?.token) return
+		if (!isOpen || !user) return
 
 		const fetchData = async () => {
 			setIsLoading(true)
 			try {
 				const [beansRes, barRes] = await Promise.all([
-					axios.get(`/api/beans?barId=${brewBarId}`, {
-						headers: { Authorization: `Bearer ${user.token}` },
-					}),
-					axios.get(`/api/brew-bars/${brewBarId}`, {
-						headers: { Authorization: `Bearer ${user.token}` },
-					}),
+					axios.get(`/api/beans?barId=${brewBarId}`),
+					axios.get(`/api/brew-bars/${brewBarId}`),
 				])
 
 				setBeans(beansRes.data)
@@ -76,25 +72,19 @@ export default function BrewBarAutoLoggingModal({
 		}
 
 		fetchData()
-	}, [isOpen, brewBarId, user?.token])
+	}, [isOpen, brewBarId, user?.id])
 
 	const handleSave = async () => {
-		if (!user?.token || !brewBarData) return
+		if (!user || !brewBarData) return
 
 		setIsSaving(true)
 		try {
-			await axios.put(
-				`/api/brew-bars/${brewBarId}`,
-				{
-					name: brewBarData.name,
-					location: brewBarData.location,
-					defaultRegularBeanId,
-					defaultDecafBeanId,
-				},
-				{
-					headers: { Authorization: `Bearer ${user.token}` },
-				},
-			)
+			await axios.put(`/api/brew-bars/${brewBarId}`, {
+				name: brewBarData.name,
+				location: brewBarData.location,
+				defaultRegularBeanId,
+				defaultDecafBeanId,
+			})
 
 			toast.success('Auto-logging settings updated')
 			onClose()

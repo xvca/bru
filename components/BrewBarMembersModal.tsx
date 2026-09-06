@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
 import { useBrewBarMembers } from '@/hooks/useBrewBarMembers'
 import { Trash, UserPlus, Shield } from 'lucide-react'
@@ -44,7 +43,6 @@ export default function BrewBarMembersModal({
 	brewBarName,
 	isOwner,
 }: BrewBarMembersModalProps) {
-	const { user } = useAuth()
 	const { members, isLoading, refresh } = useBrewBarMembers(
 		isOpen ? brewBarId : undefined,
 	)
@@ -61,9 +59,7 @@ export default function BrewBarMembersModal({
 	const onInvite = async (data: InviteFormData) => {
 		setIsInviting(true)
 		try {
-			await axios.post(`/api/brew-bars/${brewBarId}/members`, data, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.post(`/api/brew-bars/${brewBarId}/members`, data)
 			toast.success(`Invited ${data.username} successfully`)
 			form.reset()
 			refresh()
@@ -83,9 +79,7 @@ export default function BrewBarMembersModal({
 
 	const handleRemoveMember = async (memberId: number, username: string) => {
 		try {
-			await axios.delete(`/api/brew-bars/${brewBarId}/members/${memberId}`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.delete(`/api/brew-bars/${brewBarId}/members/${memberId}`)
 			toast.success(`Removed ${username} from brew bar`)
 			refresh()
 		} catch (error) {

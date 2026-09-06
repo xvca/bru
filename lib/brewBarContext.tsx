@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, {
+	createContext,
+	useContext,
+	useEffect,
+	useState,
+	useCallback,
+	useRef,
+} from 'react'
 import axios from 'axios'
 import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
@@ -30,53 +37,67 @@ export const useBrewBar = () => useContext(BrewBarContext)
 export const BrewBarProvider: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => {
-	const { user, logout } = useAuth()
+	const { user } = useAuth()
 	const [activeBarId, setActiveBarId] = useState<number | null>(null)
 	const [availableBars, setAvailableBars] = useState<BrewBar[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 
-	const fetchBarsAndPreference = async () => {
-		if (!user) return
+	const requestVersion = useRef(0)
+	const userId = user?.id
+
+	const fetchBarsAndPreference = useCallback(async () => {
+		const version = ++requestVersion.current
+		if (!userId) {
+			setIsLoading(false)
+			return
+		}
 
 		try {
 			setIsLoading(true)
 
-			const headers = { Authorization: `Bearer ${user.token}` }
-
 			const [barsRes, prefRes] = await Promise.all([
-				axios.get('/api/brew-bars', {
-					headers,
-				}),
-				axios.get('/api/user/preferences', {
-					headers,
-				}),
+				axios.get('/api/brew-bars', { timeout: 5000 }),
+				axios.get('/api/user/preferences', { timeout: 5000 }),
 			])
-
+			if (version !== requestVersion.current) return
 			setAvailableBars(barsRes.data)
 
 			// if we haven't manually set a bar in this session yet, use the default
-			if (activeBarId === null && prefRes.data.defaultBarId !== undefined) {
-				setActiveBarId(prefRes.data.defaultBarId)
+			if (prefRes.data.defaultBarId !== undefined) {
+				setActiveBarId((current) =>
+					current === null ? prefRes.data.defaultBarId : current,
+				)
 			}
 		} catch (error) {
-			console.error('Failed to load brew bar context', error)
-			toast.error(
-				'Failed to load your brew bars and preferences. Logging you out to refresh session.',
-			)
-			logout()
+			if (version !== requestVersion.current) return
+			if (!(
+				axios.isAxiosError(error) &&
+				error.response?.data?.code === 'SESSION_INVALID'
+			)) {
+				toast.error(
+					'Unable to load your brew bars and preferences. Check your connection and try again.',
+				)
+			}
 		} finally {
-			setIsLoading(false)
+			if (version === requestVersion.current) setIsLoading(false)
 		}
-	}
+	}, [userId])
 
 	useEffect(() => {
-		if (user) {
-			fetchBarsAndPreference()
-		} else {
-			setAvailableBars([])
-			setActiveBarId(null)
+		setAvailableBars([])
+		setActiveBarId(null)
+		void fetchBarsAndPreference()
+		const retry = () => {
+			if (document.visibilityState === 'visible') void fetchBarsAndPreference()
 		}
-	}, [user])
+		window.addEventListener('online', retry)
+		window.addEventListener('focus', retry)
+		return () => {
+			requestVersion.current++
+			window.removeEventListener('online', retry)
+			window.removeEventListener('focus', retry)
+		}
+	}, [fetchBarsAndPreference])
 
 	return (
 		<BrewBarContext.Provider

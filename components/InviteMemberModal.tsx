@@ -58,11 +58,9 @@ export default function InviteMemberModal({
 		setIsLoading(true)
 
 		try {
-			if (!user?.token) return
+			if (!user) return
 
-			await axios.post(`/api/brew-bars/${brewBarId}/members`, data, {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
+			await axios.post(`/api/brew-bars/${brewBarId}/members`, data)
 
 			toast.success('Member added successfully')
 			form.reset()

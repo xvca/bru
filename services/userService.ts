@@ -41,7 +41,10 @@ export async function updateUserAccount(
 
 	return prisma.user.update({
 		where: { id: userId },
-		data: updateData,
+		data: {
+			...updateData,
+			...(data.newPassword ? { sessions: { deleteMany: {} } } : {}),
+		},
 		select: {
 			id: true,
 			username: true,

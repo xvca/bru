@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { useAuth } from '@/lib/authContext'
 import Page from '@/components/Page'
 import { Spinner } from '@/components/ui/spinner'
+import { Button } from '@/components/ui/button'
 
 interface ProtectedPageProps {
 	title?: string
@@ -10,20 +11,31 @@ interface ProtectedPageProps {
 }
 
 const ProtectedPage = ({ title, children }: ProtectedPageProps) => {
-	const { user, isLoading } = useAuth()
+	const { user, isLoading, sessionError, refreshSession } = useAuth()
 	const router = useRouter()
 
 	useEffect(() => {
-		if (!isLoading && !user) {
+		if (!isLoading && !user && !sessionError) {
 			router.replace('/login')
 		}
-	}, [user, isLoading, router])
+	}, [user, isLoading, sessionError, router])
 
 	if (isLoading) {
 		return (
 			<Page title='Loading...'>
 				<div className='flex h-[50vh] w-full items-center justify-center'>
 					<Spinner className='h-8 w-8 text-muted-foreground' />
+				</div>
+			</Page>
+		)
+	}
+
+	if (!user && sessionError) {
+		return (
+			<Page title='Connection problem'>
+				<div className='flex flex-col items-center gap-4 px-6 py-12 text-center'>
+					<p className='max-w-sm text-muted-foreground'>{sessionError}</p>
+					<Button onClick={() => void refreshSession()}>Try again</Button>
 				</div>
 			</Page>
 		)

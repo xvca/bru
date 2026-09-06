@@ -3,6 +3,7 @@ import { updateUserAccount } from '@/services/userService'
 import { withAuth, AuthRequest } from '@/lib/auth'
 import { NextApiResponse } from 'next'
 import { z } from 'zod'
+import { clearSessionCookie } from '@/lib/session'
 
 const updateAccountSchema = z.object({
 	username: z.string().min(3).optional(),
@@ -28,7 +29,8 @@ async function handlePut(req: AuthRequest, res: NextApiResponse) {
 		}
 
 		const user = await updateUserAccount(userId, data)
-		return res.status(200).json({ user })
+		if (data.newPassword) clearSessionCookie(req, res)
+		return res.status(200).json({ user, sessionRevoked: !!data.newPassword })
 	} catch (error: any) {
 		if (error.message === 'Invalid current password') {
 			return res.status(401).json({ error: 'Invalid current password' })

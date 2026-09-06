@@ -227,9 +227,7 @@ export default function Brews() {
 
 	const handleDeleteBrew = async (id: number) => {
 		try {
-			await axios.delete(`/api/brews/${id}`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.delete(`/api/brews/${id}`)
 
 			refresh()
 			toast.success('Brew deleted successfully')

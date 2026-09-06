@@ -14,19 +14,16 @@ export interface BrewBarMember {
 	isCurrentUser: boolean
 }
 
-const fetcher = (url: string, token: string) =>
-	axios
-		.get(url, { headers: { Authorization: `Bearer ${token}` } })
-		.then((res) => res.data)
+const fetcher = (url: string) => axios.get(url).then((res) => res.data)
 
 export function useBrewBarMembers(brewBarId: number | undefined) {
 	const { user } = useAuth()
 
-	const shouldFetch = !!user?.token && typeof brewBarId === 'number'
+	const shouldFetch = !!user && typeof brewBarId === 'number'
 
 	const { data, error, isLoading, mutate } = useSWR<BrewBarMember[]>(
-		shouldFetch ? [`/api/brew-bars/${brewBarId}/members`, user!.token] : null,
-		([url, token]: [string, string]) => fetcher(url, token),
+		shouldFetch ? [`/api/brew-bars/${brewBarId}/members`, user!.id] : null,
+		([url]: [string, number]) => fetcher(url),
 	)
 
 	return {

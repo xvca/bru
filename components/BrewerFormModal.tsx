@@ -85,11 +85,9 @@ export default function BrewerFormModal({
 	const fetchBrewer = async () => {
 		try {
 			setIsFetching(true)
-			if (!user?.token) return
+			if (!user) return
 
-			const { data } = await axios.get(`/api/brewers/${brewerId}`, {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
+			const { data } = await axios.get(`/api/brewers/${brewerId}`)
 
 			form.reset({
 				name: data.name,
@@ -109,17 +107,13 @@ export default function BrewerFormModal({
 		setIsLoading(true)
 
 		try {
-			if (!user?.token) return
+			if (!user) return
 
 			if (isEditMode && brewerId) {
-				await axios.put(`/api/brewers/${brewerId}`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.put(`/api/brewers/${brewerId}`, data)
 				toast.success('brewer updated successfully')
 			} else {
-				await axios.post(`/api/brewers`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.post(`/api/brewers`, data)
 				toast.success('brewer added successfully')
 			}
 

@@ -2,7 +2,6 @@ import ProtectedPage from '@/components/ProtectedPage'
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { useBrewBar } from '@/lib/brewBarContext'
 import { useBeans } from '@/hooks/useBeans'
 import {
@@ -49,7 +48,6 @@ import {
 
 export default function BeansPage() {
 	const router = useRouter()
-	const { user } = useAuth()
 	const { activeBarId, availableBars } = useBrewBar()
 	const { beans, isLoading, refresh } = useBeans()
 
@@ -115,9 +113,7 @@ export default function BeansPage() {
 
 	const handleDelete = async (id: number) => {
 		try {
-			await axios.delete(`/api/beans/${id}`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.delete(`/api/beans/${id}`)
 
 			toast.success('Bean deleted successfully')
 			refresh()

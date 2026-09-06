@@ -4,7 +4,16 @@ import { useAuth } from '@/lib/authContext'
 import axios from 'axios'
 import { toast } from 'sonner'
 import { useBrewBars } from '@/hooks/useBrewBars'
-import { Plus, Users, Edit, Trash, UserPlus, MapPin, Store, Zap } from 'lucide-react'
+import {
+	Plus,
+	Users,
+	Edit,
+	Trash,
+	UserPlus,
+	MapPin,
+	Store,
+	Zap,
+} from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewBarFormModal from '@/components/BrewBarFormModal'
 import BrewBarMembersModal from '@/components/BrewBarMembersModal'
@@ -95,9 +104,7 @@ export default function BrewBarsPage() {
 		if (!barToDelete) return
 
 		try {
-			await axios.delete(`/api/brew-bars/${barToDelete.id}`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.delete(`/api/brew-bars/${barToDelete.id}`)
 
 			refresh()
 			toast.success('Brew bar deleted successfully')
@@ -115,7 +122,7 @@ export default function BrewBarsPage() {
 	}
 
 	useEffect(() => {
-		if (!user?.token || !brewBars || brewBars.length === 0) return
+		if (!user || !brewBars || brewBars.length === 0) return
 
 		const fetchTokenCounts = async () => {
 			const ownerBars = brewBars.filter((bar) => bar.isOwner)
@@ -124,9 +131,7 @@ export default function BrewBarsPage() {
 			await Promise.all(
 				ownerBars.map(async (bar) => {
 					try {
-						const res = await axios.get(`/api/brew-bars/${bar.id}/tokens`, {
-							headers: { Authorization: `Bearer ${user.token}` },
-						})
+						const res = await axios.get(`/api/brew-bars/${bar.id}/tokens`)
 						counts[bar.id] = res.data.length
 					} catch (error) {
 						console.error(`Error fetching tokens for bar ${bar.id}:`, error)
@@ -139,7 +144,7 @@ export default function BrewBarsPage() {
 		}
 
 		fetchTokenCounts()
-	}, [user?.token, brewBars])
+	}, [user?.id, brewBars])
 
 	return (
 		<ProtectedPage title='Brew Bars'>
@@ -270,7 +275,9 @@ export default function BrewBarsPage() {
 												variant='outline'
 												size='sm'
 												className='flex-1 text-xs'
-												onClick={() => handleManageAutoLogging(bar.id, bar.name)}
+												onClick={() =>
+													handleManageAutoLogging(bar.id, bar.name)
+												}
 											>
 												<Zap className='mr-2 h-3.5 w-3.5' />
 												Auto-Logging

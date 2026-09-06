@@ -36,9 +36,7 @@ export default function PreferencesSettings() {
 	useEffect(() => {
 		const load = async () => {
 			try {
-				const { data } = await axios.get('/api/user/preferences', {
-					headers: { Authorization: `Bearer ${user?.token}` },
-				})
+				const { data } = await axios.get('/api/user/preferences')
 				form.reset({
 					defaultBarId: data.defaultBarId
 						? String(data.defaultBarId)
@@ -55,9 +53,7 @@ export default function PreferencesSettings() {
 	const onSubmit: SubmitHandler<UserPreferencesFormData> = async (data) => {
 		setIsSaving(true)
 		try {
-			await axios.put('/api/user/preferences', data, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.put('/api/user/preferences', data)
 
 			toast.success('Preferences saved')
 			await refreshBars()

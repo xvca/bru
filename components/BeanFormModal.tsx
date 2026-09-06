@@ -166,15 +166,9 @@ export default function BeanFormModal({
 
 			const resizedBase64 = await resizeImage(base64)
 
-			const response = await axios.post(
-				'/api/ai/scan-label',
-				{
-					image: resizedBase64,
-				},
-				{
-					headers: { Authorization: `Bearer ${user?.token}` },
-				},
-			)
+			const response = await axios.post('/api/ai/scan-label', {
+				image: resizedBase64,
+			})
 			const data = response.data
 
 			if (data.name) await simulateTyping('name', data.name)
@@ -207,17 +201,13 @@ export default function BeanFormModal({
 		setIsSubmitting(true)
 
 		try {
-			if (!user?.token) return
+			if (!user) return
 
 			if (isEditMode) {
-				await axios.put(`/api/beans/${beanId}`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.put(`/api/beans/${beanId}`, data)
 				toast.success('Coffee bean updated successfully')
 			} else {
-				await axios.post('/api/beans', data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.post('/api/beans', data)
 				toast.success('Coffee bean added successfully')
 			}
 

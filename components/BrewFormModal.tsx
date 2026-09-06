@@ -101,12 +101,10 @@ export default function BrewForm({
 			const fetchData = async () => {
 				try {
 					const params = { barId: barId || undefined }
-					const headers = { Authorization: `Bearer ${user.token}` }
-
 					const [beansRes, brewersRes, grindersRes] = await Promise.all([
-						axios.get('/api/beans', { headers, params }),
-						axios.get('/api/brewers', { headers, params }),
-						axios.get('/api/grinders', { headers, params }),
+						axios.get('/api/beans', { params }),
+						axios.get('/api/brewers', { params }),
+						axios.get('/api/grinders', { params }),
 					])
 
 					setBeans(beansRes.data)
@@ -151,7 +149,7 @@ export default function BrewForm({
 				!watchedBrewerId ||
 				isEditMode ||
 				initialData ||
-				!user?.token ||
+				!user ||
 				!isOpen
 			) {
 				return
@@ -162,9 +160,6 @@ export default function BrewForm({
 					params: {
 						beanId: watchedBeanId,
 						brewerId: watchedBrewerId,
-					},
-					headers: {
-						Authorization: `Bearer ${user.token}`,
 					},
 					validateStatus: (status) => status === 200 || status === 404,
 				})
@@ -193,14 +188,10 @@ export default function BrewForm({
 			setIsLoading(true)
 
 			if (isEditMode) {
-				await axios.put(`/api/brews/${brewId}`, data, {
-					headers: { Authorization: `Bearer ${user?.token}` },
-				})
+				await axios.put(`/api/brews/${brewId}`, data)
 				toast.success('Brew updated successfully')
 			} else {
-				await axios.post('/api/brews', data, {
-					headers: { Authorization: `Bearer ${user?.token}` },
-				})
+				await axios.post('/api/brews', data)
 				toast.success('Brew added successfully')
 			}
 

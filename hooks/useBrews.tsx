@@ -18,20 +18,10 @@ interface BrewsResponse {
 	hasMore: boolean
 }
 
-const fetcher = (url: string, token: string, barId?: number | null) =>
-	axios
-		.get(url, {
-			headers: { Authorization: `Bearer ${token}` },
-			params: { barId },
-		})
-		.then((res) => res.data)
+const fetcher = (url: string, barId?: number | null) =>
+	axios.get(url, { params: { barId } }).then((res) => res.data)
 
-const paginatedFetcher = (url: string, token: string) =>
-	axios
-		.get(url, {
-			headers: { Authorization: `Bearer ${token}` },
-		})
-		.then((res) => res.data)
+const paginatedFetcher = (url: string) => axios.get(url).then((res) => res.data)
 
 export function useBrews(barId?: number | null) {
 	const { user } = useAuth()
@@ -40,12 +30,12 @@ export function useBrews(barId?: number | null) {
 		console.warn('useBrews is deprecated, use useBrewsPaginated instead')
 	}
 
-	const shouldFetch = !!user?.token
+	const shouldFetch = !!user
 
 	const { data, error, isLoading, mutate } = useSWR<BrewWithRelations[]>(
-		shouldFetch ? ['/api/brews', user!.token, barId] : null,
-		([url, token, bId]: [string, string, number | undefined]) =>
-			fetcher(url, token, bId),
+		shouldFetch ? ['/api/brews', user!.id, barId] : null,
+		([url, , bId]: [string, number, number | undefined | null]) =>
+			fetcher(url, bId),
 	)
 
 	return {
@@ -72,7 +62,7 @@ export function useBrewsPaginated({
 	limit = 25,
 }: UseBrewsPaginatedOptions = {}) {
 	const { user } = useAuth()
-	const shouldFetch = !!user?.token
+	const shouldFetch = !!user
 
 	const getKey = (
 		pageIndex: number,
@@ -93,13 +83,13 @@ export function useBrewsPaginated({
 			params.set('cursor', String(previousPageData.nextId))
 		}
 
-		return `/api/brews?${params.toString()}`
+		return [`/api/brews?${params.toString()}`, user!.id] as const
 	}
 
 	const { data, error, isLoading, isValidating, size, setSize, mutate } =
 		useSWRInfinite<BrewsResponse>(
 			getKey,
-			(url) => paginatedFetcher(url, user!.token),
+			([url]: readonly [string, number]) => paginatedFetcher(url),
 			{
 				revalidateFirstPage: false,
 			},

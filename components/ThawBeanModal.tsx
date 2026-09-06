@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
 import { Snowflake } from 'lucide-react'
 import { format } from 'date-fns'
@@ -34,7 +33,6 @@ export default function ThawBeanModal({
 	remainingWeight,
 	onSuccess,
 }: ThawBeanModalProps) {
-	const { user } = useAuth()
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [thawWeight, setThawWeight] = useState<number>(remainingWeight)
 
@@ -60,16 +58,10 @@ export default function ThawBeanModal({
 		setIsSubmitting(true)
 
 		try {
-			await axios.post(
-				`/api/beans/${beanId}/thaw`,
-				{
-					weight: thawWeight,
-					thawDate: new Date(),
-				},
-				{
-					headers: { Authorization: `Bearer ${user?.token}` },
-				},
-			)
+			await axios.post(`/api/beans/${beanId}/thaw`, {
+				weight: thawWeight,
+				thawDate: new Date(),
+			})
 
 			toast.success(
 				thawWeight === remainingWeight

@@ -12,17 +12,14 @@ export interface BrewBar {
 	role: string
 }
 
-const fetcher = (url: string, token: string) =>
-	axios
-		.get(url, { headers: { Authorization: `Bearer ${token}` } })
-		.then((res) => res.data)
+const fetcher = (url: string) => axios.get(url).then((res) => res.data)
 
 export function useBrewBars() {
 	const { user } = useAuth()
 
 	const { data, error, isLoading, mutate } = useSWR<BrewBar[]>(
-		user?.token ? ['/api/brew-bars', user.token] : null,
-		([url, token]: [string, string]) => fetcher(url, token),
+		user ? ['/api/brew-bars', user.id] : null,
+		([url]: [string, number]) => fetcher(url),
 	)
 
 	return {

@@ -393,7 +393,7 @@ export default function ESPSettings() {
 			if (user)
 				await axios.put('/api/user/preferences', {
 					decafStartHour: data.decafStartHour,
-				}, { headers: { Authorization: `Bearer ${user.token}` } })
+				})
 
 			form.reset(data)
 			toast.success('Settings saved successfully')
@@ -486,7 +486,7 @@ export default function ESPSettings() {
 		try {
 			const tokenResponse = await axios.post(`/api/brew-bars/${barId}/tokens`, {
 				deviceName: 'Autobru ESP',
-			}, { headers: { Authorization: `Bearer ${user.token}` } })
+			})
 
 			const { token } = tokenResponse.data
 

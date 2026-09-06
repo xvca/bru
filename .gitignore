@@ -6,6 +6,8 @@ next-env.d.ts
 node_modules
 
 .env
+.env.*
+!.env.example
 
 .DS_Store
 

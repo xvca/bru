@@ -9,22 +9,19 @@ interface SuggestionsResponse {
 	decafStartHour: number
 }
 
-const fetcher = (url: string, token: string) =>
-	axios
-		.get(url, { headers: { Authorization: `Bearer ${token}` } })
-		.then((res) => res.data)
+const fetcher = (url: string) => axios.get(url).then((res) => res.data)
 
 export function useSuggestions() {
 	const { user } = useAuth()
 	const { activeBarId } = useBrewBar()
 
-	const shouldFetch = !!user?.token && !!activeBarId
+	const shouldFetch = !!user && !!activeBarId
 
 	const { data, error, isLoading, mutate } = useSWR<SuggestionsResponse>(
 		shouldFetch
-			? [`/api/dashboard/suggestions?barId=${activeBarId}`, user!.token]
+			? [`/api/dashboard/suggestions?barId=${activeBarId}`, user!.id]
 			: null,
-		([url, token]: [string, string]) => fetcher(url, token),
+		([url]: [string, number]) => fetcher(url),
 	)
 
 	return {

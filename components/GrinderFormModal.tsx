@@ -74,11 +74,9 @@ export default function GrinderFormModal({
 	const fetchGrinder = async () => {
 		try {
 			setIsFetching(true)
-			if (!user?.token) return
+			if (!user) return
 
-			const { data } = await axios.get(`/api/grinders/${grinderId}`, {
-				headers: { Authorization: `Bearer ${user.token}` },
-			})
+			const { data } = await axios.get(`/api/grinders/${grinderId}`)
 
 			form.reset({
 				name: data.name,
@@ -99,17 +97,13 @@ export default function GrinderFormModal({
 		setIsLoading(true)
 
 		try {
-			if (!user?.token) return
+			if (!user) return
 
 			if (isEditMode && grinderId) {
-				await axios.put(`/api/grinders/${grinderId}`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.put(`/api/grinders/${grinderId}`, data)
 				toast.success('Grinder updated successfully')
 			} else {
-				await axios.post(`/api/grinders`, data, {
-					headers: { Authorization: `Bearer ${user.token}` },
-				})
+				await axios.post(`/api/grinders`, data)
 				toast.success('Grinder added successfully')
 			}
 

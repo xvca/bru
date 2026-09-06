@@ -51,10 +51,9 @@ export default function EquipmentPage() {
 		setIsLoading(true)
 		try {
 			const params = { barId: activeBarId }
-			const headers = { Authorization: `Bearer ${user?.token}` }
 			const [bRes, gRes] = await Promise.all([
-				axios.get('/api/brewers', { headers, params }),
-				axios.get('/api/grinders', { headers, params }),
+				axios.get('/api/brewers', { params }),
+				axios.get('/api/grinders', { params }),
 			])
 			setBrewers(bRes.data)
 			setGrinders(gRes.data)
@@ -69,9 +68,7 @@ export default function EquipmentPage() {
 		if (!deleteData) return
 		try {
 			const endpoint = deleteData.type === 'brewer' ? 'brewers' : 'grinders'
-			await axios.delete(`/api/${endpoint}/${deleteData.id}`, {
-				headers: { Authorization: `Bearer ${user?.token}` },
-			})
+			await axios.delete(`/api/${endpoint}/${deleteData.id}`)
 			toast.success(
 				`${deleteData.type === 'brewer' ? 'Brewer' : 'Grinder'} deleted`,
 			)

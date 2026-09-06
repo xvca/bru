@@ -1,11 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import { authRoute } from '@/lib/api/authRoute'
 
-export default async function handler(
-	req: NextApiRequest,
-	res: NextApiResponse,
-) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
 	if (req.method !== 'POST') {
 		return res.status(405).json({ error: 'Method not allowed' })
 	}
@@ -43,3 +41,5 @@ export default async function handler(
 		res.status(500).json({ error: 'Failed to register user' })
 	}
 }
+
+export default authRoute('POST', handler)

@@ -43,7 +43,7 @@ const accountSchema = z
 type AccountFormValues = z.infer<typeof accountSchema>
 
 export default function AccountSettings() {
-	const { user, login } = useAuth()
+	const { user, login, logout } = useAuth()
 	const [isLoading, setIsLoading] = useState(false)
 	const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
 		null,
@@ -113,19 +113,18 @@ export default function AccountSettings() {
 
 		setIsLoading(true)
 		try {
-			const response = await axios.put(
-				'/api/user/account',
-				{
-					username: data.username,
-					currentPassword: data.currentPassword,
-					newPassword: data.newPassword,
-				},
-				{
-					headers: { Authorization: `Bearer ${user?.token}` },
-				},
-			)
+			const response = await axios.put('/api/user/account', {
+				username: data.username,
+				currentPassword: data.currentPassword,
+				newPassword: data.newPassword,
+			})
 
 			toast.success('Account updated successfully')
+
+			if (response.data.sessionRevoked) {
+				await logout()
+				return
+			}
 
 			// Update local user context if username changed
 			if (data.username !== user?.username) {
