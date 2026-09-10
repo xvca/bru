@@ -14,6 +14,7 @@ interface ConfirmModalProps {
 	onConfirm: (() => void) | (() => Promise<void>)
 	description: string
 	title: string
+	confirmLabel?: string
 }
 
 export function ConfirmModal({
@@ -22,6 +23,7 @@ export function ConfirmModal({
 	onConfirm,
 	description,
 	title,
+	confirmLabel = 'Clear Data',
 }: ConfirmModalProps) {
 	const handleConfirm = () => {
 		onConfirm()
@@ -40,7 +42,7 @@ export function ConfirmModal({
 						Cancel
 					</Button>
 					<Button variant='destructive' onClick={handleConfirm}>
-						Clear Data
+						{confirmLabel}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

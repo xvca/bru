@@ -18,6 +18,7 @@ import {
 	ChevronUp,
 	MoreVertical,
 	List,
+	PackageX,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -60,6 +61,12 @@ export default function BeansPage() {
 		beanId: -1,
 		beanName: '',
 		remainingWeight: 0,
+	})
+
+	const [emptyModalData, setEmptyModalData] = useState({
+		isOpen: false,
+		beanId: -1,
+		beanName: '',
 	})
 
 	const [isFormOpen, setIsFormOpen] = useState(false)
@@ -133,6 +140,26 @@ export default function BeansPage() {
 			beanId: id,
 			beanName: name,
 		})
+	}
+
+	const confirmMarkEmpty = (id: number, name: string) => {
+		setOpenDropdownId(null)
+		setEmptyModalData({
+			isOpen: true,
+			beanId: id,
+			beanName: name,
+		})
+	}
+
+	const handleMarkEmpty = async (id: number) => {
+		try {
+			await axios.post(`/api/beans/${id}/empty`)
+			toast.success('Marked finished')
+			refresh()
+		} catch (error) {
+			console.error('Error marking bag as empty:', error)
+			toast.error('Could not mark finished')
+		}
 	}
 
 	const calculateDaysSinceRoast = (
@@ -215,7 +242,13 @@ export default function BeansPage() {
 	}, [beans])
 
 	const activeBeans = sortedBeans.filter((b) => b.remainingWeight !== 0)
-	const finishedBeans = sortedBeans.filter((b) => b.remainingWeight === 0)
+	const finishedBeans = sortedBeans
+		.filter((b) => b.remainingWeight === 0)
+		.sort((a, b) => {
+			const dateDifference =
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+			return dateDifference || b.id - a.id
+		})
 
 	const renderBeanCard = (bean: (typeof beans)[0], index: number) => {
 		const percentRemaining = bean.remainingWeight
@@ -312,6 +345,15 @@ export default function BeansPage() {
 											<Edit size={14} className='mr-2' />
 											Edit
 										</DropdownMenuItem>
+										{!isFinished && (
+											<DropdownMenuItem
+												onClick={() => confirmMarkEmpty(bean.id, bean.name)}
+												className='cursor-pointer'
+											>
+												<PackageX size={14} className='mr-2' />
+												Mark finished
+											</DropdownMenuItem>
+										)}
 										<DropdownMenuItem
 											onClick={() => confirmDelete(bean.id, bean.name)}
 											className='cursor-pointer text-destructive focus:text-destructive'
@@ -502,6 +544,15 @@ export default function BeansPage() {
 				onConfirm={() => handleDelete(modalData.beanId)}
 				title='Delete Coffee Bean'
 				description={`Are you sure you want to delete "${modalData.beanName}"? This action cannot be undone.`}
+			/>
+
+			<ConfirmModal
+				open={emptyModalData.isOpen}
+				onClose={() => setEmptyModalData({ ...emptyModalData, isOpen: false })}
+				onConfirm={() => handleMarkEmpty(emptyModalData.beanId)}
+				title='Mark finished?'
+				description={`"${emptyModalData.beanName}" will move to Finished with 0g remaining.`}
+				confirmLabel='Mark finished'
 			/>
 
 			<BrewFormModal

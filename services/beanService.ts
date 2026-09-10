@@ -49,6 +49,13 @@ export async function deleteBean(id: number) {
 	})
 }
 
+export async function markBeanAsEmpty(id: number) {
+	return prisma.bean.update({
+		where: { id },
+		data: { remainingWeight: 0 },
+	})
+}
+
 export async function thawBean(id: number, weight: number, thawDate: Date) {
 	if (
 		!Number.isFinite(weight) ||
