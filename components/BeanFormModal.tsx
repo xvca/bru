@@ -135,7 +135,7 @@ export default function BeanFormModal({
 		const step = value.length > 100 ? 5 : 1
 		for (let i = 0; i <= value.length; i += step) {
 			form.setValue(field, value.slice(0, i))
-			await new Promise((r) => setTimeout(r, delay))
+			await new Promise((resolve) => setTimeout(resolve, delay))
 		}
 		form.setValue(field, value)
 	}
@@ -176,8 +176,8 @@ export default function BeanFormModal({
 			if (data.notes) await simulateTyping('notes', data.notes)
 
 			if (data.weight) {
-				await simulateTyping('initialWeight', data.initialWeight)
-				await simulateTyping('remainingWeight', data.remainingWeight)
+				form.setValue('initialWeight', data.weight)
+				form.setValue('remainingWeight', data.weight)
 			}
 
 			toast.success('Label scanned successfully')

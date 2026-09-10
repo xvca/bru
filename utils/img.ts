@@ -3,9 +3,9 @@ export const resizeImage = (
 	maxWidth = 750,
 	maxHeight = 750,
 ): Promise<string> => {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
 		const img = new Image()
-		img.src = base64Str
+		img.onerror = () => reject(new Error('Failed to load image'))
 		img.onload = () => {
 			let width = img.width
 			let height = img.height
@@ -26,9 +26,11 @@ export const resizeImage = (
 			canvas.width = width
 			canvas.height = height
 			const ctx = canvas.getContext('2d')
-			ctx?.drawImage(img, 0, 0, width, height)
+			if (!ctx) return reject(new Error('Failed to resize image'))
+			ctx.drawImage(img, 0, 0, width, height)
 
 			resolve(canvas.toDataURL('image/jpeg', 0.8))
 		}
+		img.src = base64Str
 	})
 }
