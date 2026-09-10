@@ -1,8 +1,7 @@
 import Page from '@/components/Page'
 import Section from '@/components/Section'
+import AutoLoggingModal from '@/components/AutoLoggingModal'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useAuth } from '@/lib/authContext'
-import { useBrewBar } from '@/lib/brewBarContext'
 import axios, { AxiosInstance } from 'axios'
 import { toast } from 'sonner'
 import { useForm, Controller } from 'react-hook-form'
@@ -42,7 +41,6 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Info } from 'lucide-react'
 import { verifyEspReachable } from '@/utils/esp'
 import { isSameBruServer } from '@/lib/espIntegration'
 import { Separator } from './ui/separator'
@@ -239,7 +237,6 @@ const buildRegressionSeries = (
 export default function ESPSettings() {
 	const [isSaving, setIsSaving] = useState(false)
 
-	const { user } = useAuth()
 	const {
 		espIp,
 		setEspIp,
@@ -250,22 +247,14 @@ export default function ESPSettings() {
 		isLoadingPrefs,
 		refreshPrefs,
 	} = useEspConfig()
-	const { availableBars } = useBrewBar()
-
 	const isFullMode = process.env.NEXT_PUBLIC_LITE !== 'true'
 	const isLinked = integration?.configured === true
 	const isLocalIntegration =
 		integration !== null &&
 		typeof window !== 'undefined' &&
 		isSameBruServer(integration.apiUrl, window.location.origin)
-	const linkedBarId = isLocalIntegration ? integration?.barId : null
-	const linkedBarName = linkedBarId
-		? (availableBars.find((bar) => bar.id === linkedBarId)?.name ??
-			`Brew bar #${linkedBarId} (not available to this account)`)
-		: isLocalIntegration
-			? 'Brew bar not recorded'
-			: 'Another or unknown Bru server'
 	const [isLinking, setIsLinking] = useState(false)
+	const [isAutoLoggingOpen, setIsAutoLoggingOpen] = useState(false)
 
 	const [ipInput, setIpInput] = useState('')
 	const [isValidatingIp, setIsValidatingIp] = useState(false)
@@ -390,10 +379,11 @@ export default function ESPSettings() {
 
 			await api.post('/prefs', formData)
 
-			if (user)
-				await axios.put('/api/user/preferences', {
+			if (isFullMode) {
+				await axios.put('/api/preferences', {
 					decafStartHour: data.decafStartHour,
 				})
+			}
 
 			form.reset(data)
 			toast.success('Settings saved successfully')
@@ -479,36 +469,30 @@ export default function ESPSettings() {
 		}
 	}
 
-	const handleLinkDevice = async (barId: number) => {
-		if (!isFullMode || !api || !user) return
+	const handleLinkDevice = async () => {
+		if (!isFullMode || !api) return
 
 		setIsLinking(true)
 		try {
-			const tokenResponse = await axios.post(`/api/brew-bars/${barId}/tokens`, {
+			const { data } = await axios.post('/api/device-token', {
 				deviceName: 'Autobru ESP',
 			})
-
-			const { token } = tokenResponse.data
-
-			const apiUrl = window.location.origin
 			await api.post('/token', {
-				apiUrl,
-				apiToken: token,
-				barId,
+				apiUrl: window.location.origin,
+				apiToken: data.token,
 			})
-
 			await refreshPrefs()
-			toast.success('Device linked to brew bar successfully')
+			toast.success('Auto-logging enabled')
 		} catch (error) {
-			console.error('Error linking device:', error)
-			toast.error('Failed to link device to brew bar')
+			console.error('Error enabling auto-logging:', error)
+			toast.error('Failed to enable auto-logging')
 		} finally {
 			setIsLinking(false)
 		}
 	}
 
 	const handleUnlinkDevice = async () => {
-		if (!isFullMode || !api || !user) return
+		if (!isFullMode || !api) return
 
 		setIsLinking(true)
 		try {
@@ -517,11 +501,12 @@ export default function ESPSettings() {
 				apiToken: '',
 			})
 
+			await axios.delete('/api/device-token')
 			await refreshPrefs()
-			toast.success('Device unlinked from brew bar')
+			toast.success('Auto-logging disabled')
 		} catch (error) {
-			console.error('Error unlinking device:', error)
-			toast.error('Failed to unlink device')
+			console.error('Error disabling auto-logging:', error)
+			toast.error('Failed to disable auto-logging')
 		} finally {
 			setIsLinking(false)
 		}
@@ -679,12 +664,6 @@ export default function ESPSettings() {
 										intentionally larger yields. The separate 90-second brew
 										timeout still applies.
 									</p>
-									{!supportsMaxShotWeight && (
-										<p className='text-xs text-muted-foreground'>
-											Update the ESP firmware to configure this limit. Older
-											firmware uses 100g.
-										</p>
-									)}
 									{fieldState.invalid && (
 										<FieldError errors={[fieldState.error]} />
 									)}
@@ -1080,132 +1059,51 @@ export default function ESPSettings() {
 
 						<Separator />
 
-						{isFullMode && user && (
+						{isFullMode && (
 							<div>
-								<div className='flex flex-col gap-2 mb-4'>
-									<Label className='font-medium text-base'>
-										Brew Bar Integration
-									</Label>
+								<div className='mb-4'>
+									<Label className='font-medium text-base'>Auto-Logging</Label>
 									<p className='text-xs text-muted-foreground'>
-										Link this device to a brew bar for automatic brew logging
-										when the app is closed
+										Save completed shots to Bru automatically.
 									</p>
 								</div>
 
 								{prefsError && (
-									<p className='text-xs text-muted-foreground mb-3'>
-										Unable to read the device’s saved integration. Check its
-										connection and refresh settings.
+									<p className='mb-3 text-xs text-muted-foreground'>
+										Unable to read the saved link status.
 									</p>
 								)}
 								{prefs && integration === null && (
-									<p className='text-xs text-muted-foreground mb-3'>
-										This firmware cannot report its saved link status.
-										Auto-logging may already be configured; selecting a bar will
-										replace that link.
+									<p className='mb-3 text-xs text-muted-foreground'>
+										Link status is unavailable on this firmware.
+									</p>
+								)}
+								{isLinked && (
+									<p className='mb-3 text-sm font-medium'>
+										{isLocalIntegration
+											? 'Enabled'
+											: 'Enabled for another Bru server'}
 									</p>
 								)}
 
-								{isLinked ? (
-									<div className='space-y-3'>
-										<div className='p-3 bg-muted rounded-md'>
-											<p className='text-sm font-medium'>
-												Linked to: {linkedBarName}
-											</p>
-											{!isLocalIntegration && (
-												<p className='text-xs text-muted-foreground mt-1 break-all'>
-													Server: {integration?.apiUrl || 'Not reported'}. This
-													is not the current Bru server.
-												</p>
-											)}
-											{isLocalIntegration && !linkedBarId && (
-												<p className='text-xs text-muted-foreground mt-1'>
-													This link was saved without a brew bar ID. Unlink and
-													link it again once to show the bar here.
-												</p>
-											)}
-										</div>
-										<Button
-											type='button'
-											onClick={handleUnlinkDevice}
-											variant='outline'
-											disabled={isLinking}
-										>
-											{isLinking ? 'Unlinking...' : 'Unlink Device'}
-										</Button>
-									</div>
-								) : (
-									<div className='space-y-3'>
-										<Select
-											onValueChange={(value) =>
-												handleLinkDevice(parseInt(value))
-											}
-											disabled={isLinking || !isDeviceConfigured || !prefs}
-										>
-											<SelectTrigger>
-												<SelectValue placeholder='Select brew bar...' />
-											</SelectTrigger>
-											<SelectContent>
-												{availableBars.map((bar) => (
-													<SelectItem key={bar.id} value={bar.id.toString()}>
-														{bar.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										{prefs && integration === null && (
-											<Button
-												type='button'
-												variant='outline'
-												onClick={handleUnlinkDevice}
-												disabled={isLinking}
-											>
-												Clear Device Link
-											</Button>
-										)}
-										{!isDeviceConfigured && (
-											<p className='text-xs text-muted-foreground'>
-												Configure ESP device IP first to enable linking
-											</p>
-										)}
-									</div>
-								)}
-
-								{isLinked && (
-									<div className='mt-4 p-3 bg-muted/50 rounded-md border border-muted-foreground/20'>
-										<div className='flex items-start gap-2'>
-											<Info className='h-4 w-4 mt-0.5 text-muted-foreground shrink-0' />
-											<div className='space-y-2 text-xs text-muted-foreground'>
-												<p className='font-medium text-foreground'>
-													How Auto-Logging Works
-												</p>
-												<ul className='space-y-1 list-disc list-inside'>
-													<li>
-														Brews are logged automatically only when the app is
-														closed (no active connections)
-													</li>
-													<li>
-														Bean selection is based on your decaf hour setting:
-														regular before, decaf after
-													</li>
-													<li>
-														Brews are attributed to the brew bar owner and use
-														settings from the last brew with that bean
-													</li>
-													<li>
-														The device will beep 4 times (instead of 3) when a
-														brew is successfully logged
-													</li>
-												</ul>
-												<p className='text-muted-foreground/80 italic mt-2'>
-													Configure default beans in the brew bar&apos;s
-													Auto-Logging settings
-												</p>
-											</div>
-										</div>
-									</div>
-								)}
-								<Separator />
+								<div className='flex flex-wrap gap-2'>
+									<Button
+										type='button'
+										variant='outline'
+										onClick={() => setIsAutoLoggingOpen(true)}
+									>
+										Choose Beans
+									</Button>
+									<Button
+										type='button'
+										onClick={isLinked ? handleUnlinkDevice : handleLinkDevice}
+										disabled={isLinking || !isDeviceConfigured || !prefs}
+										variant={isLinked ? 'outline' : 'default'}
+									>
+										{isLinking ? 'Saving…' : isLinked ? 'Disable' : 'Enable'}
+									</Button>
+								</div>
+								<Separator className='mt-6' />
 							</div>
 						)}
 
@@ -1390,6 +1288,11 @@ export default function ESPSettings() {
 					</div>
 				</DialogContent>
 			</Dialog>
+
+			<AutoLoggingModal
+				isOpen={isAutoLoggingOpen}
+				onClose={() => setIsAutoLoggingOpen(false)}
+			/>
 
 			<ConfirmModal
 				open={modalData.isOpen}

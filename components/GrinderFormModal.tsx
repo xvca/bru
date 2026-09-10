@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { grinderSchema, type GrinderFormData } from '@/lib/validators'
@@ -26,7 +25,6 @@ import {
 interface GrinderFormModalProps {
 	isOpen: boolean
 	onClose: () => void
-	brewBarId?: number | null
 	grinderId?: number
 	onSuccess?: () => void
 }
@@ -34,11 +32,9 @@ interface GrinderFormModalProps {
 export default function GrinderFormModal({
 	isOpen,
 	onClose,
-	brewBarId,
 	grinderId,
 	onSuccess,
 }: GrinderFormModalProps) {
-	const { user } = useAuth()
 	const isEditMode = !!grinderId
 
 	const [isLoading, setIsLoading] = useState(false)
@@ -50,7 +46,6 @@ export default function GrinderFormModal({
 			name: '',
 			burrType: '',
 			notes: '',
-			barId: brewBarId,
 		},
 	})
 
@@ -61,7 +56,6 @@ export default function GrinderFormModal({
 					name: '',
 					burrType: '',
 					notes: '',
-					barId: brewBarId,
 				})
 			} else if (grinderId) {
 				fetchGrinder()
@@ -69,20 +63,17 @@ export default function GrinderFormModal({
 		} else {
 			form.reset()
 		}
-	}, [isOpen, isEditMode, grinderId, brewBarId])
+	}, [isOpen, isEditMode, grinderId])
 
 	const fetchGrinder = async () => {
 		try {
 			setIsFetching(true)
-			if (!user) return
-
 			const { data } = await axios.get(`/api/grinders/${grinderId}`)
 
 			form.reset({
 				name: data.name,
 				burrType: data.burrType || '',
 				notes: data.notes || '',
-				barId: brewBarId,
 			})
 		} catch (error) {
 			console.error('Error fetching grinder:', error)
@@ -97,8 +88,6 @@ export default function GrinderFormModal({
 		setIsLoading(true)
 
 		try {
-			if (!user) return
-
 			if (isEditMode && grinderId) {
 				await axios.put(`/api/grinders/${grinderId}`, data)
 				toast.success('Grinder updated successfully')

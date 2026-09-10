@@ -1,6 +1,4 @@
-import ProtectedPage from '@/components/ProtectedPage'
-import { useAuth } from '@/lib/authContext'
-import { useBrewBar } from '@/lib/brewBarContext'
+import Page from '@/components/Page'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import axios from 'axios'
@@ -18,7 +16,6 @@ import {
 	Trash,
 	Scale,
 	Settings2,
-	Store,
 	MoreVertical,
 	Copy,
 	Zap,
@@ -45,7 +42,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -62,8 +58,6 @@ import {
 
 export default function Brews() {
 	const router = useRouter()
-	const { user } = useAuth()
-	const { activeBarId, availableBars } = useBrewBar()
 	const { beans } = useBeans()
 	const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -89,7 +83,6 @@ export default function Brews() {
 
 	const { brews, isLoading, isLoadingMore, hasMore, loadMore, refresh } =
 		useBrewsPaginated({
-			barId: activeBarId,
 			beanId: filterBeanId,
 			batchId: filterBatchId,
 			method: filterMethod,
@@ -215,7 +208,6 @@ export default function Brews() {
 			waterTemperature: brew.waterTemperature ?? undefined,
 			rating: brew.rating ?? 0,
 			notes: brew.notes ?? '',
-			barId: brew.barId ?? undefined,
 			brewerId: brew.brewerId ?? undefined,
 			grinderId: brew.grinderId ?? undefined,
 		}
@@ -260,25 +252,11 @@ export default function Brews() {
 		return `1:${(yieldWt / dose).toFixed(1)}`
 	}
 
-	const getInitials = (name: string) => name.slice(0, 2).toUpperCase()
-
-	const currentBarName = activeBarId
-		? availableBars.find((b) => b.id === activeBarId)?.name
-		: 'Personal'
-
 	return (
-		<ProtectedPage title='Brew Logs'>
+		<Page title='Brew Logs'>
 			<div className='p-6'>
 				<div className='flex justify-between items-center mb-8'>
-					<div>
-						<h1 className='text-3xl font-bold tracking-tight'>Brew Logs</h1>
-						<p className='text-muted-foreground mt-1'>
-							Viewing logs for:{' '}
-							<span className='font-medium text-foreground'>
-								{currentBarName}
-							</span>
-						</p>
-					</div>
+					<h1 className='text-3xl font-bold tracking-tight'>Brew Logs</h1>
 					<div className='flex gap-2'>
 						<Button
 							variant={showFilters ? 'secondary' : 'outline'}
@@ -406,8 +384,6 @@ export default function Brews() {
 						<AnimatePresence mode='popLayout'>
 							<div className='grid gap-4 md:grid-cols-2'>
 								{brews.map((brew, index) => {
-									const isMyBrew = brew.userId === user?.id
-
 									return (
 										<motion.div
 											key={brew.id}
@@ -429,15 +405,6 @@ export default function Brews() {
 																>
 																	{brew.method}
 																</Badge>
-																{brew.brewBar && (
-																	<Badge
-																		variant='outline'
-																		className='font-normal text-xs flex items-center gap-1'
-																	>
-																		<Store size={10} />
-																		{brew.brewBar.name}
-																	</Badge>
-																)}
 																{brew.autoCreated && (
 																	<Badge
 																		variant='secondary'
@@ -458,7 +425,7 @@ export default function Brews() {
 															</CardDescription>
 														</div>
 
-														{isMyBrew && (
+														{
 															<DropdownMenu
 																open={openDropdownId === brew.id}
 																onOpenChange={(open) =>
@@ -470,6 +437,7 @@ export default function Brews() {
 																		variant='ghost'
 																		size='icon'
 																		className='h-8 w-8 text-muted-foreground hover:text-foreground -mr-2 -mt-1'
+																		aria-label={`Actions for ${brew.bean.name} brew`}
 																	>
 																		<MoreVertical size={16} />
 																	</Button>
@@ -505,27 +473,11 @@ export default function Brews() {
 																	</DropdownMenuContent>
 																)}
 															</DropdownMenu>
-														)}
+														}
 													</div>
 												</CardHeader>
 
 												<CardContent className='flex-1 pb-6'>
-													{!isMyBrew && (
-														<div className='flex items-center gap-2 mb-4 p-2 bg-muted/50 rounded-md'>
-															<Avatar className='h-6 w-6'>
-																<AvatarFallback className='text-[10px]'>
-																	{getInitials(brew.user.username)}
-																</AvatarFallback>
-															</Avatar>
-															<span className='text-xs text-muted-foreground'>
-																Brewed by{' '}
-																<span className='font-medium text-foreground'>
-																	{brew.user.username}
-																</span>
-															</span>
-														</div>
-													)}
-
 													<div className='grid grid-cols-2 gap-4 mb-4'>
 														<div className='flex flex-col p-2 bg-secondary/30 rounded-md'>
 															<div className='flex items-center gap-1.5 text-xs text-muted-foreground mb-1'>
@@ -645,7 +597,6 @@ export default function Brews() {
 					setCloneData(undefined)
 				}}
 				brewId={selectedBrew}
-				barId={activeBarId || undefined}
 				onSuccess={refresh}
 				initialData={cloneData}
 			/>
@@ -657,6 +608,6 @@ export default function Brews() {
 				title='Delete Brew'
 				description={`Are you sure you want to delete this brew of ${deleteModal.brewName}? This action cannot be undone.`}
 			/>
-		</ProtectedPage>
+		</Page>
 	)
 }

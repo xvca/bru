@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { toast } from 'sonner'
 import { Calendar as CalendarIcon, Sparkles } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
@@ -45,7 +44,6 @@ interface BeanFormModalProps {
 	isOpen: boolean
 	onClose: () => void
 	beanId?: number
-	barId?: number
 	onSuccess?: () => void
 }
 
@@ -53,10 +51,8 @@ export default function BeanFormModal({
 	isOpen,
 	onClose,
 	beanId,
-	barId,
 	onSuccess,
 }: BeanFormModalProps) {
-	const { user } = useAuth()
 	const isEditMode = !!beanId
 
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -86,7 +82,6 @@ export default function BeanFormModal({
 			initialWeight: 250,
 			remainingWeight: 250,
 			notes: '',
-			barId: barId || undefined,
 		},
 	})
 
@@ -115,7 +110,6 @@ export default function BeanFormModal({
 					initialWeight: bean.initialWeight,
 					remainingWeight: bean.remainingWeight ?? bean.initialWeight,
 					notes: bean.notes || '',
-					barId: bean.barId || undefined,
 				})
 			} else if (!isEditMode) {
 				form.reset({
@@ -129,11 +123,10 @@ export default function BeanFormModal({
 					initialWeight: 250,
 					remainingWeight: 250,
 					notes: '',
-					barId: barId || undefined,
 				})
 			}
 		}
-	}, [isOpen, isEditMode, bean, barId, form])
+	}, [isOpen, isEditMode, bean, form])
 
 	const simulateTyping = async (field: any, value: string) => {
 		if (!value) return
@@ -201,8 +194,6 @@ export default function BeanFormModal({
 		setIsSubmitting(true)
 
 		try {
-			if (!user) return
-
 			if (isEditMode) {
 				await axios.put(`/api/beans/${beanId}`, data)
 				toast.success('Coffee bean updated successfully')

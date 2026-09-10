@@ -6,54 +6,39 @@ export interface AutoBrewInput {
 	isDecaf: boolean
 }
 
-export async function createAutoBrewFromDevice(
-	input: AutoBrewInput,
-	barId: number,
-	userId: number,
-) {
+export function createAutoBrewFromDevice(input: AutoBrewInput) {
 	return prisma.$transaction(async (tx) => {
-		const brewBar = await tx.brewBar.findUnique({
-			where: { id: barId },
-			include: {
-				defaultRegularBean: true,
-				defaultDecafBean: true,
-			},
+		const settings = await tx.appSettings.findUnique({
+			where: { id: 1 },
+			include: { defaultRegularBean: true, defaultDecafBean: true },
 		})
-
-		if (!brewBar) {
-			throw new Error('Brew bar not found')
-		}
-
 		const defaultBean = input.isDecaf
-			? brewBar.defaultDecafBean
-			: brewBar.defaultRegularBean
-
+			? settings?.defaultDecafBean
+			: settings?.defaultRegularBean
 		if (!defaultBean) {
 			throw new Error(
-				`No default ${input.isDecaf ? 'decaf' : 'regular'} bean configured for this brew bar`,
+				`No default ${input.isDecaf ? 'decaf' : 'regular'} bean configured`,
 			)
 		}
 
 		const lastBrew = await tx.brew.findFirst({
 			where: {
-				beanId: defaultBean.id,
+				...(defaultBean.batchId
+					? { bean: { batchId: defaultBean.batchId } }
+					: { beanId: defaultBean.id }),
 				method: 'Espresso',
-				barId: barId,
 			},
-			orderBy: { createdAt: 'desc' },
+			orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
 		})
-
 		const doseWeight = lastBrew?.doseWeight ?? input.yieldWeight / 2
 
 		const brew = await tx.brew.create({
 			data: {
-				userId: userId,
 				beanId: defaultBean.id,
-				barId: barId,
 				method: 'Espresso',
 				yieldWeight: input.yieldWeight,
 				brewTime: input.brewTime,
-				doseWeight: doseWeight,
+				doseWeight,
 				grindSize: lastBrew?.grindSize ?? null,
 				waterTemperature: lastBrew?.waterTemperature ?? null,
 				grinderId: lastBrew?.grinderId ?? null,
@@ -63,13 +48,16 @@ export async function createAutoBrewFromDevice(
 		})
 
 		if (defaultBean.remainingWeight !== null) {
-			const newWeight = Math.max(0, defaultBean.remainingWeight - doseWeight)
 			await tx.bean.update({
 				where: { id: defaultBean.id },
-				data: { remainingWeight: newWeight },
+				data: {
+					remainingWeight: Math.max(
+						0,
+						defaultBean.remainingWeight - doseWeight,
+					),
+				},
 			})
 		}
-
 		return brew
 	})
 }

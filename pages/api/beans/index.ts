@@ -1,31 +1,13 @@
-import type { NextApiResponse } from 'next'
+import { withLocalAccess } from '@/lib/api/localRoute'
 import { createApiHandler } from '@/lib/api/methodRouter'
-import { getBeansForBar, createBean } from '@/services/beanService'
-import { withAuth, type AuthRequest } from '@/lib/auth'
+import { createBean, getBeans } from '@/services/beanService'
 
-async function handleGet(req: AuthRequest, res: NextApiResponse) {
-	const { id: userId } = req.user!
-	// barId can be 'null' string or undefined
-	const barIdParam = req.query.barId
-
-	let barId: number | null = null
-	if (barIdParam && barIdParam !== 'null') {
-		barId = Number(barIdParam)
-	}
-
-	const beans = await getBeansForBar(barId, userId)
-	return res.status(200).json(beans)
-}
-
-async function handlePost(req: AuthRequest, res: NextApiResponse) {
-	const { id: userId } = req.user!
-	const bean = await createBean({ ...req.body, createdBy: userId })
-	return res.status(201).json(bean)
-}
-
-export default withAuth(
-	createApiHandler<AuthRequest>({
-		GET: handleGet,
-		POST: handlePost,
+export default withLocalAccess(
+	createApiHandler({
+		GET: async (_req, res) => res.json(await getBeans()),
+		POST: async (req, res) => {
+			const bean = await createBean(req.body)
+			res.status(201).json(bean)
+		},
 	}),
 )

@@ -1,65 +1,47 @@
-import type { NextApiResponse } from 'next'
+import { withLocalAccess } from '@/lib/api/localRoute'
 import { createApiHandler } from '@/lib/api/methodRouter'
+import {
+	ApiError,
+	parseId,
+	parseOptionalId,
+	parseOptionalString,
+} from '@/lib/api/validation'
 import { getBrews, createBrew } from '@/services/brewService'
-import { withAuth, type AuthRequest } from '@/lib/auth'
-import { brewSchema } from '@/lib/validators'
 
-async function handleGet(req: AuthRequest, res: NextApiResponse) {
-	const { id: userId } = req.user!
-	const { barId, cursor, limit, beanId, batchId, method } = req.query
+const DEFAULT_PAGE_SIZE = 25
+const MAX_PAGE_SIZE = 100
 
-	let targetBarId: number | null = null
-	if (barId && barId !== 'undefined' && barId !== 'null') {
-		targetBarId = parseInt(barId as string)
-	}
+export default withLocalAccess(
+	createApiHandler({
+		GET: async (req, res) => {
+			const limit =
+				req.query.limit === undefined
+					? DEFAULT_PAGE_SIZE
+					: parseId(req.query.limit, 'limit')
+			if (limit > MAX_PAGE_SIZE) {
+				throw new ApiError(400, `Limit must not exceed ${MAX_PAGE_SIZE}`)
+			}
 
-	const options = {
-		cursor: cursor ? parseInt(cursor as string) : undefined,
-		limit: limit ? parseInt(limit as string) : undefined,
-		filters: {
-			beanId: beanId ? parseInt(beanId as string) : undefined,
-			batchId: batchId as string | undefined,
-			method: method as string | undefined,
+			const rows = await getBrews({
+				limit,
+				cursor: parseOptionalId(req.query.cursor, 'cursor'),
+				filters: {
+					beanId: parseOptionalId(req.query.beanId, 'bean ID'),
+					batchId: parseOptionalString(req.query.batchId, 'batch ID'),
+					method: parseOptionalString(req.query.method, 'method'),
+				},
+			})
+			const hasMore = rows.length > limit
+			const brews = rows.slice(0, limit)
+			res.json({
+				brews,
+				hasMore,
+				nextId: hasMore ? brews.at(-1)!.id : null,
+			})
 		},
-	}
-
-	try {
-		const brews = await getBrews(userId, targetBarId, options)
-		const hasMore = brews.length === (options.limit ?? 25)
-		const nextId =
-			hasMore && brews.length > 0 ? brews[brews.length - 1].id : null
-
-		return res.status(200).json({
-			brews,
-			nextId,
-			hasMore,
-		})
-	} catch (error: any) {
-		if (error.message === 'Not a member of this bar') {
-			return res.status(403).json({ error: error.message })
-		}
-		throw error
-	}
-}
-
-async function handlePost(req: AuthRequest, res: NextApiResponse) {
-	const { id: userId } = req.user!
-	const validationResult = brewSchema.safeParse(req.body)
-
-	if (!validationResult.success) {
-		return res.status(400).json({
-			error: 'Invalid brew data',
-			details: validationResult.error.flatten().fieldErrors,
-		})
-	}
-
-	const brew = await createBrew(validationResult.data, userId)
-	return res.status(201).json(brew)
-}
-
-export default withAuth(
-	createApiHandler<AuthRequest>({
-		GET: handleGet,
-		POST: handlePost,
+		POST: async (req, res) => {
+			const brew = await createBrew(req.body)
+			res.status(201).json(brew)
+		},
 	}),
 )

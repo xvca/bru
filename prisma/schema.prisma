@@ -10,37 +10,16 @@ datasource db {
   provider = "sqlite"
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  createdAt DateTime @default(now()) @map("created_at")
+model AppSettings {
+  id                   Int  @id @default(1)
+  decafStartHour       Int  @default(23) @map("decaf_start_hour")
+  defaultRegularBeanId Int? @map("default_regular_bean_id")
+  defaultDecafBeanId   Int? @map("default_decaf_bean_id")
 
-  defaultBarId   Int? @map("default_bar_id")
-  decafStartHour Int  @default(23) @map("decaf_start_hour")
+  defaultRegularBean Bean? @relation("DefaultRegularBean", fields: [defaultRegularBeanId], references: [id])
+  defaultDecafBean   Bean? @relation("DefaultDecafBean", fields: [defaultDecafBeanId], references: [id])
 
-  brews          Brew[]
-  beans          Bean[]
-  grinders       Grinder[]
-  brewers        Brewer[]
-  barMemberships BrewBarMember[]
-  deviceTokens   DeviceToken[]
-  sessions       AuthSession[]
-
-  @@map("users")
-}
-
-model AuthSession {
-  id        String   @id @default(cuid())
-  userId    Int      @map("user_id")
-  tokenHash String   @unique @map("token_hash")
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("auth_sessions")
+  @@map("app_settings")
 }
 
 model Bean {
@@ -58,18 +37,12 @@ model Bean {
   notes           String?
   process         String?
   producer        String?
+  createdAt       DateTime  @default(now()) @map("created_at")
 
-  createdBy Int  @map("created_by")
-  user      User @relation(fields: [createdBy], references: [id])
+  brews Brew[]
 
-  barId   Int?     @map("bar_id")
-  brewBar BrewBar? @relation(fields: [barId], references: [id])
-
-  createdAt DateTime @default(now()) @map("created_at")
-  brews     Brew[]
-
-  regularBeanForBars BrewBar[] @relation("DefaultRegularBean")
-  decafBeanForBars   BrewBar[] @relation("DefaultDecafBean")
+  regularSetting AppSettings[] @relation("DefaultRegularBean")
+  decafSetting   AppSettings[] @relation("DefaultDecafBean")
 
   @@index([batchId])
   @@map("beans")
@@ -80,12 +53,6 @@ model Grinder {
   name     String
   burrType String? @map("burr_type")
   notes    String?
-
-  createdBy Int  @map("created_by")
-  user      User @relation(fields: [createdBy], references: [id])
-
-  barId   Int?     @map("bar_id")
-  brewBar BrewBar? @relation(fields: [barId], references: [id])
 
   brews Brew[]
 
@@ -98,66 +65,19 @@ model Brewer {
   type  String
   notes String?
 
-  createdBy Int  @map("created_by")
-  user      User @relation(fields: [createdBy], references: [id])
-
-  barId   Int?     @map("bar_id")
-  brewBar BrewBar? @relation(fields: [barId], references: [id])
-
   brews Brew[]
 
   @@map("brewers")
 }
 
-model BrewBar {
-  id        Int      @id @default(autoincrement())
-  name      String
-  location  String?
-  createdBy Int      @map("created_by")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  defaultRegularBeanId Int? @map("default_regular_bean_id")
-  defaultDecafBeanId   Int? @map("default_decaf_bean_id")
-
-  members BrewBarMember[]
-
-  beans    Bean[]
-  brewers  Brewer[]
-  grinders Grinder[]
-
-  brews Brew[]
-
-  deviceTokens       DeviceToken[]
-  defaultRegularBean Bean?         @relation("DefaultRegularBean", fields: [defaultRegularBeanId], references: [id])
-  defaultDecafBean   Bean?         @relation("DefaultDecafBean", fields: [defaultDecafBeanId], references: [id])
-
-  @@map("brew_bars")
-}
-
-model BrewBarMember {
-  id     Int     @id @default(autoincrement())
-  barId  Int     @map("bar_id")
-  userId Int     @map("user_id")
-  role   String?
-  bar    BrewBar @relation(fields: [barId], references: [id])
-  user   User    @relation(fields: [userId], references: [id])
-
-  @@unique([barId, userId])
-  @@map("brew_bar_members")
-}
-
 model Brew {
   id     Int @id @default(autoincrement())
-  userId Int @map("user_id")
   beanId Int @map("bean_id")
 
   method String
 
   grinderId Int? @map("grinder_id")
-
-  brewerId Int? @map("brewer_id")
-
-  barId Int? @map("bar_id")
+  brewerId  Int? @map("brewer_id")
 
   doseWeight       Float    @map("dose_weight")
   yieldWeight      Float?   @map("yield_weight")
@@ -165,18 +85,14 @@ model Brew {
   grindSize        Float?   @map("grind_size")
   waterTemperature Float?   @map("water_temperature")
   bloomTime        Int?     @map("bloom_time")
-  rating      Int?     @default(0)
-  notes       String?
-  autoCreated Boolean  @default(false) @map("auto_created")
+  rating           Int?     @default(0)
+  notes            String?
+  autoCreated      Boolean  @default(false) @map("auto_created")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  user    User     @relation(fields: [userId], references: [id])
   bean    Bean     @relation(fields: [beanId], references: [id])
   grinder Grinder? @relation(fields: [grinderId], references: [id])
-
-  brewer Brewer? @relation(fields: [brewerId], references: [id])
-
-  brewBar BrewBar? @relation(fields: [barId], references: [id])
+  brewer  Brewer?  @relation(fields: [brewerId], references: [id])
 
   @@map("brews")
 }
@@ -184,14 +100,9 @@ model Brew {
 model DeviceToken {
   id         Int      @id @default(autoincrement())
   token      String   @unique
-  barId      Int      @map("bar_id")
-  createdBy  Int      @map("created_by")
   deviceName String?  @map("device_name")
   createdAt  DateTime @default(now()) @map("created_at")
   lastUsedAt DateTime @default(now()) @map("last_used_at")
-
-  brewBar BrewBar @relation(fields: [barId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   @@map("device_tokens")
 }

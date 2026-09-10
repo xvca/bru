@@ -1,8 +1,7 @@
-import ProtectedPage from '@/components/ProtectedPage'
+import Page from '@/components/Page'
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import axios from 'axios'
-import { useBrewBar } from '@/lib/brewBarContext'
 import { useBeans } from '@/hooks/useBeans'
 import {
 	Plus,
@@ -48,7 +47,6 @@ import {
 
 export default function BeansPage() {
 	const router = useRouter()
-	const { activeBarId, availableBars } = useBrewBar()
 	const { beans, isLoading, refresh } = useBeans()
 
 	const [modalData, setModalData] = useState({
@@ -172,10 +170,6 @@ export default function BeansPage() {
 		return `hsl(${hue}, 50%, 65%)`
 	}
 
-	const currentBarName = activeBarId
-		? availableBars.find((b) => b.id === activeBarId)?.name
-		: 'Personal Stash'
-
 	const sortedBeans = useMemo(() => {
 		if (!beans) return []
 
@@ -291,6 +285,7 @@ export default function BeansPage() {
 											variant='ghost'
 											size='icon'
 											className='h-8 w-8 text-muted-foreground hover:text-foreground'
+											aria-label={`Actions for ${bean.name}`}
 										>
 											<MoreVertical size={16} />
 										</Button>
@@ -389,18 +384,10 @@ export default function BeansPage() {
 	}
 
 	return (
-		<ProtectedPage title='Coffee Beans'>
+		<Page title='Beans'>
 			<div className='p-6'>
 				<div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4'>
-					<div>
-						<h1 className='text-3xl font-bold tracking-tight'>Coffee Beans</h1>
-						<p className='text-muted-foreground mt-1'>
-							Manage inventory for:{' '}
-							<span className='font-medium text-foreground'>
-								{currentBarName}
-							</span>
-						</p>
-					</div>
+					<h1 className='text-3xl font-bold tracking-tight'>Beans</h1>
 
 					<div className='flex items-center gap-2 w-full md:w-auto'>
 						<Button onClick={handleAddNew}>
@@ -497,7 +484,6 @@ export default function BeansPage() {
 				isOpen={isFormOpen}
 				onClose={() => setIsFormOpen(false)}
 				beanId={selectedBeanId}
-				barId={activeBarId || undefined}
 				onSuccess={refresh}
 			/>
 
@@ -524,12 +510,11 @@ export default function BeansPage() {
 					setIsBrewFormOpen(false)
 					setSelectedBeanForBrew(undefined)
 				}}
-				barId={activeBarId || undefined}
 				onSuccess={refresh}
 				initialData={
 					selectedBeanForBrew ? { beanId: selectedBeanForBrew } : undefined
 				}
 			/>
-		</ProtectedPage>
+		</Page>
 	)
 }

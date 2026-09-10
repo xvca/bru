@@ -1,11 +1,8 @@
-import ProtectedPage from '@/components/ProtectedPage'
-import Section from '@/components/Section'
+import Page from '@/components/Page'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
-import { useBrewBar } from '@/lib/brewBarContext'
 import type { Brewer, Grinder } from 'generated/prisma/client'
-import { Plus, Settings, Coffee, Edit, Trash } from 'lucide-react'
+import { Plus, Edit, Trash } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewerFormModal from '@/components/BrewerFormModal'
@@ -22,9 +19,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function EquipmentPage() {
-	const { user } = useAuth()
-	const { activeBarId, availableBars } = useBrewBar()
-
 	const [brewers, setBrewers] = useState<Brewer[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 	const [isLoading, setIsLoading] = useState(true)
@@ -39,21 +33,16 @@ export default function EquipmentPage() {
 		name: string
 	} | null>(null)
 
-	const currentBarName = activeBarId
-		? availableBars.find((b) => b.id === activeBarId)?.name
-		: 'Personal Space'
-
 	useEffect(() => {
-		if (user) fetchData()
-	}, [user, activeBarId])
+		void fetchData()
+	}, [])
 
 	const fetchData = async () => {
 		setIsLoading(true)
 		try {
-			const params = { barId: activeBarId }
 			const [bRes, gRes] = await Promise.all([
-				axios.get('/api/brewers', { params }),
-				axios.get('/api/grinders', { params }),
+				axios.get('/api/brewers'),
+				axios.get('/api/grinders'),
 			])
 			setBrewers(bRes.data)
 			setGrinders(gRes.data)
@@ -81,18 +70,10 @@ export default function EquipmentPage() {
 	}
 
 	return (
-		<ProtectedPage title='Equipment'>
+		<Page title='Equipment'>
 			<div className='p-6'>
 				<div className='flex justify-between items-center mb-8'>
-					<div>
-						<h1 className='text-3xl font-bold tracking-tight'>Equipment</h1>
-						<p className='text-muted-foreground mt-1'>
-							Manage gear for:{' '}
-							<span className='font-medium text-foreground'>
-								{currentBarName}
-							</span>
-						</p>
-					</div>
+					<h1 className='text-3xl font-bold tracking-tight'>Equipment</h1>
 				</div>
 
 				<Tabs defaultValue='brewers' className='w-full'>
@@ -132,6 +113,7 @@ export default function EquipmentPage() {
 													variant='ghost'
 													size='icon'
 													className='h-8 w-8'
+													aria-label={`Edit ${item.name}`}
 													onClick={() => {
 														setSelectedId(item.id)
 														setIsBrewerModalOpen(true)
@@ -143,6 +125,7 @@ export default function EquipmentPage() {
 													variant='ghost'
 													size='icon'
 													className='h-8 w-8 text-destructive'
+													aria-label={`Delete ${item.name}`}
 													onClick={() =>
 														setDeleteData({
 															type: 'brewer',
@@ -193,6 +176,7 @@ export default function EquipmentPage() {
 													variant='ghost'
 													size='icon'
 													className='h-8 w-8'
+													aria-label={`Edit ${item.name}`}
 													onClick={() => {
 														setSelectedId(item.id)
 														setIsGrinderModalOpen(true)
@@ -204,6 +188,7 @@ export default function EquipmentPage() {
 													variant='ghost'
 													size='icon'
 													className='h-8 w-8 text-destructive'
+													aria-label={`Delete ${item.name}`}
 													onClick={() =>
 														setDeleteData({
 															type: 'grinder',
@@ -232,7 +217,6 @@ export default function EquipmentPage() {
 			<BrewerFormModal
 				isOpen={isBrewerModalOpen}
 				onClose={() => setIsBrewerModalOpen(false)}
-				brewBarId={activeBarId}
 				brewerId={selectedId}
 				onSuccess={fetchData}
 			/>
@@ -240,7 +224,6 @@ export default function EquipmentPage() {
 			<GrinderFormModal
 				isOpen={isGrinderModalOpen}
 				onClose={() => setIsGrinderModalOpen(false)}
-				brewBarId={activeBarId || null}
 				grinderId={selectedId}
 				onSuccess={fetchData}
 			/>
@@ -252,6 +235,6 @@ export default function EquipmentPage() {
 				title={`Delete ${deleteData?.type === 'brewer' ? 'Brewer' : 'Grinder'}`}
 				description={`Are you sure you want to delete "${deleteData?.name}"?`}
 			/>
-		</ProtectedPage>
+		</Page>
 	)
 }

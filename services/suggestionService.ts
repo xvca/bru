@@ -5,82 +5,74 @@ export interface SuggestionResult {
 	decafStartHour: number
 }
 
-export async function getSuggestionsForBar(
-	barId: number,
-	userId: number,
-): Promise<SuggestionResult> {
-	const [activeBeans, user] = await Promise.all([
+export async function getSuggestions(): Promise<SuggestionResult> {
+	const [activeBeans, settings] = await Promise.all([
 		prisma.bean.findMany({
 			where: {
-				barId,
 				OR: [{ remainingWeight: { gt: 0 } }, { remainingWeight: null }],
 			},
 		}),
-		prisma.user.findUnique({
-			where: { id: userId },
-			select: { decafStartHour: true },
-		}),
+		prisma.appSettings.findUnique({ where: { id: 1 } }),
 	])
 
 	if (activeBeans.length === 0) {
 		return {
 			suggestions: [],
-			decafStartHour: user?.decafStartHour ?? -1,
+			decafStartHour: settings?.decafStartHour ?? 23,
 		}
 	}
 
-	const batchIds = [...new Set(activeBeans.map((b) => b.batchId).filter((id): id is string => id !== null))]
+	const batchIds = [
+		...new Set(
+			activeBeans
+				.map((bean) => bean.batchId)
+				.filter((id): id is string => id !== null),
+		),
+	]
+	const unbatchedBeanIds = activeBeans
+		.filter((bean) => !bean.batchId)
+		.map((bean) => bean.id)
 
 	const relevantBrews = await prisma.brew.findMany({
 		where: {
-			barId,
 			method: 'Espresso',
-			bean: {
-				batchId: { in: batchIds },
-			},
+			OR: [
+				{ bean: { batchId: { in: batchIds } } },
+				{ beanId: { in: unbatchedBeanIds } },
+			],
 		},
-		orderBy: { createdAt: 'desc' },
-		include: {
-			bean: {
-				select: {
-					batchId: true,
-				},
-			},
-		},
+		orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+		include: { bean: { select: { batchId: true } } },
 	})
 
 	const batchGroups: Record<string, typeof activeBeans> = {}
-	activeBeans.forEach((bean) => {
+	for (const bean of activeBeans) {
 		const key = bean.batchId || `fallback-${bean.id}`
 		if (!batchGroups[key]) batchGroups[key] = []
 		batchGroups[key].push(bean)
-	})
+	}
 
 	const suggestions = []
-
 	for (const [batchId, beans] of Object.entries(batchGroups)) {
-		const matchingBrew = relevantBrews.find((brew) => brew.bean.batchId === batchId)
-
+		const matchingBrew = relevantBrews.find((brew) => {
+			if (brew.bean.batchId) return brew.bean.batchId === batchId
+			return beans.some((bean) => bean.id === brew.beanId)
+		})
 		if (!matchingBrew) continue
 
 		const bestBean = beans.sort((a, b) => {
 			const isAReady = !a.freezeDate || !!a.thawDate
 			const isBReady = !b.freezeDate || !!b.thawDate
-
 			if (isAReady && !isBReady) return -1
 			if (!isAReady && isBReady) return 1
-
 			return b.id - a.id
 		})[0]
 
-		suggestions.push({
-			...bestBean,
-			lastBrew: matchingBrew,
-		})
+		suggestions.push({ ...bestBean, lastBrew: matchingBrew })
 	}
 
 	return {
 		suggestions,
-		decafStartHour: user?.decafStartHour ?? -1,
+		decafStartHour: settings?.decafStartHour ?? 23,
 	}
 }

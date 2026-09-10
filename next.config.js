@@ -13,11 +13,9 @@ const nextConfig = {
 		},
 		async redirects() {
 			return [
-				{ source: '/login', destination: '/', permanent: true },
 				{ source: '/beans', destination: '/', permanent: true },
 				{ source: '/brews', destination: '/', permanent: true },
 				{ source: '/equipment', destination: '/', permanent: true },
-				{ source: '/brew-bars', destination: '/', permanent: true },
 			]
 		},
 	}),

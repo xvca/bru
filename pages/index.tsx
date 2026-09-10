@@ -2,10 +2,10 @@ import Page from '@/components/Page'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Play, Square, ArrowUp, ArrowDown, Power } from 'lucide-react'
 import axios, { AxiosInstance } from 'axios'
+import { useSWRConfig } from 'swr'
 import { toast } from 'sonner'
 import { Gauge } from '@/components/Gauge'
 import { useWebSocket } from '@/lib/websocketContext'
-import { useAuth } from '@/lib/authContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEspConfig } from '@/lib/espConfigContext'
 
@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { SmartCarousel, type SmartSuggestion } from '@/components/SmartCarousel'
 import { DEFAULT_MAX_SHOT_WEIGHT, type BrewFormData } from '@/lib/validators'
-import { useBrewBar } from '@/lib/brewBarContext'
+import { SUGGESTIONS_KEY } from '@/hooks/useSuggestions'
 import BrewForm from '@/components/BrewFormModal'
 import Link from 'next/link'
 import { Label } from '@/components/ui/label'
@@ -65,10 +65,17 @@ export default function Dashboard() {
 	const { espIp, setEspIp, prefs, isReady: isEspConfigReady } = useEspConfig()
 	const maxShotWeight = prefs?.maxShotWeight ?? DEFAULT_MAX_SHOT_WEIGHT
 	const clampTargetWeight = useCallback(
-		(weight: number) => Math.min(maxShotWeight, Math.max(1, Number.isFinite(weight) ? weight : 20)),
+		(weight: number) =>
+			Math.min(
+				maxShotWeight,
+				Math.max(1, Number.isFinite(weight) ? weight : 20),
+			),
 		[maxShotWeight],
 	)
-	const isTargetValid = Number.isFinite(targetWeight) && targetWeight >= 1 && targetWeight <= maxShotWeight
+	const isTargetValid =
+		Number.isFinite(targetWeight) &&
+		targetWeight >= 1 &&
+		targetWeight <= maxShotWeight
 
 	const sanitizedIp = useMemo(() => (espIp ? sanitizeIp(espIp) : null), [espIp])
 
@@ -97,9 +104,13 @@ export default function Dashboard() {
 
 	const latestShotRef = useRef(brewData)
 	const previousStateRef = useRef(brewData.state)
-	const { activeBarId } = useBrewBar()
+	const { mutate } = useSWRConfig()
 
-	const { user } = useAuth()
+	const refreshSuggestions = () => {
+		void mutate(SUGGESTIONS_KEY).catch((error) => {
+			console.error('Error refreshing brew suggestions:', error)
+		})
+	}
 
 	const clientBrewStartRef = useRef<number | null>(null)
 	const serverTimeOffsetRef = useRef(0)
@@ -198,7 +209,6 @@ export default function Dashboard() {
 					waterTemperature: lastProfile?.waterTemperature ?? undefined,
 					grinderId: lastProfile?.grinderId,
 					brewerId: lastProfile?.brewerId,
-					barId: activeBarId || undefined,
 				}
 
 				setBrewDraft(prefill)
@@ -218,7 +228,6 @@ export default function Dashboard() {
 		brewData.time,
 		brewData.weight,
 		targetWeight,
-		activeBarId,
 		selectedSuggestion,
 	])
 
@@ -615,7 +624,9 @@ export default function Dashboard() {
 																		? 0
 																		: parseFloat(e.target.value)
 																if (!Number.isFinite(value)) value = 0
-																setTargetWeight(Math.min(maxShotWeight, Math.max(0, value)))
+																setTargetWeight(
+																	Math.min(maxShotWeight, Math.max(0, value)),
+																)
 															}}
 															onBlur={() => setTargetWeight(clampTargetWeight)}
 															onFocus={(e) => e.target.select()}
@@ -670,7 +681,7 @@ export default function Dashboard() {
 				</motion.div>
 
 				<AnimatePresence mode='wait'>
-					{user !== null && !isBrewing && (
+					{process.env.NEXT_PUBLIC_LITE !== 'true' && !isBrewing && (
 						<SmartCarousel
 							selectedBeanId={selectedSuggestion?.id ?? null}
 							onBeanToggle={handleSuggestionToggle}
@@ -684,7 +695,9 @@ export default function Dashboard() {
 			<div className='fixed bottom-4 left-0 right-0 p-6 flex justify-center z-50 pointer-events-none'>
 				<Button
 					onClick={isBrewing ? stopBrew : startBrew}
-					disabled={!brewData.isScaleConnected || (!isBrewing && !isTargetValid)}
+					disabled={
+						!brewData.isScaleConnected || (!isBrewing && !isTargetValid)
+					}
 					size='lg'
 					variant={isBrewing ? 'destructive' : 'default'}
 					className='w-9/10 rounded-full h-12 text-lg font-semibold pointer-events-auto transition-all active:scale-95 max-w-2xl'
@@ -706,11 +719,11 @@ export default function Dashboard() {
 			<BrewForm
 				isOpen={isBrewFormOpen}
 				onClose={() => setIsBrewFormOpen(false)}
-				barId={activeBarId ?? undefined}
 				initialData={brewDraft ?? undefined}
 				onSuccess={() => {
 					setSelectedSuggestion(null)
 					setBrewDraft(null)
+					refreshSuggestions()
 				}}
 			/>
 

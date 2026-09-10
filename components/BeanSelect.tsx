@@ -35,7 +35,7 @@ export function BeanSelect({
 					b.remainingWeight === null ||
 					b.remainingWeight > 0 ||
 					b.id.toString() === value,
-		  )
+			)
 
 	const activeBeans = availableBeans
 		.filter((b) => !b.freezeDate || !!b.thawDate)

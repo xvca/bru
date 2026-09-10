@@ -46,7 +46,6 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 	const [prefsError, setPrefsError] = useState<string | null>(null)
 	const [integration, setIntegration] = useState<EspIntegration | null>(null)
 	const prefsRequestId = useRef(0)
-	const selectedIp = useRef<string | null>(null)
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return
@@ -56,7 +55,6 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 	}, [])
 
 	const fetchPrefs = useCallback(async (ip: string) => {
-		if (ip !== selectedIp.current) return
 		const requestId = ++prefsRequestId.current
 		setIsLoadingPrefs(true)
 		setPrefsError(null)
@@ -109,7 +107,6 @@ export const EspConfigProvider = ({ children }: PropsWithChildren) => {
 	}, [])
 
 	useEffect(() => {
-		selectedIp.current = espIp
 		if (isReady && espIp) {
 			fetchPrefs(espIp)
 		} else if (isReady && !espIp) {

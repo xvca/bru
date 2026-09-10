@@ -13,14 +13,6 @@ export const BREW_METHODS = [
 	'Other',
 ] as const
 
-// Auth
-export const authSchema = z.object({
-	username: z.string().min(3, 'Username must be at least 3 characters'),
-	password: z.string().min(6, 'Password must be at least 6 characters'),
-})
-
-export type AuthFormData = z.infer<typeof authSchema>
-
 // Beans
 export const beanSchema = z
 	.object({
@@ -30,12 +22,26 @@ export const beanSchema = z
 		roastLevel: z.string().optional().nullable(),
 		process: z.string().optional().nullable(),
 		producer: z.string().optional().nullable(),
-		roastDate: z.string().min(1, 'Roast date is required'),
-		freezeDate: z.string().optional().nullable(),
-		initialWeight: z.coerce.number().positive('Weight must be positive'),
+		roastDate: z
+			.string()
+			.refine(
+				(value) => Number.isFinite(Date.parse(value)),
+				'Valid roast date is required',
+			),
+		freezeDate: z
+			.string()
+			.refine(
+				(value) => !value || Number.isFinite(Date.parse(value)),
+				'Invalid freeze date',
+			)
+			.optional()
+			.nullable(),
+		initialWeight: z.coerce
+			.number()
+			.finite()
+			.positive('Weight must be positive'),
 		remainingWeight: z.coerce.number().min(0).optional().nullable(),
 		notes: z.string().optional().nullable(),
-		barId: z.coerce.number().optional().nullable(),
 	})
 	.refine(
 		(data) => {
@@ -65,18 +71,20 @@ export type BeanFormData = z.infer<typeof beanSchema>
 
 // Brews
 export const brewSchema = z.object({
-	beanId: z.coerce.number().min(1, 'Bean is required'),
+	beanId: z.coerce.number().int().positive('Bean is required'),
 	method: z.string().min(1, 'Method is required'),
-	doseWeight: z.coerce.number().min(0.1, 'Dose weight must be positive'),
-	yieldWeight: z.coerce.number().min(0.1).optional().nullable(),
-	brewTime: z.coerce.number().min(0).optional().nullable(),
-	grindSize: z.coerce.number().min(0).optional().nullable(),
+	doseWeight: z.coerce
+		.number()
+		.finite()
+		.min(0.1, 'Dose weight must be positive'),
+	yieldWeight: z.coerce.number().finite().min(0.1).optional().nullable(),
+	brewTime: z.coerce.number().finite().min(0).optional().nullable(),
+	grindSize: z.coerce.number().finite().min(0).optional().nullable(),
 	waterTemperature: z.coerce.number().min(1).max(100).optional().nullable(),
-	rating: z.coerce.number().min(0).max(5).optional().nullable(),
+	rating: z.coerce.number().int().min(0).max(5).optional().nullable(),
 	notes: z.string().optional().nullable(),
-	barId: z.coerce.number().optional().nullable(),
-	brewerId: z.coerce.number().optional().nullable(),
-	grinderId: z.coerce.number().optional().nullable(),
+	brewerId: z.coerce.number().int().positive().optional().nullable(),
+	grinderId: z.coerce.number().int().positive().optional().nullable(),
 })
 
 export type BrewFormData = z.infer<typeof brewSchema>
@@ -84,9 +92,8 @@ export type BrewFormData = z.infer<typeof brewSchema>
 // Brewers
 export const brewerSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
-	type: z.enum(BREW_METHODS).or(z.string()),
+	type: z.string().trim().min(1, 'Type is required'),
 	notes: z.string().optional().nullable(),
-	barId: z.coerce.number().optional().nullable(),
 })
 
 export type BrewerFormData = z.infer<typeof brewerSchema>
@@ -96,36 +103,15 @@ export const grinderSchema = z.object({
 	name: z.string().min(1, 'Name is required'),
 	burrType: z.string().optional().nullable(),
 	notes: z.string().optional().nullable(),
-	barId: z.coerce.number().optional().nullable(),
 })
 
 export type GrinderFormData = z.infer<typeof grinderSchema>
 
-// Brew Bars
-export const brewBarSchema = z.object({
-	name: z.string().min(1, 'Name is required'),
-	location: z.string().optional().nullable(),
-	defaultRegularBeanId: z.coerce.number().optional().nullable(),
-	defaultDecafBeanId: z.coerce.number().optional().nullable(),
+export const preferencesSchema = z.object({
+	decafStartHour: z.number().int().min(-1).max(23).optional(),
 })
 
-export type BrewBarFormData = z.infer<typeof brewBarSchema>
-
-// Members
-export const inviteSchema = z.object({
-	username: z.string().min(1, 'Username is required'),
-	role: z.string().optional(),
-})
-
-export type InviteFormData = z.infer<typeof inviteSchema>
-
-// User Preferences
-export const userPreferencesSchema = z.object({
-	defaultBarId: z.string().optional(),
-	decafStartHour: z.number().min(-1).max(23).optional(),
-})
-
-export type UserPreferencesFormData = z.infer<typeof userPreferencesSchema>
+export type PreferencesFormData = z.infer<typeof preferencesSchema>
 
 // ESP preferences
 export const DEFAULT_MAX_SHOT_WEIGHT = 100

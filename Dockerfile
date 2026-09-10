@@ -30,4 +30,4 @@ COPY --from=builder /app .
 
 EXPOSE 3000
 
-CMD ["/bin/sh", "-c", "if [ \"$LITE\" = \"true\" ]; then npm start; else npx prisma migrate deploy && npm start; fi"]
+CMD ["/bin/sh", "-c", "if [ \"$LITE\" = \"true\" ]; then npm start; else npm run prisma:migrate && npm start; fi"]

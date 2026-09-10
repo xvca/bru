@@ -1,6 +1,6 @@
 import { createApiHandler } from '@/lib/api/methodRouter'
-import { withAuth, AuthRequest } from '@/lib/auth'
-import { NextApiResponse } from 'next'
+import { withLocalAccess } from '@/lib/api/localRoute'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import axios from 'axios'
 
 export const config = {
@@ -33,7 +33,7 @@ Output Format:
 Return ONLY a valid JSON object. Do not include markdown formatting or explanations.
 `
 
-async function handlePost(req: AuthRequest, res: NextApiResponse) {
+async function handlePost(req: NextApiRequest, res: NextApiResponse) {
 	const apiKey = process.env.OPENROUTER_API_KEY
 	if (!apiKey)
 		return res.status(503).json({ error: 'AI service not configured' })
@@ -87,4 +87,4 @@ async function handlePost(req: AuthRequest, res: NextApiResponse) {
 	}
 }
 
-export default withAuth(createApiHandler({ POST: handlePost }))
+export default withLocalAccess(createApiHandler({ POST: handlePost }))

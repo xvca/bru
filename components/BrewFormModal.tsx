@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -41,7 +40,6 @@ interface BrewFormProps {
 	isOpen: boolean
 	onClose: () => void
 	brewId?: number
-	barId?: number
 	onSuccess?: () => void
 	initialData?: Partial<BrewFormData>
 }
@@ -50,11 +48,9 @@ export default function BrewForm({
 	isOpen,
 	onClose,
 	brewId,
-	barId,
 	onSuccess,
 	initialData,
 }: BrewFormProps) {
-	const { user } = useAuth()
 	const isEditMode = !!brewId
 
 	const [isLoading, setIsLoading] = useState(false)
@@ -69,7 +65,7 @@ export default function BrewForm({
 		isOpen && isEditMode ? brewId : undefined,
 	)
 
-	const defaultValues: BrewFormData = {
+	const defaultValues: Partial<BrewFormData> = {
 		beanId: 0,
 		method: 'Espresso',
 		doseWeight: 18,
@@ -79,7 +75,6 @@ export default function BrewForm({
 		waterTemperature: 93,
 		rating: 0,
 		notes: '',
-		barId: barId || undefined,
 		brewerId: undefined,
 		grinderId: undefined,
 	}
@@ -94,17 +89,17 @@ export default function BrewForm({
 
 	const watchedBeanId = useWatch({ control: form.control, name: 'beanId' })
 	const watchedBrewerId = useWatch({ control: form.control, name: 'brewerId' })
+	const watchedMethod = useWatch({ control: form.control, name: 'method' })
 
 	useEffect(() => {
-		if (isOpen && user) {
+		if (isOpen) {
 			setIsFormDataLoading(true)
 			const fetchData = async () => {
 				try {
-					const params = { barId: barId || undefined }
 					const [beansRes, brewersRes, grindersRes] = await Promise.all([
-						axios.get('/api/beans', { params }),
-						axios.get('/api/brewers', { params }),
-						axios.get('/api/grinders', { params }),
+						axios.get('/api/beans'),
+						axios.get('/api/brewers'),
+						axios.get('/api/grinders'),
 					])
 
 					setBeans(beansRes.data)
@@ -119,7 +114,7 @@ export default function BrewForm({
 			}
 			fetchData()
 		}
-	}, [isOpen, user, barId])
+	}, [isOpen])
 
 	useEffect(() => {
 		if (isOpen) {
@@ -128,7 +123,6 @@ export default function BrewForm({
 					...brew,
 					beanId: brew.beanId,
 					method: brew.method,
-					barId: brew.barId || undefined,
 					brewerId: brew.brewerId || undefined,
 					grinderId: brew.grinderId || undefined,
 				})
@@ -136,52 +130,63 @@ export default function BrewForm({
 				form.reset({
 					...defaultValues,
 					...(initialData ?? {}),
-					barId: barId || initialData?.barId || undefined,
 				})
 			}
 		}
-	}, [isOpen, isEditMode, brew, barId, initialData, form])
+	}, [isOpen, isEditMode, brew, initialData, form])
 
 	useEffect(() => {
+		const controller = new AbortController()
 		const fetchLastBrew = async () => {
-			if (
-				!watchedBeanId ||
-				!watchedBrewerId ||
-				isEditMode ||
-				initialData ||
-				!user ||
-				!isOpen
-			) {
+			if (!watchedBeanId || isEditMode || initialData || !isOpen) {
 				return
 			}
 
 			try {
-				const response = await axios.get('/api/brews/last', {
+				const response = await axios.get('/api/brews/last-parameters', {
+					signal: controller.signal,
 					params: {
 						beanId: watchedBeanId,
-						brewerId: watchedBrewerId,
+						brewerId: watchedBrewerId ?? undefined,
+						method: watchedMethod,
 					},
 					validateStatus: (status) => status === 200 || status === 404,
 				})
 
-				const currentValues = form.getValues()
 				if (response.status === 200 && response.data) {
-					form.setValue('doseWeight', response.data.doseWeight)
-					form.setValue('yieldWeight', response.data.yieldWeight)
-					form.setValue('brewTime', response.data.brewTime)
-					form.setValue('grindSize', response.data.grindSize)
-					form.setValue('waterTemperature', response.data.waterTemperature)
-					form.setValue('brewerId', response.data.brewerId)
-					form.setValue('grinderId', response.data.grinderId)
+					for (const field of [
+						'doseWeight',
+						'yieldWeight',
+						'brewTime',
+						'grindSize',
+						'waterTemperature',
+						'brewerId',
+						'grinderId',
+					] as const) {
+						if (!form.getFieldState(field).isDirty)
+							form.setValue(field, response.data[field] ?? undefined)
+					}
 				}
 			} catch (error) {
-				console.error('Error fetching last brew:', error)
+				if (!axios.isCancel(error))
+					console.error('Error fetching last brew:', error)
 			}
 		}
 
 		const timer = setTimeout(fetchLastBrew, 300)
-		return () => clearTimeout(timer)
-	}, [watchedBeanId, watchedBrewerId, isEditMode, initialData, user, form])
+		return () => {
+			clearTimeout(timer)
+			controller.abort()
+		}
+	}, [
+		watchedBeanId,
+		watchedBrewerId,
+		watchedMethod,
+		isOpen,
+		isEditMode,
+		initialData,
+		form,
+	])
 
 	const onSubmit = async (data: BrewFormData) => {
 		try {

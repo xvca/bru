@@ -1,6 +1,5 @@
 export interface EspIntegration {
 	configured: boolean
-	barId: number | null
 	apiUrl: string
 }
 
@@ -13,22 +12,14 @@ export function parseEspIntegration(value: unknown): EspIntegration | null {
 	)
 		return null
 
-	const barId = 'barId' in value ? value.barId : null
-	return {
-		configured: value.configured,
-		barId:
-			value.configured &&
-			typeof barId === 'number' &&
-			Number.isSafeInteger(barId) &&
-			barId > 0 &&
-			barId <= 2147483647
-				? barId
-				: null,
-		apiUrl:
-			value.configured && 'apiUrl' in value && typeof value.apiUrl === 'string'
-				? value.apiUrl
-				: '',
+	if (!value.configured) {
+		return { configured: false, apiUrl: '' }
 	}
+
+	const apiUrl =
+		'apiUrl' in value && typeof value.apiUrl === 'string' ? value.apiUrl : ''
+
+	return { configured: true, apiUrl }
 }
 
 export function isSameBruServer(apiUrl: string, origin: string): boolean {

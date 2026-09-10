@@ -1,123 +1,88 @@
 import { prisma } from '@/lib/prisma'
 import { v4 as uuidv4 } from 'uuid'
+import { beanSchema } from '@/lib/validators'
+import { ApiError } from '@/lib/api/validation'
 
 export async function getBeanById(id: number) {
 	return prisma.bean.findUnique({
 		where: { id },
 		include: {
-			brews: {
-				orderBy: { createdAt: 'desc' },
-				take: 10,
-			},
+			brews: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 10 },
 		},
 	})
 }
 
-export async function getBeansForBar(barId: number | null, userId: number) {
-	return prisma.bean.findMany({
-		where: {
-			barId: barId,
-			...(barId === null ? { createdBy: userId } : {}),
-		},
-		orderBy: { createdAt: 'desc' },
-	})
+export async function getBeans() {
+	return prisma.bean.findMany({ orderBy: { createdAt: 'desc' } })
 }
 
-interface CreateBeanInput {
-	name: string
-	roaster?: string
-	origin?: string
-	roastLevel?: string
-	process?: string
-	producer?: string
-	roastDate: string | Date
-	freezeDate?: string | Date | null
-	thawDate?: string | Date | null
-	initialWeight: number
-	remainingWeight?: number
-	notes?: string
-	barId?: number
-	createdBy: number
+function parseBeanInput(input: unknown) {
+	const data = beanSchema.parse(input)
+	return {
+		...data,
+		roastDate: new Date(data.roastDate),
+		freezeDate: data.freezeDate ? new Date(data.freezeDate) : null,
+	}
 }
 
-export async function createBean(input: CreateBeanInput) {
+export async function createBean(input: unknown) {
+	const data = parseBeanInput(input)
 	return prisma.bean.create({
 		data: {
-			...input,
+			...data,
 			batchId: uuidv4(),
-			roastDate: new Date(input.roastDate),
-			freezeDate: input.freezeDate ? new Date(input.freezeDate) : null,
-			thawDate: input.thawDate ? new Date(input.thawDate) : null,
-			remainingWeight: input.remainingWeight ?? input.initialWeight,
-			barId: input.barId ?? null,
+			remainingWeight: data.remainingWeight ?? data.initialWeight,
 		},
 	})
 }
 
-export async function updateBean(id: number, input: Partial<CreateBeanInput>) {
-	const data: any = { ...input }
-
-	if (data.roastDate) {
-		data.roastDate = new Date(data.roastDate)
-	}
-
-	if ('freezeDate' in data) {
-		data.freezeDate = data.freezeDate ? new Date(data.freezeDate) : null
-	}
-
-	if ('thawDate' in data) {
-		data.thawDate = data.thawDate ? new Date(data.thawDate) : null
-	}
-
-	return prisma.bean.update({
-		where: { id },
-		data,
-	})
+export async function updateBean(id: number, input: unknown) {
+	return prisma.bean.update({ where: { id }, data: parseBeanInput(input) })
 }
 
 export async function deleteBean(id: number) {
-	const brewCount = await prisma.brew.count({ where: { beanId: id } })
-	if (brewCount > 0) {
-		throw new Error('Cannot delete bean with existing brews')
-	}
-
-	return prisma.bean.delete({
-		where: { id },
+	return prisma.$transaction(async (tx) => {
+		if (await tx.brew.count({ where: { beanId: id } })) {
+			throw new ApiError(409, 'Cannot delete bean with existing brews')
+		}
+		return tx.bean.delete({ where: { id } })
 	})
 }
 
 export async function thawBean(id: number, weight: number, thawDate: Date) {
-	const bean = await prisma.bean.findUnique({ where: { id } })
-	if (!bean) throw new Error('Bean not found')
-	if (!bean.freezeDate) throw new Error('Bean is not frozen')
-	if (bean.remainingWeight === null)
-		throw new Error('Bean has no remaining weight')
-	if (weight > bean.remainingWeight)
-		throw new Error('Cannot thaw more than remaining weight')
+	if (
+		!Number.isFinite(weight) ||
+		weight <= 0 ||
+		!Number.isFinite(thawDate.getTime())
+	) {
+		throw new ApiError(400, 'Invalid thaw weight or date')
+	}
 
 	return prisma.$transaction(async (tx) => {
-		if (Math.abs(weight - bean.remainingWeight!) < 0.1) {
-			return tx.bean.update({
-				where: { id },
-				data: { thawDate },
-			})
-		} else {
-			await tx.bean.update({
-				where: { id },
-				data: { remainingWeight: bean.remainingWeight! - weight },
-			})
-
-			const { id: _id, createdAt: _createdAt, ...beanData } = bean
-
-			return tx.bean.create({
-				data: {
-					...beanData,
-					batchId: bean.batchId,
-					thawDate: thawDate,
-					initialWeight: weight,
-					remainingWeight: weight,
-				},
-			})
+		const bean = await tx.bean.findUnique({ where: { id } })
+		if (!bean) throw new ApiError(404, 'Bean not found')
+		if (!bean.freezeDate || bean.thawDate) {
+			throw new ApiError(400, 'Bean is not currently frozen')
 		}
+		if (bean.remainingWeight === null || weight > bean.remainingWeight) {
+			throw new ApiError(400, 'Cannot thaw more than remaining weight')
+		}
+		if (Math.abs(weight - bean.remainingWeight) < 0.1) {
+			return tx.bean.update({ where: { id }, data: { thawDate } })
+		}
+
+		await tx.bean.update({
+			where: { id },
+			data: { remainingWeight: bean.remainingWeight - weight },
+		})
+		const { id: _id, createdAt: _createdAt, ...data } = bean
+		return tx.bean.create({
+			data: {
+				...data,
+				thawDate,
+				initialWeight: weight,
+				remainingWeight: weight,
+			},
+		})
 	})
 }

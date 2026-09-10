@@ -1,108 +1,31 @@
 import { prisma } from '@/lib/prisma'
+import { grinderSchema } from '@/lib/validators'
+import { ApiError } from '@/lib/api/validation'
 
-export async function getGrinders(userId: number, barId?: number | null) {
-	let whereClause: any = {}
-
-	if (barId) {
-		const membership = await prisma.brewBarMember.findFirst({
-			where: { barId, userId },
-		})
-
-		if (!membership) {
-			throw new Error('Not a member of this bar')
-		}
-		whereClause = { barId }
-	} else {
-		whereClause = { createdBy: userId, barId: null }
-	}
-
-	return prisma.grinder.findMany({
-		where: whereClause,
-		orderBy: { name: 'asc' },
-	})
+export function getGrinders() {
+	return prisma.grinder.findMany({ orderBy: { id: 'desc' } })
 }
 
-export async function createGrinder(data: any, userId: number) {
-	if (data.barId) {
-		const membership = await prisma.brewBarMember.findFirst({
-			where: { barId: data.barId, userId },
-		})
-		if (!membership) throw new Error('Not a member of this bar')
-	}
-
-	return prisma.grinder.create({
-		data: {
-			...data,
-			createdBy: userId,
-			barId: data.barId || null,
-		},
-	})
+export function getGrinderById(id: number) {
+	return prisma.grinder.findUnique({ where: { id } })
 }
 
-export async function getGrinderById(id: number, userId: number) {
-	const grinder = await prisma.grinder.findUnique({ where: { id } })
-	if (!grinder) return null
-
-	if (grinder.barId) {
-		const membership = await prisma.brewBarMember.findFirst({
-			where: { barId: grinder.barId, userId },
-		})
-		if (!membership) throw new Error('Forbidden')
-	} else {
-		if (grinder.createdBy !== userId) throw new Error('Forbidden')
-	}
-	return grinder
+export function createGrinder(input: unknown) {
+	return prisma.grinder.create({ data: grinderSchema.parse(input) })
 }
 
-export async function updateGrinder(id: number, data: any, userId: number) {
-	const grinder = await prisma.grinder.findUnique({ where: { id } })
-	if (!grinder) throw new Error('Not found')
-
-	let canWrite = false
-	if (grinder.barId) {
-		const membership = await prisma.brewBarMember.findFirst({
-			where: { barId: grinder.barId, userId },
-		})
-		if (
-			membership &&
-			(grinder.createdBy === userId ||
-				['Owner', 'Admin'].includes(membership.role || ''))
-		) {
-			canWrite = true
-		}
-	} else {
-		if (grinder.createdBy === userId) canWrite = true
+export async function updateGrinder(id: number, input: unknown) {
+	if (
+		!(await prisma.grinder.findUnique({ where: { id }, select: { id: true } }))
+	) {
+		throw new ApiError(404, 'Grinder not found')
 	}
-
-	if (!canWrite) throw new Error('Forbidden')
-
 	return prisma.grinder.update({
 		where: { id },
-		data,
+		data: grinderSchema.parse(input),
 	})
 }
 
-export async function deleteGrinder(id: number, userId: number) {
-	const grinder = await prisma.grinder.findUnique({ where: { id } })
-	if (!grinder) throw new Error('Not found')
-
-	let canWrite = false
-	if (grinder.barId) {
-		const membership = await prisma.brewBarMember.findFirst({
-			where: { barId: grinder.barId, userId },
-		})
-		if (
-			membership &&
-			(grinder.createdBy === userId ||
-				['Owner', 'Admin'].includes(membership.role || ''))
-		) {
-			canWrite = true
-		}
-	} else {
-		if (grinder.createdBy === userId) canWrite = true
-	}
-
-	if (!canWrite) throw new Error('Forbidden')
-
+export function deleteGrinder(id: number) {
 	return prisma.grinder.delete({ where: { id } })
 }

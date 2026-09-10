@@ -1,22 +1,9 @@
-import type { NextApiResponse } from 'next'
+import { withLocalAccess } from '@/lib/api/localRoute'
 import { createApiHandler } from '@/lib/api/methodRouter'
-import { getSuggestionsForBar } from '@/services/suggestionService'
-import { withAuth, type AuthRequest } from '@/lib/auth'
+import { getSuggestions } from '@/services/suggestionService'
 
-async function handleGet(req: AuthRequest, res: NextApiResponse) {
-	const barId = req.query.barId ? Number(req.query.barId) : null
-	const userId = req.user!.id
-
-	if (!barId || Number.isNaN(barId)) {
-		return res.status(400).json({ error: 'barId query param required' })
-	}
-
-	const result = await getSuggestionsForBar(barId, userId)
-	return res.status(200).json(result)
-}
-
-export default withAuth(
+export default withLocalAccess(
 	createApiHandler({
-		GET: handleGet,
+		GET: async (_req, res) => res.json(await getSuggestions()),
 	}),
 )

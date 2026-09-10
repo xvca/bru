@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useAuth } from '@/lib/authContext'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -37,7 +36,6 @@ import {
 interface BrewerFormModalProps {
 	isOpen: boolean
 	onClose: () => void
-	brewBarId?: number | null
 	brewerId?: number
 	onSuccess?: () => void
 }
@@ -45,11 +43,9 @@ interface BrewerFormModalProps {
 export default function BrewerFormModal({
 	isOpen,
 	onClose,
-	brewBarId,
 	brewerId,
 	onSuccess,
 }: BrewerFormModalProps) {
-	const { user } = useAuth()
 	const isEditMode = !!brewerId
 
 	const [isLoading, setIsLoading] = useState(false)
@@ -61,7 +57,6 @@ export default function BrewerFormModal({
 			name: '',
 			type: '',
 			notes: '',
-			barId: brewBarId || undefined,
 		},
 	})
 
@@ -72,7 +67,6 @@ export default function BrewerFormModal({
 					name: '',
 					type: '',
 					notes: '',
-					barId: brewBarId || undefined,
 				})
 			} else if (brewerId) {
 				fetchBrewer()
@@ -80,13 +74,11 @@ export default function BrewerFormModal({
 		} else {
 			form.reset()
 		}
-	}, [isOpen, isEditMode, brewerId, brewBarId])
+	}, [isOpen, isEditMode, brewerId])
 
 	const fetchBrewer = async () => {
 		try {
 			setIsFetching(true)
-			if (!user) return
-
 			const { data } = await axios.get(`/api/brewers/${brewerId}`)
 
 			form.reset({
@@ -107,14 +99,12 @@ export default function BrewerFormModal({
 		setIsLoading(true)
 
 		try {
-			if (!user) return
-
 			if (isEditMode && brewerId) {
 				await axios.put(`/api/brewers/${brewerId}`, data)
-				toast.success('brewer updated successfully')
+				toast.success('Brewer updated successfully')
 			} else {
 				await axios.post(`/api/brewers`, data)
-				toast.success('brewer added successfully')
+				toast.success('Brewer added successfully')
 			}
 
 			onSuccess?.()
@@ -131,7 +121,7 @@ export default function BrewerFormModal({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className='max-w-md'>
 				<DialogHeader>
-					<DialogTitle>{isEditMode ? 'Edit brewer' : 'Add brewer'}</DialogTitle>
+					<DialogTitle>{isEditMode ? 'Edit Brewer' : 'Add Brewer'}</DialogTitle>
 				</DialogHeader>
 
 				{isFetching ? (
@@ -166,10 +156,12 @@ export default function BrewerFormModal({
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel>Type</FieldLabel>
+										<FieldLabel>
+											Type <span className='text-error'>*</span>
+										</FieldLabel>
 										<Select onValueChange={field.onChange} value={field.value}>
 											<SelectTrigger>
-												<SelectValue />
+												<SelectValue placeholder='Select a type' />
 											</SelectTrigger>
 											<SelectContent>
 												{BREW_METHODS.map((m) => (
