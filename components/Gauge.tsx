@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import chroma from 'chroma-js'
 
@@ -13,39 +13,6 @@ interface GaugeProps {
 	className?: string
 	isCompleted?: boolean
 	completedColor?: string
-}
-
-const useProgressiveValue = (targetValue: number, speed = 0.15) => {
-	const [value, setValue] = useState(targetValue)
-	const requestRef = useRef<number>(0)
-	const previousValueRef = useRef<number>(targetValue)
-
-	useEffect(() => {
-		const animate = () => {
-			setValue((prev) => {
-				const diff = targetValue - prev
-
-				if (Math.abs(diff) < 0.05) {
-					previousValueRef.current = targetValue
-					return targetValue
-				}
-
-				const nextValue = prev + diff * speed
-				previousValueRef.current = nextValue
-				return nextValue
-			})
-
-			requestRef.current = requestAnimationFrame(animate)
-		}
-
-		if (previousValueRef.current !== targetValue) {
-			requestRef.current = requestAnimationFrame(animate)
-		}
-
-		return () => cancelAnimationFrame(requestRef.current)
-	}, [targetValue, speed])
-
-	return value
 }
 
 const resolveColor = (color: string): string => {
@@ -95,7 +62,6 @@ export function Gauge({
 	isCompleted = false,
 	completedColor = '#43694b',
 }: GaugeProps) {
-	const smoothValue = useProgressiveValue(value, 0.1)
 	const [resolvedColors, setResolvedColors] = useState({
 		primary: 'rgb(128, 128, 128)',
 		end: 'rgb(128, 128, 128)',
@@ -112,7 +78,7 @@ export function Gauge({
 
 	arcSize = Math.min(Math.max(arcSize, 180), 360)
 
-	const currentPercent = ((smoothValue - min) / (max - min)) * 100
+	const currentPercent = ((value - min) / (max - min)) * 100
 
 	const radius = 48
 	const center = { x: 50, y: 55 }

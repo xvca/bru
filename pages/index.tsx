@@ -94,15 +94,15 @@ export default function Dashboard() {
 	const [isBrewFormOpen, setIsBrewFormOpen] = useState(false)
 	const [brewDraft, setBrewDraft] = useState<Partial<BrewFormData> | null>(null)
 
-	const [displayWeight, setDisplayWeight] = useState(0)
-	const [displayTime, setDisplayTime] = useState(0)
+	const [displayWeight, setDisplayWeight] = useState(brewData.weight)
+	const [displayTime, setDisplayTime] = useState(brewData.time)
 
 	const [showEspPrompt, setShowEspPrompt] = useState(false)
 	const [hasDismissedEspPrompt, setHasDismissedEspPrompt] = useState(false)
 	const [espIpDraft, setEspIpDraft] = useState('')
 	const [isValidatingEsp, setIsValidatingEsp] = useState(false)
 
-	const latestShotRef = useRef(brewData)
+	const liveDataRef = useRef({ brewData, isWsConnected })
 	const previousStateRef = useRef(brewData.state)
 	const { mutate } = useSWRConfig()
 
@@ -112,10 +112,6 @@ export default function Dashboard() {
 		})
 	}
 
-	const clientBrewStartRef = useRef<number | null>(null)
-	const serverTimeOffsetRef = useRef(0)
-	const frozenTimeRef = useRef(0)
-	const smoothedWeightRef = useRef(0)
 	const formTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
 	useEffect(() => {
@@ -164,10 +160,8 @@ export default function Dashboard() {
 			currentState === BrewStates.BREWING
 
 		if (wasIdle && isActive) {
-			clientBrewStartRef.current = Date.now()
-			serverTimeOffsetRef.current = brewData.time
-			frozenTimeRef.current = 0
-			smoothedWeightRef.current = brewData.weight
+			setDisplayTime(brewData.time)
+			setDisplayWeight(brewData.weight)
 			setShowCompletionAnimation(false)
 
 			if (formTimeoutRef.current) {
@@ -176,25 +170,10 @@ export default function Dashboard() {
 			}
 		}
 
-		const wasActive =
-			prevState === BrewStates.PREINFUSION || prevState === BrewStates.BREWING
-		const isStopped =
-			currentState === BrewStates.DRIPPING || currentState === BrewStates.IDLE
-
-		if (wasActive && isStopped) {
-			if (clientBrewStartRef.current !== null) {
-				frozenTimeRef.current =
-					serverTimeOffsetRef.current +
-					(Date.now() - clientBrewStartRef.current)
-			}
-			clientBrewStartRef.current = null
-		}
-
 		if (prevState === BrewStates.DRIPPING && currentState === BrewStates.IDLE) {
 			setShowCompletionAnimation(true)
 
 			if (selectedSuggestion) {
-				const snapshot = latestShotRef.current
 				const lastProfile = selectedSuggestion.lastBrew
 
 				const prefill: Partial<BrewFormData> = {
@@ -202,8 +181,8 @@ export default function Dashboard() {
 					method: 'Espresso',
 					doseWeight: lastProfile?.doseWeight ?? targetWeight / 2,
 					yieldWeight: targetWeight,
-					brewTime: snapshot.time
-						? Math.round(snapshot.time / 1000)
+					brewTime: brewData.time
+						? Math.round(brewData.time / 1000)
 						: undefined,
 					grindSize: lastProfile?.grindSize ?? undefined,
 					waterTemperature: lastProfile?.waterTemperature ?? undefined,
@@ -240,70 +219,46 @@ export default function Dashboard() {
 	}, [])
 
 	useEffect(() => {
-		if (brewData.state !== BrewStates.IDLE) {
-			latestShotRef.current = brewData
-		}
-	}, [brewData])
+		liveDataRef.current = { brewData, isWsConnected }
+	}, [brewData, isWsConnected])
 
 	useEffect(() => {
 		let animationFrameId: number
+		let previousFrame = performance.now()
 
-		const update = () => {
-			const currentData = latestShotRef.current
-			const now = Date.now()
+		const update = (now: number) => {
+			const { brewData: data, isWsConnected: connected } = liveDataRef.current
+			const age = Math.max(0, now - data.lastUpdated)
+			const blend = 1 - Math.exp(-Math.max(0, now - previousFrame) / 100)
+			previousFrame = now
 
-			if (clientBrewStartRef.current !== null) {
-				const clientElapsed = now - clientBrewStartRef.current
-				const predictedTime = serverTimeOffsetRef.current + clientElapsed
+			// Bridge jitter and 1 Hz updates; hold the display once the data is stale.
+			if (connected && age <= 2000) {
+				const elapsed = data.isScaleConnected ? age : 0
+				const running =
+					data.state === BrewStates.PREINFUSION ||
+					data.state === BrewStates.BREWING
+				const weight = Math.max(
+					0,
+					data.weight +
+						(data.state !== BrewStates.IDLE
+							? (data.flowRate * elapsed) / 1000
+							: 0),
+				)
 
-				const serverPredictedTime =
-					currentData.time + (now - currentData.lastUpdated)
-				const drift = serverPredictedTime - predictedTime
-
-				if (Math.abs(drift) > 300) {
-					serverTimeOffsetRef.current += drift * 0.1
-				}
-
-				setDisplayTime(predictedTime)
-			} else if (frozenTimeRef.current > 0) {
-				setDisplayTime(frozenTimeRef.current)
-			} else {
-				setDisplayTime(currentData.time)
-			}
-
-			const isActive =
-				currentData.state === BrewStates.PREINFUSION ||
-				currentData.state === BrewStates.BREWING ||
-				currentData.state === BrewStates.DRIPPING
-
-			if (isActive) {
-				const timeSinceLastPacket = now - (currentData.lastUpdated || now)
-
-				if (timeSinceLastPacket <= 2000) {
-					const targetWeight =
-						currentData.weight +
-						currentData.flowRate * (timeSinceLastPacket / 1000)
-					smoothedWeightRef.current =
-						smoothedWeightRef.current +
-						(targetWeight - smoothedWeightRef.current) * 0.15
-				} else {
-					smoothedWeightRef.current = currentData.weight
-				}
-
-				setDisplayWeight(Math.max(0, smoothedWeightRef.current))
-			} else {
-				smoothedWeightRef.current = currentData.weight
-				setDisplayWeight(Math.max(0, currentData.weight))
+				setDisplayWeight((current) => current + (weight - current) * blend)
+				setDisplayTime((current) =>
+					running
+						? current + (data.time + elapsed - current) * blend
+						: data.time,
+				)
 			}
 
 			animationFrameId = requestAnimationFrame(update)
 		}
 
 		animationFrameId = requestAnimationFrame(update)
-
-		return () => {
-			if (animationFrameId) cancelAnimationFrame(animationFrameId)
-		}
+		return () => cancelAnimationFrame(animationFrameId)
 	}, [])
 
 	const getBrewStateText = (state: number) => {

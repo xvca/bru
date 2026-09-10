@@ -57,17 +57,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 	const [brewData, setBrewData] = useState(initialBrewData)
 
 	const wsRef = useRef<WebSocket | null>(null)
-	const isReconnecting = useRef(false)
 	const router = useRouter()
-	const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-	const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
 	const { espIp, isReady: isEspConfigReady } = useEspConfig()
 	const wsUrl = useMemo(() => (espIp ? `ws://${espIp}/ws` : null), [espIp])
 
 	const isMainPage = router.pathname === '/'
-
-	const isMainPageRef = useRef(isMainPage)
 
 	const parseWsMessage = (buffer: ArrayBuffer) => {
 		const view = new DataView(buffer)
@@ -103,7 +98,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 				state,
 				isActive,
 				isScaleConnected,
-				lastUpdated: Date.now(),
+				lastUpdated: performance.now(),
 			})
 		} catch (e) {
 			console.error('Error parsing binary metrics:', e)
@@ -111,144 +106,96 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 		}
 	}
 
-	// Send WebSocket message
 	const sendMessage = (message: string) => {
-		if (ws && ws.readyState === WebSocket.OPEN) {
-			ws.send(message)
+		if (wsRef.current?.readyState === WebSocket.OPEN) {
+			wsRef.current.send(message)
 		}
 	}
 
-	// Clean up WebSocket connection
-	const cleanupWebSocket = () => {
-		if (wsRef.current) {
-			console.log('Cleaning up WebSocket connection')
-			wsRef.current.close()
+	useEffect(() => {
+		if (!isEspConfigReady || !wsUrl || !isMainPage) return
+
+		let disposed = false
+		let retryTimer: ReturnType<typeof setTimeout> | undefined
+		let timeout: ReturnType<typeof setTimeout> | undefined
+		let pingInterval: ReturnType<typeof setInterval> | undefined
+
+		const disconnect = () => {
+			clearTimeout(retryTimer)
+			clearTimeout(timeout)
+			clearInterval(pingInterval)
+			retryTimer = timeout = pingInterval = undefined
+
+			const socket = wsRef.current
 			wsRef.current = null
+			if (socket) {
+				socket.onopen = null
+				socket.onclose = null
+				socket.onerror = null
+				socket.onmessage = null
+				socket.close()
+			}
+			setWs(null)
+			setWsConnected(false)
+			// Keep the last metrics: losing a connection is not a brew finishing.
 		}
 
-		if (pingIntervalRef.current) {
-			clearInterval(pingIntervalRef.current)
-			pingIntervalRef.current = null
+		const retry = () => {
+			disconnect()
+			if (!disposed && document.visibilityState === 'visible') {
+				retryTimer = setTimeout(connect, 1000)
+			}
 		}
 
-		if (pingTimeoutRef.current) {
-			clearTimeout(pingTimeoutRef.current)
-			pingTimeoutRef.current = null
-		}
-
-		setWs(null)
-		setWsConnected(false)
-		isReconnecting.current = false
-	}
-
-	useEffect(() => {
-		isMainPageRef.current = isMainPage
-	}, [isMainPage])
-
-	// WebSocket connection management
-	useEffect(() => {
-		// Only connect on the main page
-		if (!isEspConfigReady || !wsUrl || !isMainPage) {
-			cleanupWebSocket()
-			return
+		const ping = () => {
+			if (wsRef.current?.readyState !== WebSocket.OPEN || timeout !== undefined)
+				return
+			timeout = setTimeout(retry, 5000)
+			try {
+				wsRef.current.send('ping')
+			} catch {
+				retry()
+			}
 		}
 
 		const connect = () => {
-			if (
-				isReconnecting.current ||
-				(wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING)
-			) {
-				console.log('Connection attempt already in progress')
+			if (disposed || document.visibilityState !== 'visible') return
+			if (wsRef.current?.readyState === WebSocket.OPEN) {
+				// Safari can retain an OPEN socket after suspending the app.
+				ping()
 				return
 			}
+			if (wsRef.current?.readyState === WebSocket.CONNECTING) return
 
-			if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-				console.log('Already connected')
-				return
-			}
-
-			isReconnecting.current = true
-			console.log('Starting connection attempt')
-
-			cleanupWebSocket()
-
+			disconnect()
 			try {
 				const newWs = new WebSocket(wsUrl)
 				newWs.binaryType = 'arraybuffer'
 				wsRef.current = newWs
+				const isCurrent = () => !disposed && wsRef.current === newWs
 
-				const heartbeat = () => {
-					if (pingTimeoutRef.current) {
-						clearTimeout(pingTimeoutRef.current)
-					}
-
-					pingTimeoutRef.current = setTimeout(() => {
-						console.log('Ping timeout - closing connection')
-						if (wsRef.current?.readyState === WebSocket.OPEN) {
-							wsRef.current?.close()
-						}
-						isReconnecting.current = false
-					}, 5000)
-				}
-
+				// A failed handshake must not leave us CONNECTING indefinitely.
+				timeout = setTimeout(retry, 5000)
 				newWs.onopen = () => {
-					console.log('ws connected')
+					if (!isCurrent()) return
+					clearTimeout(timeout)
+					timeout = undefined
 					setWs(newWs)
 					setWsConnected(true)
-					isReconnecting.current = false
-
-					// Start ping interval
-					pingIntervalRef.current = setInterval(() => {
-						if (wsRef.current?.readyState === WebSocket.OPEN) {
-							console.log('sending ping')
-							wsRef.current.send('ping')
-							heartbeat()
-						}
-					}, 10000)
+					pingInterval = setInterval(ping, 10000)
+					ping()
 				}
-
-				newWs.onclose = (event) => {
-					console.log('ws disconnected:', event.code, event.reason)
-
-					setWsConnected(false)
-					setBrewData(initialBrewData)
-
-					if (document.visibilityState === 'hidden') {
-						console.log(
-							'Tab hidden, halting auto-reconnect to prevent fighting tabs',
-						)
-						isReconnecting.current = false
+				newWs.onclose = newWs.onerror = () => {
+					if (isCurrent()) retry()
+				}
+				newWs.onmessage = (event) => {
+					if (!isCurrent()) return
+					if (event.data === 'pong') {
+						clearTimeout(timeout)
+						timeout = undefined
 						return
 					}
-
-					if (!isReconnecting.current && isMainPageRef.current) {
-						setTimeout(() => {
-							if (isMainPageRef.current) connect()
-						}, 1000)
-					}
-				}
-
-				newWs.onerror = (error) => {
-					console.log('ws error: ', error)
-					setWsConnected(false)
-					setBrewData(initialBrewData)
-
-					if (wsRef.current?.readyState === WebSocket.OPEN) {
-						wsRef.current?.close()
-					}
-					isReconnecting.current = false
-				}
-
-				newWs.onmessage = (event) => {
 					try {
-						if (typeof event.data === 'string' && event.data === 'pong') {
-							console.log('Pong received')
-							if (pingTimeoutRef.current) {
-								clearTimeout(pingTimeoutRef.current)
-							}
-							return
-						}
-
 						if (event.data instanceof ArrayBuffer) {
 							parseWsMessage(event.data)
 						}
@@ -257,68 +204,33 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 					}
 				}
 			} catch (error) {
-				console.error('Error creating ws:', error)
-				isReconnecting.current = false
+				console.error('Error creating WebSocket:', error)
+				retry()
 			}
+		}
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'hidden') disconnect()
+			else connect()
 		}
 
 		connect()
-
-		const handleVisibilityChange = () => {
-			if (document.visibilityState === 'visible') {
-				console.log('Tab is visible again, attempting reconnect...')
-				connect()
-			}
-		}
-
-		const handleFocus = () => {
-			console.log('window focused, attemping reconnect...')
-			connect()
-		}
-
-		const handleOnline = () => {
-			console.log('network online, attempting reconnect...')
-			connect()
-		}
-
 		document.addEventListener('visibilitychange', handleVisibilityChange)
-		window.addEventListener('focus', handleFocus)
-		window.addEventListener('online', handleOnline)
+		window.addEventListener('pagehide', disconnect)
+		window.addEventListener('pageshow', connect)
+		window.addEventListener('focus', connect)
+		window.addEventListener('online', connect)
 
 		return () => {
+			disposed = true
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
-			window.removeEventListener('focus', handleFocus)
-			window.removeEventListener('online', handleOnline)
-			cleanupWebSocket()
+			window.removeEventListener('pagehide', disconnect)
+			window.removeEventListener('pageshow', connect)
+			window.removeEventListener('focus', connect)
+			window.removeEventListener('online', connect)
+			disconnect()
 		}
-	}, [isMainPage, wsUrl])
-
-	useEffect(() => {
-		const IDLE_LIMIT = 15 * 60 * 1000
-		let idleTimeout: NodeJS.Timeout
-
-		const handleUserActivity = () => {
-			if (idleTimeout) clearTimeout(idleTimeout)
-
-			idleTimeout = setTimeout(() => {
-				console.log('User idle for 15 mins, closing WS to save resources')
-				cleanupWebSocket()
-			}, IDLE_LIMIT)
-		}
-
-		window.addEventListener('mousemove', handleUserActivity)
-		window.addEventListener('keydown', handleUserActivity)
-		window.addEventListener('touchstart', handleUserActivity)
-
-		handleUserActivity()
-
-		return () => {
-			if (idleTimeout) clearTimeout(idleTimeout)
-			window.removeEventListener('mousemove', handleUserActivity)
-			window.removeEventListener('keydown', handleUserActivity)
-			window.removeEventListener('touchstart', handleUserActivity)
-		}
-	}, [])
+	}, [isMainPage, wsUrl, isEspConfigReady])
 
 	return (
 		<WebSocketContext.Provider
