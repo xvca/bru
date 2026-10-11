@@ -28,5 +28,6 @@
 	],
 	"start_url": "/",
 	"orientation": "portrait",
-	"display": "standalone"
+	"display": "standalone",
+	"background_color": "#14110f"
 }

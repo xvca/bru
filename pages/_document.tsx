@@ -12,7 +12,7 @@ export default function Document() {
 					name='apple-mobile-web-app-status-bar-style'
 					content='black-translucent'
 				/>
-				<link rel='apple-touch-icon' href='/images/icon-maskable-512.png' />
+				<link rel='apple-touch-icon' href='/images/apple-touch-icon.png' />
 			</Head>
 			<body>
 				<Main />
