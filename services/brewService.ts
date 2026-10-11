@@ -95,6 +95,16 @@ export async function updateBrew(id: number, raw: unknown) {
 	})
 }
 
-export function deleteBrew(id: number) {
-	return prisma.brew.delete({ where: { id } })
+export async function deleteBrew(id: number) {
+	return prisma.$transaction(async (tx) => {
+		const brew = await tx.brew.findUnique({ where: { id } })
+		if (!brew) throw new ApiError(404, 'Brew not found')
+		// Put the dose back in the bag it came from
+		const bean = await tx.bean.findUnique({ where: { id: brew.beanId } })
+		const weights = bean && drawFromBag(bean, -brew.doseWeight)
+		if (bean && weights) {
+			await tx.bean.update({ where: { id: bean.id }, data: weights })
+		}
+		return tx.brew.delete({ where: { id } })
+	})
 }
