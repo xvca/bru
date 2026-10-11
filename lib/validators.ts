@@ -20,6 +20,7 @@ export const beanSchema = z
 		roaster: z.string().optional().nullable(),
 		origin: z.string().optional().nullable(),
 		roastLevel: z.string().optional().nullable(),
+		isDecaf: z.boolean().optional(),
 		process: z.string().optional().nullable(),
 		producer: z.string().optional().nullable(),
 		roastDate: z

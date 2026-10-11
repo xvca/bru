@@ -239,6 +239,7 @@ export default function BeansPage() {
 				: null
 
 		const detail = [
+			bean.isDecaf ? 'Decaf' : null,
 			isFrozen ? 'Frozen' : isThawed ? 'Thawed' : null,
 			daysOld === 0
 				? 'Roasted today'

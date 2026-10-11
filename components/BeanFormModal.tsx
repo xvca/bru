@@ -12,6 +12,7 @@ import { resizeImage } from '@/utils/img'
 import { Sheet } from '@/components/kit/Sheet'
 import { Chip, Key, TextButton } from '@/components/kit/buttons'
 import { FormField } from '@/components/kit/rows'
+import { Switch } from '@/components/ui/switch'
 import { SparkIcon } from '@/components/kit/icons'
 import { RowSkeleton } from '@/components/kit/states'
 import { DateField, DatePickerSheet } from '@/components/kit/DatePickerSheet'
@@ -58,6 +59,7 @@ export default function BeanFormModal({
 			roaster: '',
 			origin: '',
 			roastLevel: '',
+			isDecaf: false,
 			process: '',
 			producer: '',
 			roastDate: new Date().toISOString().split('T')[0],
@@ -85,6 +87,7 @@ export default function BeanFormModal({
 					roaster: bean.roaster || '',
 					origin: bean.origin || '',
 					roastLevel: bean.roastLevel || '',
+					isDecaf: bean.isDecaf,
 					process: bean.process || '',
 					producer: bean.producer || '',
 					roastDate: new Date(bean.roastDate).toISOString().split('T')[0],
@@ -101,6 +104,7 @@ export default function BeanFormModal({
 					roaster: '',
 					origin: '',
 					roastLevel: '',
+					isDecaf: false,
 					process: '',
 					producer: '',
 					roastDate: new Date().toISOString().split('T')[0],
@@ -327,6 +331,23 @@ export default function BeanFormModal({
 										</Chip>
 									))}
 								</div>
+							</div>
+						)}
+					/>
+
+					<Controller
+						name='isDecaf'
+						control={form.control}
+						render={({ field }) => (
+							<div className='flex items-center justify-between gap-4'>
+								<label htmlFor='bean-decaf' className='text-[16px] font-medium'>
+									Decaf
+								</label>
+								<Switch
+									id='bean-decaf'
+									checked={!!field.value}
+									onCheckedChange={field.onChange}
+								/>
 							</div>
 						)}
 					/>

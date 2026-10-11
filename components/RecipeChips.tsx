@@ -11,10 +11,6 @@ interface RecipeChipsProps {
 	className?: string
 }
 
-const isDecaf = (s: SmartSuggestion) =>
-	s.name.toLowerCase().includes('decaf') ||
-	(s.roaster?.toLowerCase().includes('decaf') ?? false)
-
 const formatAgo = (date: Date | string, now = new Date()) => {
 	const d = new Date(date)
 	const mins = differenceInMinutes(now, d)
@@ -49,8 +45,8 @@ export function RecipeChips({
 		return [...raw]
 			.filter((s) => s.lastBrew)
 			.sort((a, b) => {
-				const da = isDecaf(a)
-				const db = isDecaf(b)
+				const da = a.isDecaf
+				const db = b.isDecaf
 				if (da === db) return 0
 				return (da ? -1 : 1) * (isEvening ? 1 : -1)
 			})

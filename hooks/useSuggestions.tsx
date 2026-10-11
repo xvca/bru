@@ -7,6 +7,7 @@ export interface SmartSuggestion {
 	name: string
 	roaster: string | null
 	roastLevel: string | null
+	isDecaf: boolean
 	lastBrew: Brew
 }
 
