@@ -21,6 +21,7 @@ import { AddKey, Chip, IconButton, TextButton } from '@/components/kit/buttons'
 import { RowMenu } from '@/components/kit/RowMenu'
 import { Swatch } from '@/components/kit/rows'
 import { EmptyState, RowSkeleton } from '@/components/kit/states'
+import { isAllFrozen } from '@/lib/beans'
 import {
 	BoltIcon,
 	CloneIcon,
@@ -138,8 +139,8 @@ export default function Brews() {
 				)
 				// Open bags first, frozen after, newest first within each
 				.sort((a, b) => {
-					const fa = a.freezeDate && !a.thawDate ? 1 : 0
-					const fb = b.freezeDate && !b.thawDate ? 1 : 0
+					const fa = isAllFrozen(a) ? 1 : 0
+					const fb = isAllFrozen(b) ? 1 : 0
 					return fa - fb || b.id - a.id
 				})
 				.filter((b) => {

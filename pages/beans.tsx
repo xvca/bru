@@ -13,6 +13,7 @@ import ThawBeanModal from '@/components/ThawBeanModal'
 import BrewFormModal from '@/components/BrewFormModal'
 import { cn } from '@/lib/utils'
 import { beanColor } from '@/lib/beanColor'
+import { isAllFrozen } from '@/lib/beans'
 
 import { AddKey, TextButton } from '@/components/kit/buttons'
 import { RowMenu } from '@/components/kit/RowMenu'
@@ -26,6 +27,13 @@ import {
 	SnowIcon,
 	TrashIcon,
 } from '@/components/kit/icons'
+
+/** Frozen on the left, open on the right, blended where they meet */
+function frozenBar(frozenPct: number) {
+	if (frozenPct <= 0) return undefined
+	if (frozenPct >= 100) return 'var(--frost)'
+	return `linear-gradient(to right, var(--frost) calc(${frozenPct}% - 3px), var(--ink) calc(${frozenPct}% + 3px))`
+}
 
 export default function BeansPage() {
 	const router = useRouter()
@@ -41,7 +49,8 @@ export default function BeansPage() {
 		isOpen: false,
 		beanId: -1,
 		beanName: '',
-		remainingWeight: 0,
+		frozenWeight: 0,
+		defaultWeight: 0,
 	})
 
 	const [emptyModalData, setEmptyModalData] = useState({
@@ -72,12 +81,23 @@ export default function BeansPage() {
 		setIsFormOpen(true)
 	}
 
-	const handleThaw = (id: number, name: string, weight: number) => {
+	const handleThaw = (bean: Bean) => {
+		// Start from the amount last thawed from this bag, or from any bag if
+		// it's never been thawed, so a regular portion is one tap
+		const lastAnywhere = beans
+			?.filter((b) => b.thawDate && b.lastThawWeight)
+			.sort(
+				(a, b) =>
+					new Date(b.thawDate ?? 0).getTime() -
+					new Date(a.thawDate ?? 0).getTime(),
+			)[0]?.lastThawWeight
+		const usual = bean.lastThawWeight ?? lastAnywhere ?? bean.frozenWeight
 		setThawModalData({
 			isOpen: true,
-			beanId: id,
-			beanName: name,
-			remainingWeight: weight,
+			beanId: bean.id,
+			beanName: bean.name,
+			frozenWeight: bean.frozenWeight,
+			defaultWeight: Math.min(usual, bean.frozenWeight),
 		})
 	}
 
@@ -171,46 +191,16 @@ export default function BeansPage() {
 
 	const sortedBeans = useMemo(() => {
 		if (!beans) return []
-
-		const batches: Record<string, typeof beans> = {}
-		beans.forEach((bean) => {
-			const batchId = bean.batchId || `fallback-${bean.id}`
-			if (!batches[batchId]) batches[batchId] = []
-			batches[batchId].push(bean)
-		})
-
-		const getBeanScore = (bean: (typeof beans)[0]) => {
-			if (bean.remainingWeight === 0) return 1
-			const isFrozen = !!bean.freezeDate && !bean.thawDate
-			if (isFrozen) return 2
-			return 3
-		}
-
-		const sortedBatchIds = Object.keys(batches).sort((a, b) => {
-			const batchA = batches[a]
-			const batchB = batches[b]
-
-			const scoreA = Math.max(...batchA.map(getBeanScore))
-			const scoreB = Math.max(...batchB.map(getBeanScore))
-
-			if (scoreA !== scoreB) return scoreB - scoreA
-
-			const dateA = new Date(batchA[0].roastDate).getTime()
-			const dateB = new Date(batchB[0].roastDate).getTime()
-			if (dateA !== dateB) return dateA - dateB
-
-			return batchA[0].name.localeCompare(batchB[0].name)
-		})
-
-		return sortedBatchIds.flatMap((batchId) => {
-			const batchBeans = batches[batchId]
-			return batchBeans.sort((a, b) => {
-				const scoreA = getBeanScore(a)
-				const scoreB = getBeanScore(b)
-				if (scoreA !== scoreB) return scoreB - scoreA
-				return b.id - a.id
-			})
-		})
+		// Open bags first, then bags still entirely frozen, then finished;
+		// oldest roast first within each
+		const score = (bean: Bean) =>
+			bean.remainingWeight === 0 ? 1 : isAllFrozen(bean) ? 2 : 3
+		return [...beans].sort(
+			(a, b) =>
+				score(b) - score(a) ||
+				new Date(a.roastDate).getTime() - new Date(b.roastDate).getTime() ||
+				a.name.localeCompare(b.name),
+		)
 	}, [beans])
 
 	const activeBeans = sortedBeans.filter((b) => b.remainingWeight !== 0)
@@ -223,8 +213,7 @@ export default function BeansPage() {
 		})
 
 	const renderBeanRow = (bean: Bean, index: number) => {
-		const isThawed = !!bean.freezeDate && !!bean.thawDate
-		const isFrozen = !!bean.freezeDate && !bean.thawDate
+		const hasFrozen = bean.frozenWeight > 0
 		const isFinished = bean.remainingWeight === 0
 
 		const daysOld = calculateDaysSinceRoast(
@@ -237,10 +226,14 @@ export default function BeansPage() {
 			bean.remainingWeight !== null && bean.initialWeight > 0
 				? Math.min(100, (bean.remainingWeight / bean.initialWeight) * 100)
 				: null
+		// Share of the filled bar that is still frozen; it sits on the left
+		const frozenPct =
+			bean.remainingWeight && hasFrozen
+				? Math.min(100, (bean.frozenWeight / bean.remainingWeight) * 100)
+				: 0
 
 		const detail = [
 			bean.isDecaf ? 'Decaf' : null,
-			isFrozen ? 'Frozen' : isThawed ? 'Thawed' : null,
 			daysOld === 0
 				? 'Roasted today'
 				: `${daysOld} day${daysOld === 1 ? '' : 's'} off roast`,
@@ -273,12 +266,10 @@ export default function BeansPage() {
 						<div className='mt-px ml-[19px] text-[13.5px] leading-[18px] text-ink-2'>
 							{detail}
 						</div>
-						{isFrozen && (
+						{hasFrozen && (
 							<TextButton
 								tone='accent'
-								onClick={() =>
-									handleThaw(bean.id, bean.name, bean.remainingWeight || 0)
-								}
+								onClick={() => handleThaw(bean)}
 								className='mt-1.5 ml-[15px] min-h-8'
 							>
 								<SnowIcon />
@@ -289,17 +280,19 @@ export default function BeansPage() {
 							<div
 								className='relative mt-3 ml-[19px] h-[3px] rounded-[2px] bg-line'
 								role='progressbar'
-								aria-label={`${bean.remainingWeight} of ${bean.initialWeight} grams left`}
+								aria-label={`${bean.remainingWeight} of ${bean.initialWeight} grams left${
+									hasFrozen ? `, ${bean.frozenWeight} frozen` : ''
+								}`}
 								aria-valuenow={Math.round(pct)}
 								aria-valuemin={0}
 								aria-valuemax={100}
 							>
 								<div
-									className={cn(
-										'absolute inset-y-0 left-0 rounded-[2px]',
-										isFrozen ? 'bg-ink-2' : 'bg-ink',
-									)}
-									style={{ width: `${pct}%` }}
+									className='absolute inset-y-0 left-0 rounded-[2px] bg-ink'
+									style={{
+										width: `${pct}%`,
+										background: frozenBar(frozenPct),
+									}}
 								/>
 							</div>
 						)}
@@ -430,7 +423,8 @@ export default function BeansPage() {
 				onClose={() => setThawModalData({ ...thawModalData, isOpen: false })}
 				beanId={thawModalData.beanId}
 				beanName={thawModalData.beanName}
-				remainingWeight={thawModalData.remainingWeight}
+				frozenWeight={thawModalData.frozenWeight}
+				defaultWeight={thawModalData.defaultWeight}
 				onSuccess={refresh}
 			/>
 

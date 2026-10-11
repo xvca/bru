@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { isAllFrozen } from '@/lib/beans'
 import type { Bean, Brew } from '@/generated/prisma/client'
 
 export type Suggestion = Bean & {
@@ -66,8 +67,8 @@ export async function getSuggestions(): Promise<SuggestionResult> {
 		if (!matchingBrew) continue
 
 		const bestBean = beans.sort((a, b) => {
-			const isAReady = !a.freezeDate || !!a.thawDate
-			const isBReady = !b.freezeDate || !!b.thawDate
+			const isAReady = !isAllFrozen(a)
+			const isBReady = !isAllFrozen(b)
 			if (isAReady && !isBReady) return -1
 			if (!isAReady && isBReady) return 1
 			return b.id - a.id

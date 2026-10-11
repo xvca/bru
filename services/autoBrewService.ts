@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { drawFromBag } from '@/services/beanService'
 
 export interface AutoBrewInput {
 	yieldWeight: number
@@ -47,16 +48,9 @@ export function createAutoBrewFromDevice(input: AutoBrewInput) {
 			},
 		})
 
-		if (defaultBean.remainingWeight !== null) {
-			await tx.bean.update({
-				where: { id: defaultBean.id },
-				data: {
-					remainingWeight: Math.max(
-						0,
-						defaultBean.remainingWeight - doseWeight,
-					),
-				},
-			})
+		const weights = drawFromBag(defaultBean, doseWeight)
+		if (weights) {
+			await tx.bean.update({ where: { id: defaultBean.id }, data: weights })
 		}
 		return brew
 	})

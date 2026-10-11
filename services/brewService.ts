@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import type { Prisma } from '@/generated/prisma/client'
 import { brewSchema, type BrewFormData } from '@/lib/validators'
 import { ApiError } from '@/lib/api/validation'
+import { drawFromBag } from '@/services/beanService'
 
 interface GetBrewsOptions {
 	cursor?: number
@@ -59,14 +60,8 @@ export async function createBrew(raw: unknown) {
 	return prisma.$transaction(async (tx) => {
 		const bean = await validateRecipe(tx, input)
 		const brew = await tx.brew.create({ data: input })
-		if (bean.remainingWeight !== null) {
-			await tx.bean.update({
-				where: { id: bean.id },
-				data: {
-					remainingWeight: Math.max(0, bean.remainingWeight - input.doseWeight),
-				},
-			})
-		}
+		const weights = drawFromBag(bean, input.doseWeight)
+		if (weights) await tx.bean.update({ where: { id: bean.id }, data: weights })
 		return brew
 	})
 }
@@ -79,39 +74,21 @@ export async function updateBrew(id: number, raw: unknown) {
 		const bean = await validateRecipe(tx, input)
 
 		if (existing.beanId === input.beanId) {
-			if (bean.remainingWeight !== null) {
-				await tx.bean.update({
-					where: { id: bean.id },
-					data: {
-						remainingWeight: Math.max(
-							0,
-							bean.remainingWeight - (input.doseWeight - existing.doseWeight),
-						),
-					},
-				})
+			const weights = drawFromBag(bean, input.doseWeight - existing.doseWeight)
+			if (weights) {
+				await tx.bean.update({ where: { id: bean.id }, data: weights })
 			}
 		} else {
 			const oldBean = await tx.bean.findUnique({
 				where: { id: existing.beanId },
 			})
-			if (oldBean && oldBean.remainingWeight !== null) {
-				await tx.bean.update({
-					where: { id: oldBean.id },
-					data: {
-						remainingWeight: oldBean.remainingWeight + existing.doseWeight,
-					},
-				})
+			const returned = oldBean && drawFromBag(oldBean, -existing.doseWeight)
+			if (oldBean && returned) {
+				await tx.bean.update({ where: { id: oldBean.id }, data: returned })
 			}
-			if (bean.remainingWeight !== null) {
-				await tx.bean.update({
-					where: { id: bean.id },
-					data: {
-						remainingWeight: Math.max(
-							0,
-							bean.remainingWeight - input.doseWeight,
-						),
-					},
-				})
+			const weights = drawFromBag(bean, input.doseWeight)
+			if (weights) {
+				await tx.bean.update({ where: { id: bean.id }, data: weights })
 			}
 		}
 		return tx.brew.update({ where: { id }, data: input })

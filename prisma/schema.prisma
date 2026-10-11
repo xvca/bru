@@ -35,6 +35,10 @@ model Bean {
   thawDate        DateTime? @map("thaw_date")
   initialWeight   Float     @map("initial_weight")
   remainingWeight Float?    @map("remaining_weight")
+  /// Grams still in the freezer; part of remainingWeight
+  frozenWeight    Float     @default(0) @map("frozen_weight")
+  /// Grams moved out of the freezer last time, the thaw sheet's default
+  lastThawWeight  Float?    @map("last_thaw_weight")
   notes           String?
   process         String?
   producer        String?

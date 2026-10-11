@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import type { Bean } from '@/generated/prisma/client'
 import { beanColor } from '@/lib/beanColor'
+import { isAllFrozen } from '@/lib/beans'
 import { PickerSheet, type PickerOption } from '@/components/kit/Picker'
 
 const byBatch = (a: Bean, b: Bean) =>
@@ -19,12 +20,11 @@ function beanOptions(
 			b.remainingWeight > 0 ||
 			b.id === selectedId,
 	)
-	const isFrozen = (b: Bean) => !!b.freezeDate && !b.thawDate
 	const left = (b: Bean) =>
 		b.remainingWeight === null ? null : `${b.remainingWeight} g left`
 
 	const open = available
-		.filter((b) => !isFrozen(b))
+		.filter((b) => !isAllFrozen(b))
 		.sort(byBatch)
 		.map((b) => ({
 			value: b.id,
@@ -37,7 +37,7 @@ function beanOptions(
 		}))
 
 	const frozen = available
-		.filter(isFrozen)
+		.filter(isAllFrozen)
 		.sort(byBatch)
 		.map((b) => ({
 			value: b.id,

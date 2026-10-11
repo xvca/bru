@@ -4,14 +4,15 @@ import { toast } from 'sonner'
 
 import { Sheet } from '@/components/kit/Sheet'
 import { Key, NeutralKey } from '@/components/kit/buttons'
-import { Hint } from '@/components/kit/rows'
 
 interface ThawBeanModalProps {
 	isOpen: boolean
 	onClose: () => void
 	beanId: number
 	beanName: string
-	remainingWeight: number
+	frozenWeight: number
+	/** Starting amount; defaults to everything frozen */
+	defaultWeight?: number
 	onSuccess?: () => void
 }
 
@@ -20,21 +21,22 @@ export default function ThawBeanModal({
 	onClose,
 	beanId,
 	beanName,
-	remainingWeight,
+	frozenWeight,
+	defaultWeight = frozenWeight,
 	onSuccess,
 }: ThawBeanModalProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false)
-	const [thawWeight, setThawWeight] = useState<number>(remainingWeight)
+	const [thawWeight, setThawWeight] = useState<number>(defaultWeight)
 
 	useEffect(() => {
 		if (isOpen) {
-			setThawWeight(remainingWeight)
+			setThawWeight(defaultWeight)
 		}
-	}, [isOpen, remainingWeight])
+	}, [isOpen, defaultWeight])
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
-		if (!isNaN(val) && val >= 0 && val <= remainingWeight) {
+		if (!isNaN(val) && val >= 0 && val <= frozenWeight) {
 			setThawWeight(val)
 		}
 	}
@@ -49,11 +51,7 @@ export default function ThawBeanModal({
 				thawDate: new Date(),
 			})
 
-			toast.success(
-				thawWeight === remainingWeight
-					? 'Bean thawed successfully'
-					: `Thawed ${thawWeight}g into a new bag`,
-			)
+			toast.success(`Thawed ${thawWeight} g`)
 			onSuccess?.()
 			onClose()
 		} catch (error) {
@@ -64,14 +62,14 @@ export default function ThawBeanModal({
 		}
 	}
 
-	const pct = remainingWeight > 0 ? (thawWeight / remainingWeight) * 100 : 0
+	const pct = frozenWeight > 0 ? (thawWeight / frozenWeight) * 100 : 0
 
 	return (
 		<Sheet
 			open={isOpen}
 			onClose={onClose}
 			title='Thaw beans'
-			description={`How much of ${beanName} do you want to thaw?`}
+			description={beanName}
 			footer={
 				<div className='flex items-center gap-3 pb-1.5'>
 					<NeutralKey
@@ -95,9 +93,7 @@ export default function ThawBeanModal({
 					<label htmlFor='thaw-weight' className='text-[12.5px] text-ink-2'>
 						Amount to thaw
 					</label>
-					<span className='text-[12.5px] text-ink-2'>
-						of {remainingWeight} g
-					</span>
+					<span className='text-[12.5px] text-ink-2'>of {frozenWeight} g</span>
 				</div>
 				<div className='flex items-baseline gap-1.5'>
 					<input
@@ -105,7 +101,7 @@ export default function ThawBeanModal({
 						type='number'
 						inputMode='decimal'
 						min='0'
-						max={remainingWeight}
+						max={frozenWeight}
 						value={thawWeight}
 						onChange={handleInputChange}
 						onFocus={(e) => e.target.select()}
@@ -118,7 +114,7 @@ export default function ThawBeanModal({
 				<input
 					type='range'
 					min='0'
-					max={remainingWeight}
+					max={frozenWeight}
 					step='1'
 					value={thawWeight}
 					onChange={(e) => setThawWeight(Number(e.target.value))}
@@ -128,13 +124,6 @@ export default function ThawBeanModal({
 						background: `linear-gradient(to right, var(--accent) ${pct}%, var(--line) ${pct}%)`,
 					}}
 				/>
-				<Hint className='mt-4 text-[14px] leading-5'>
-					{thawWeight === remainingWeight
-						? 'The whole bag is marked as thawed today.'
-						: `A new ${thawWeight} g bag is created with today's thaw date. The other ${
-								Math.round((remainingWeight - thawWeight) * 10) / 10
-							} g stays frozen.`}
-				</Hint>
 			</form>
 		</Sheet>
 	)
