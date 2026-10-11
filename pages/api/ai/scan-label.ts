@@ -18,9 +18,18 @@ const labelSchema = z.object({
 	roaster: text,
 	origin: text,
 	process: text,
-	roastLevel: z
-		.enum(['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'])
-		.nullable(),
+	// In-between roasts count as Medium, so a model that still answers
+	// "Medium-Light" doesn't fail the whole scan
+	roastLevel: z.preprocess(
+		(value) =>
+			typeof value === 'string' &&
+			/^(medium[\s_-]*(light|dark)|(light|dark)[\s_-]*medium)$/i.test(
+				value.trim(),
+			)
+				? 'Medium'
+				: value,
+		z.enum(['Light', 'Medium', 'Dark']).nullable(),
+	),
 	notes: text,
 	roastDate: z.string().date().nullable(),
 	weight: z.number().finite().positive().nullable(),
@@ -38,7 +47,7 @@ Return every field below, using null for anything unknown:
   roaster: The company name, as a string.
   origin: The country or region, as a string.
   process: The processing method, as a string.
-  roastLevel: One of ["Light", "Medium-Light", "Medium", "Medium-Dark", "Dark"], only if explicitly stated by the roaster. Do not guess from color.
+  roastLevel: One of ["Light", "Medium", "Dark"], only if explicitly stated by the roaster. Medium-light and medium-dark count as "Medium". Do not guess from color.
   notes: A single string of comma-separated tasting notes.
   roastDate: YYYY-MM-DD, from a roast date printed on the bag only, never the web. For printed dates without a year, use ${new Date().getFullYear()}.
   weight: A positive number of grams, only if visible on the bag. Never infer the bag size from a web listing.

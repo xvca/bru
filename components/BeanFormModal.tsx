@@ -17,13 +17,7 @@ import { SparkIcon } from '@/components/kit/icons'
 import { RowSkeleton } from '@/components/kit/states'
 import { DateField, DatePickerSheet } from '@/components/kit/DatePickerSheet'
 
-const ROAST_LEVELS = [
-	'Light',
-	'Medium-Light',
-	'Medium',
-	'Medium-Dark',
-	'Dark',
-] as const
+const ROAST_LEVELS = ['Light', 'Medium', 'Dark'] as const
 
 interface BeanFormModalProps {
 	isOpen: boolean
