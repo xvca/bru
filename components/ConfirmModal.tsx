@@ -1,12 +1,5 @@
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { Sheet } from '@/components/kit/Sheet'
+import { Key, NeutralKey } from '@/components/kit/buttons'
 
 interface ConfirmModalProps {
 	open: boolean
@@ -17,6 +10,7 @@ interface ConfirmModalProps {
 	confirmLabel?: string
 }
 
+/** Confirmation as a bottom sheet: Cancel (neutral) and a danger key */
 export function ConfirmModal({
 	open,
 	onClose,
@@ -31,21 +25,28 @@ export function ConfirmModal({
 	}
 
 	return (
-		<Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>{title}</DialogTitle>
-					<DialogDescription>{description}</DialogDescription>
-				</DialogHeader>
-				<DialogFooter className='flex-row gap-2 justify-end'>
-					<Button variant='outline' onClick={onClose}>
+		<Sheet
+			open={open}
+			onClose={onClose}
+			title={title}
+			role='alertdialog'
+			footer={
+				<div className='flex items-center gap-3 pb-1.5'>
+					<NeutralKey
+						onClick={onClose}
+						className='normal-case tracking-normal text-[16px]'
+					>
 						Cancel
-					</Button>
-					<Button variant='destructive' onClick={handleConfirm}>
+					</NeutralKey>
+					<Key tone='danger' onClick={handleConfirm} className='flex-1'>
 						{confirmLabel}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+					</Key>
+				</div>
+			}
+		>
+			<p className='pt-0.5 text-[15px] leading-[21px] text-ink-2'>
+				{description}
+			</p>
+		</Sheet>
 	)
 }

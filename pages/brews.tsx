@@ -1,65 +1,48 @@
-import Page from '@/components/Page'
-import { useState, useEffect, useRef } from 'react'
+import Page, { PageHeader } from '@/components/Page'
+import { AnimatePresence, motion } from 'framer-motion'
+import { FadeIn, collapse } from '@/components/kit/FadeIn'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import axios from 'axios'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import { toast } from 'sonner'
 import { useBrewsPaginated } from '@/hooks/useBrews'
 import { useBeans } from '@/hooks/useBeans'
-import {
-	Plus,
-	Coffee,
-	Clock,
-	Thermometer,
-	Star,
-	Edit,
-	Trash,
-	Scale,
-	Settings2,
-	MoreVertical,
-	Copy,
-	Zap,
-	Filter,
-	X,
-} from 'lucide-react'
 import BrewForm from '@/components/BrewFormModal'
 import { ConfirmModal } from '@/components/ConfirmModal'
-import { BeanSelect } from '@/components/BeanSelect'
 import { cn } from '@/lib/utils'
 import { BREW_METHODS } from '@/lib/validators'
 import type { BrewFormData } from '@/lib/validators'
 import type { BrewWithRelations } from '@/hooks/useBrews'
-import { motion, AnimatePresence } from 'framer-motion'
+import { beanColor, getBatchColor } from '@/lib/beanColor'
+import { formatDuration } from '@/lib/format'
 
-import { Button } from '@/components/ui/button'
+import { AddKey, Chip, IconButton, TextButton } from '@/components/kit/buttons'
+import { RowMenu } from '@/components/kit/RowMenu'
+import { Swatch } from '@/components/kit/rows'
+import { EmptyState, RowSkeleton } from '@/components/kit/states'
 import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-} from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select'
+	BoltIcon,
+	CloneIcon,
+	EditIcon,
+	SlidersIcon,
+	StarIcon,
+	TrashIcon,
+} from '@/components/kit/icons'
+
+const fmt1 = (n: number) => n.toFixed(1)
+
+const dayLabel = (d: Date) => {
+	if (isToday(d)) return `Today · ${format(d, 'EEE d MMM')}`
+	if (isYesterday(d)) return `Yesterday · ${format(d, 'EEE d MMM')}`
+	return format(d, 'EEE d MMM')
+}
 
 export default function Brews() {
 	const router = useRouter()
 	const { beans } = useBeans()
 	const sentinelRef = useRef<HTMLDivElement>(null)
+	const filtersRef = useRef<HTMLDivElement>(null)
 
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [selectedBrew, setSelectedBrew] = useState<number | undefined>(
@@ -101,44 +84,94 @@ export default function Brews() {
 		}
 
 		setFilterMethod((method as string) || '')
+		if (method) setShowFilters(true)
 	}, [router.query, beans])
 
-	const updateFilters = (beanId: string, method: string) => {
+	const updateFilters = (
+		bean: { beanId?: string; batchId?: string },
+		method: string,
+	) => {
 		const query: Record<string, string> = {}
-		if (beanId) query.beanId = beanId
+		if (bean.batchId) query.batchId = bean.batchId
+		else if (bean.beanId) query.beanId = bean.beanId
 		if (method) query.method = method
 
-		router.push(
-			{
-				pathname: router.pathname,
-				query,
-			},
-			undefined,
-			{ shallow: true },
-		)
+		router.push({ pathname: router.pathname, query }, undefined, {
+			shallow: true,
+		})
 
 		window.scrollTo({ top: 0, behavior: 'smooth' })
 	}
 
-	const handleBeanFilterChange = (value: string) => {
-		setFilterBeanId(value)
-		updateFilters(value, filterMethod)
-	}
-
-	const handleMethodFilterChange = (value: string) => {
-		setFilterMethod(value)
-		updateFilters(filterBeanId, value)
-	}
-
-	const clearFilters = () => {
-		setFilterBeanId('')
-		setFilterBatchId('')
-		setFilterMethod('')
-		router.push({ pathname: router.pathname }, undefined, { shallow: true })
-		window.scrollTo({ top: 0, behavior: 'smooth' })
+	const currentBeanFilter = {
+		beanId: filterBeanId,
+		batchId: filterBatchId,
 	}
 
 	const hasActiveFilters = filterBeanId || filterBatchId || filterMethod
+
+	// Arriving with a filter (e.g. Beans → View shots) shows the panel
+	useEffect(() => {
+		if (router.isReady && hasActiveFilters) setShowFilters(true)
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- only on arrival
+	}, [router.isReady])
+
+	// Keep the selected chips in view when filters come from the URL
+	useEffect(() => {
+		filtersRef.current
+			?.querySelectorAll('[aria-pressed="true"]')
+			.forEach((el) =>
+				el.scrollIntoView({ block: 'nearest', inline: 'nearest' }),
+			)
+	}, [filterBeanId, filterBatchId, filterMethod, showFilters, beans])
+
+	// One chip per batch: active bags, plus whatever is currently filtered
+	const beanChips = useMemo(() => {
+		const seen = new Set<string>()
+		return (
+			beans
+				.filter(
+					(b) =>
+						b.remainingWeight !== 0 ||
+						b.id.toString() === filterBeanId ||
+						(filterBatchId && b.batchId === filterBatchId),
+				)
+				// Open bags first, frozen after, newest first within each
+				.sort((a, b) => {
+					const fa = a.freezeDate && !a.thawDate ? 1 : 0
+					const fb = b.freezeDate && !b.thawDate ? 1 : 0
+					return fa - fb || b.id - a.id
+				})
+				.filter((b) => {
+					const key = b.batchId || `fallback-${b.id}`
+					if (seen.has(key)) return false
+					seen.add(key)
+					return true
+				})
+		)
+	}, [beans, filterBeanId, filterBatchId])
+
+	const isChipOn = (b: (typeof beans)[number]) =>
+		filterBatchId
+			? b.batchId === filterBatchId
+			: b.id.toString() === filterBeanId
+
+	const colorFor = useMemo(() => {
+		const map = new Map(beans.map((b) => [b.id, beanColor(b)]))
+		return (beanId: number) =>
+			map.get(beanId) ?? getBatchColor(`fallback-${beanId}`)
+	}, [beans])
+
+	const groups = useMemo(() => {
+		const out: { day: string; rows: BrewWithRelations[] }[] = []
+		for (const brew of brews) {
+			const label = dayLabel(new Date(brew.createdAt))
+			const last = out.at(-1)
+			if (last && last.day === label) last.rows.push(brew)
+			else out.push({ day: label, rows: [brew] })
+		}
+		return out
+	}, [brews])
 
 	useEffect(() => {
 		if (!brews || brews.length === 0) return
@@ -162,6 +195,7 @@ export default function Brews() {
 	}, [brews])
 
 	useEffect(() => {
+		const el = sentinelRef.current
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
@@ -171,14 +205,9 @@ export default function Brews() {
 			{ threshold: 0.1 },
 		)
 
-		if (sentinelRef.current) {
-			observer.observe(sentinelRef.current)
-		}
-
+		if (el) observer.observe(el)
 		return () => {
-			if (sentinelRef.current) {
-				observer.unobserve(sentinelRef.current)
-			}
+			if (el) observer.unobserve(el)
 		}
 	}, [hasMore, isLoadingMore, loadMore])
 
@@ -240,352 +269,165 @@ export default function Brews() {
 		})
 	}
 
-	const formatBrewTime = (seconds: number | null) => {
-		if (!seconds) return 'N/A'
-		const minutes = Math.floor(seconds / 60)
-		const remainingSeconds = seconds % 60
-		return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-	}
-
-	const calculateRatio = (dose: number, yieldWt: number | null) => {
-		if (!yieldWt) return null
-		return `1:${(yieldWt / dose).toFixed(1)}`
-	}
-
 	return (
-		<Page title='Brew Logs'>
-			<div className='p-6'>
-				<div className='flex justify-between items-center mb-8'>
-					<h1 className='text-3xl font-bold tracking-tight'>Brew Logs</h1>
-					<div className='flex gap-2'>
-						<Button
-							variant={showFilters ? 'secondary' : 'outline'}
-							size='icon'
+		<Page title='Shots'>
+			<PageHeader
+				title='Shots'
+				actions={
+					<>
+						<IconButton
+							pressed={showFilters}
 							onClick={() => setShowFilters(!showFilters)}
-							title='Toggle filters'
+							aria-label={showFilters ? 'Hide filters' : 'Show filters'}
+							className='relative'
 						>
-							<Filter className='h-4 w-4' />
-						</Button>
-						<Button onClick={handleAddBrew}>
-							<Plus className='mr-2 h-4 w-4' />
-							Log Brew
-						</Button>
-					</div>
-				</div>
+							<SlidersIcon size={20} />
+							{hasActiveFilters && !showFilters && (
+								<span className='absolute top-2 right-2 size-[7px] rounded-full bg-accent' />
+							)}
+						</IconButton>
+						<AddKey onClick={handleAddBrew} aria-label='Log a brew' />
+					</>
+				}
+			/>
 
-				<AnimatePresence>
-					{showFilters && (
-						<motion.div
-							initial={{ height: 0, opacity: 0 }}
-							animate={{ height: 'auto', opacity: 1 }}
-							exit={{ height: 0, opacity: 0 }}
-							transition={{ duration: 0.3 }}
-							className='overflow-hidden mb-6'
-						>
-							<Card>
-								<CardContent className='pt-6'>
-									<div className='flex flex-col gap-4'>
-										<div className='flex items-center justify-between'>
-											<div className='flex items-center gap-2'>
-												<Filter className='h-4 w-4 text-muted-foreground' />
-												<span className='font-semibold'>Filter Brews</span>
-											</div>
-											{hasActiveFilters && (
-												<Button
-													variant='ghost'
-													size='sm'
-													onClick={clearFilters}
-													className='h-8'
-												>
-													<X className='mr-1 h-3 w-3' />
-													Clear Filters
-												</Button>
-											)}
-										</div>
+			<AnimatePresence initial={false}>
+				{showFilters && (
+					<motion.div
+						key='filters'
+						ref={filtersRef}
+						{...collapse}
+						className='overflow-hidden'
+					>
+						<div className='pt-1 pb-3'>
+							<div
+								role='group'
+								aria-label='Filter by bean'
+								className='no-scrollbar flex scroll-px-5 gap-2 overflow-x-auto px-5 py-0.5 after:w-3 after:shrink-0'
+							>
+								<Chip
+									on={!filterBeanId && !filterBatchId}
+									onClick={() => updateFilters({}, filterMethod)}
+								>
+									All
+								</Chip>
+								{beanChips.map((b) => (
+									<Chip
+										key={b.id}
+										on={isChipOn(b)}
+										onClick={() =>
+											updateFilters(
+												isChipOn(b)
+													? {}
+													: b.batchId
+														? { batchId: b.batchId }
+														: { beanId: b.id.toString() },
+												filterMethod,
+											)
+										}
+									>
+										{b.name}
+									</Chip>
+								))}
+							</div>
+							<div
+								role='group'
+								aria-label='Filter by method'
+								className='no-scrollbar mt-2 flex scroll-px-5 gap-2 overflow-x-auto px-5 py-0.5 after:w-3 after:shrink-0'
+							>
+								<Chip
+									size='sm'
+									on={!filterMethod}
+									onClick={() => updateFilters(currentBeanFilter, '')}
+								>
+									All
+								</Chip>
+								{BREW_METHODS.map((m) => (
+									<Chip
+										key={m}
+										size='sm'
+										on={filterMethod === m}
+										onClick={() =>
+											updateFilters(
+												currentBeanFilter,
+												filterMethod === m ? '' : m,
+											)
+										}
+									>
+										{m}
+									</Chip>
+								))}
+							</div>
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
 
-										<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-											<div className='space-y-2'>
-												<label className='text-sm font-medium'>Bean</label>
-												<BeanSelect
-													beans={beans || []}
-													value={filterBeanId}
-													onChange={handleBeanFilterChange}
-													showAllBeans={true}
-												/>
-											</div>
-
-											<div className='space-y-2'>
-												<label className='text-sm font-medium'>Method</label>
-												<Select
-													value={filterMethod || undefined}
-													onValueChange={handleMethodFilterChange}
-												>
-													<SelectTrigger>
-														<SelectValue placeholder='All methods' />
-													</SelectTrigger>
-													<SelectContent>
-														{BREW_METHODS.map((method) => (
-															<SelectItem key={method} value={method}>
-																{method}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						</motion.div>
-					)}
-				</AnimatePresence>
-
+			<div className='px-5'>
 				{isLoading ? (
-					<div className='grid gap-4 md:grid-cols-2 '>
-						{[1, 2, 3].map((i) => (
-							<Card key={i} className='overflow-hidden'>
-								<CardHeader className='pb-2'>
-									<Skeleton className='h-6 w-3/4' />
-									<Skeleton className='h-4 w-1/2' />
-								</CardHeader>
-								<CardContent>
-									<Skeleton className='h-20 w-full' />
-								</CardContent>
-							</Card>
-						))}
+					<div className='pt-4'>
+						<RowSkeleton rows={5} />
 					</div>
 				) : brews.length === 0 ? (
-					<Card className='border-dashed'>
-						<CardContent className='flex flex-col items-center justify-center py-16 space-y-4'>
-							<div className='p-4 rounded-full bg-secondary/50'>
-								<Coffee className='h-12 w-12 text-muted-foreground/50' />
-							</div>
-							<div className='text-center'>
-								<h3 className='text-lg font-semibold'>
-									{hasActiveFilters ? 'No matching brews' : 'No brews recorded'}
-								</h3>
-								<p className='text-muted-foreground text-sm max-w-sm mt-1'>
-									{hasActiveFilters
-										? 'Try adjusting your filters to see more results.'
-										: 'Start logging your brews to track parameters and improve consistency.'}
-								</p>
-							</div>
-							<Button
-								onClick={handleAddBrew}
-								variant='outline'
-								className='mt-4'
-							>
-								Log your first brew
-							</Button>
-						</CardContent>
-					</Card>
+					<EmptyState
+						className='mt-4'
+						title={hasActiveFilters ? 'No matching shots' : 'No shots yet'}
+						body={
+							hasActiveFilters
+								? 'Nothing logged with these filters. Try another bean or method.'
+								: 'Pick a recipe on the Brew screen and your shot is logged after it finishes, or log one here.'
+						}
+						action={
+							hasActiveFilters ? (
+								<TextButton
+									underline
+									onClick={() => updateFilters({}, '')}
+									className='-ml-1'
+								>
+									Clear filters
+								</TextButton>
+							) : (
+								<TextButton
+									tone='accent'
+									onClick={handleAddBrew}
+									className='-ml-1'
+								>
+									Log a shot
+								</TextButton>
+							)
+						}
+					/>
 				) : (
 					<>
-						<AnimatePresence mode='popLayout'>
-							<div className='grid gap-4 md:grid-cols-2'>
-								{brews.map((brew, index) => {
-									return (
-										<motion.div
-											key={brew.id}
-											initial={{ opacity: 0, y: 10 }}
-											whileInView={{ opacity: 1, y: 0 }}
-											transition={{ duration: 0.5 }}
-										>
-											<Card className='flex flex-col h-full hover:border-primary/50 transition-colors'>
-												<CardHeader>
-													<div className='flex justify-between items-start gap-2'>
-														<div className='space-y-1'>
-															<div className='flex items-center gap-2 flex-wrap'>
-																<CardTitle className='text-lg leading-tight'>
-																	{brew.bean.name}
-																</CardTitle>
-																<Badge
-																	variant='secondary'
-																	className='font-normal text-xs'
-																>
-																	{brew.method}
-																</Badge>
-																{brew.autoCreated && (
-																	<Badge
-																		variant='secondary'
-																		className='font-normal text-xs flex items-center gap-1'
-																	>
-																		<Zap size={10} />
-																		Auto
-																	</Badge>
-																)}
-															</div>
-															<CardDescription className='flex items-center gap-1'>
-																{brew.bean.roaster || 'Unknown Roaster'}
-																<span>•</span>
-																{format(
-																	new Date(brew.createdAt),
-																	'MMM d, h:mm a',
-																)}
-															</CardDescription>
-														</div>
-
-														{
-															<DropdownMenu
-																open={openDropdownId === brew.id}
-																onOpenChange={(open) =>
-																	setOpenDropdownId(open ? brew.id : null)
-																}
-															>
-																<DropdownMenuTrigger asChild>
-																	<Button
-																		variant='ghost'
-																		size='icon'
-																		className='h-8 w-8 text-muted-foreground hover:text-foreground -mr-2 -mt-1'
-																		aria-label={`Actions for ${brew.bean.name} brew`}
-																	>
-																		<MoreVertical size={16} />
-																	</Button>
-																</DropdownMenuTrigger>
-																{openDropdownId === brew.id && (
-																	<DropdownMenuContent align='end'>
-																		<DropdownMenuItem
-																			onClick={() => handleEditBrew(brew.id)}
-																			className='cursor-pointer'
-																		>
-																			<Edit size={14} className='mr-2' />
-																			Edit
-																		</DropdownMenuItem>
-																		<DropdownMenuItem
-																			onClick={() => handleCloneBrew(brew)}
-																			className='cursor-pointer'
-																		>
-																			<Copy size={14} className='mr-2' />
-																			Clone
-																		</DropdownMenuItem>
-																		<DropdownMenuItem
-																			onClick={() =>
-																				confirmDeleteBrew(
-																					brew.id,
-																					brew.bean.name,
-																				)
-																			}
-																			className='cursor-pointer text-destructive focus:text-destructive'
-																		>
-																			<Trash size={14} className='mr-2' />
-																			Delete
-																		</DropdownMenuItem>
-																	</DropdownMenuContent>
-																)}
-															</DropdownMenu>
-														}
-													</div>
-												</CardHeader>
-
-												<CardContent className='flex-1 pb-6'>
-													<div className='grid grid-cols-2 gap-4 mb-4'>
-														<div className='flex flex-col p-2 bg-secondary/30 rounded-md'>
-															<div className='flex items-center gap-1.5 text-xs text-muted-foreground mb-1'>
-																<Scale size={12} />
-																<span>Ratio</span>
-															</div>
-															<div className='text-sm font-medium'>
-																{brew.doseWeight}g
-																{brew.yieldWeight && (
-																	<>
-																		{' → '}
-																		<span className='text-foreground'>
-																			{brew.yieldWeight}g
-																		</span>
-																		<div className='text-xs text-muted-foreground font-normal mt-0.5'>
-																			(
-																			{calculateRatio(
-																				brew.doseWeight,
-																				brew.yieldWeight,
-																			)}
-																			)
-																		</div>
-																	</>
-																)}
-															</div>
-														</div>
-
-														<div className='flex flex-col gap-1.5'>
-															{brew.brewTime && (
-																<div className='flex items-center justify-between text-sm'>
-																	<div className='flex items-center gap-1.5 text-muted-foreground'>
-																		<Clock size={13} />
-																		<span className='text-xs'>Time</span>
-																	</div>
-																	<span className='font-mono font-medium'>
-																		{formatBrewTime(brew.brewTime)}
-																	</span>
-																</div>
-															)}
-															{brew.waterTemperature && (
-																<div className='flex items-center justify-between text-sm'>
-																	<div className='flex items-center gap-1.5 text-muted-foreground'>
-																		<Thermometer size={13} />
-																		<span className='text-xs'>Temp</span>
-																	</div>
-																	<span className='font-medium'>
-																		{brew.waterTemperature}°C
-																	</span>
-																</div>
-															)}
-															{brew.grindSize && (
-																<div className='flex items-center justify-between text-sm'>
-																	<div className='flex items-center gap-1.5 text-muted-foreground'>
-																		<Settings2 size={13} />
-																		<span className='text-xs'>Grind</span>
-																	</div>
-																	<span className='font-medium truncate max-w-20 text-right'>
-																		{brew.grindSize}
-																	</span>
-																</div>
-															)}
-														</div>
-													</div>
-
-													{(brew.rating !== null || brew.notes) && (
-														<>
-															<Separator className='mb-3' />
-															<div className='space-y-2'>
-																{brew.rating !== null && (
-																	<div className='flex gap-0.5'>
-																		{[1, 2, 3, 4, 5].map((star) => (
-																			<Star
-																				key={star}
-																				size={14}
-																				className={cn(
-																					brew.rating! >= star
-																						? 'fill-warning text-warning'
-																						: 'fill-muted/20 text-muted-foreground/30',
-																				)}
-																			/>
-																		))}
-																	</div>
-																)}
-																{brew.notes && (
-																	<div className='p-3 bg-secondary/30 rounded-md'>
-																		<p className='text-sm text-muted-foreground italic line-clamp-3 whitespace-pre-line'>
-																			{brew.notes}
-																		</p>
-																	</div>
-																)}
-															</div>
-														</>
-													)}
-												</CardContent>
-											</Card>
-										</motion.div>
-									)
-								})}
-							</div>
-						</AnimatePresence>
+						{groups.map((g) => (
+							<section key={g.day}>
+								<h2 className='flex h-11 items-end pb-2 text-[13px] font-semibold text-ink-2'>
+									{g.day}
+								</h2>
+								{g.rows.map((brew, i) => (
+									<FadeIn key={brew.id} y={10} duration={0.5}>
+										<ShotRow
+											brew={brew}
+											first={i === 0}
+											color={colorFor(brew.beanId)}
+											menuOpen={openDropdownId === brew.id}
+											onMenuOpenChange={(open) =>
+												setOpenDropdownId(open ? brew.id : null)
+											}
+											onEdit={() => handleEditBrew(brew.id)}
+											onClone={() => handleCloneBrew(brew)}
+											onDelete={() =>
+												confirmDeleteBrew(brew.id, brew.bean.name)
+											}
+										/>
+									</FadeIn>
+								))}
+							</section>
+						))}
 
 						<div ref={sentinelRef} className='h-4' />
 
-						{isLoadingMore && (
-							<div className='flex justify-center py-8'>
-								<div className='animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full' />
-							</div>
-						)}
+						{isLoadingMore && <RowSkeleton rows={2} />}
 					</>
 				)}
 			</div>
@@ -605,9 +447,128 @@ export default function Brews() {
 				open={deleteModal.isOpen}
 				onClose={() => setDeleteModal({ ...deleteModal, isOpen: false })}
 				onConfirm={() => handleDeleteBrew(deleteModal.brewId)}
-				title='Delete Brew'
-				description={`Are you sure you want to delete this brew of ${deleteModal.brewName}? This action cannot be undone.`}
+				title='Delete shot?'
+				description={`This shot of ${deleteModal.brewName} will be removed. This can't be undone.`}
+				confirmLabel='Delete'
 			/>
 		</Page>
+	)
+}
+
+interface ShotRowProps {
+	brew: BrewWithRelations
+	first: boolean
+	color: string
+	menuOpen: boolean
+	onMenuOpenChange: (open: boolean) => void
+	onEdit: () => void
+	onClone: () => void
+	onDelete: () => void
+}
+
+function ShotRow({
+	brew,
+	first,
+	color,
+	menuOpen,
+	onMenuOpenChange,
+	onEdit,
+	onClone,
+	onDelete,
+}: ShotRowProps) {
+	const recipe = brew.yieldWeight
+		? `${fmt1(brew.doseWeight)} → ${fmt1(brew.yieldWeight)} g`
+		: `${fmt1(brew.doseWeight)} g`
+	const extra = [
+		brew.method !== 'Espresso' ? brew.method : null,
+		brew.grindSize ? `Grind ${fmt1(brew.grindSize)}` : null,
+		brew.waterTemperature ? `${brew.waterTemperature}°C` : null,
+	]
+		.filter(Boolean)
+		.join(' · ')
+	const duration = formatDuration(brew.brewTime)
+	const rating = brew.rating ?? 0
+
+	return (
+		<div
+			className={cn(
+				'relative flex min-h-[84px] items-center',
+				!first && 'border-t border-line',
+			)}
+		>
+			<button
+				type='button'
+				onClick={onEdit}
+				aria-label={`Edit ${brew.bean.name} shot`}
+				className='flex min-w-0 flex-1 items-center gap-3 self-stretch rounded-xl text-left outline-offset-[-2px]'
+			>
+				<div className='flex min-w-0 flex-1 flex-col gap-[3px] py-2.5'>
+					<div className='flex min-w-0 items-center gap-2'>
+						<Swatch color={color} />
+						<span className='truncate text-[16px] font-semibold'>
+							{brew.bean.name}
+						</span>
+						{brew.autoCreated && (
+							<span className='inline-flex shrink-0 items-center gap-[3px] text-[12px] font-medium text-ink-2'>
+								<BoltIcon />
+								Auto
+							</span>
+						)}
+					</div>
+					<span className='font-mono text-[11.5px] tracking-[0.02em] whitespace-nowrap text-ink-2'>
+						{recipe} · {format(new Date(brew.createdAt), 'HH:mm')}
+					</span>
+					{extra && (
+						<span className='truncate font-mono text-[11.5px] tracking-[0.02em] text-ink-2'>
+							{extra}
+						</span>
+					)}
+					{brew.notes && (
+						<span className='truncate text-[13px] text-ink-2'>
+							{brew.notes}
+						</span>
+					)}
+				</div>
+				<div className='flex min-w-16 shrink-0 flex-col items-end gap-1.5 whitespace-nowrap'>
+					{duration && (
+						<span className='font-mono text-[18px] font-medium'>
+							{duration}
+						</span>
+					)}
+					{rating > 0 && (
+						<span
+							className='flex gap-px text-star'
+							aria-label={`${rating} of 5 stars`}
+						>
+							{[1, 2, 3, 4, 5].map((n) => (
+								<StarIcon
+									key={n}
+									size={10}
+									strokeWidth={2}
+									filled={n <= rating}
+									className={n <= rating ? '' : 'text-line'}
+								/>
+							))}
+						</span>
+					)}
+				</div>
+			</button>
+			<RowMenu
+				label={`Actions for ${brew.bean.name} shot`}
+				open={menuOpen}
+				onOpenChange={onMenuOpenChange}
+				width={172}
+				items={[
+					{ label: 'Edit', icon: <EditIcon />, onSelect: onEdit },
+					{ label: 'Clone', icon: <CloneIcon />, onSelect: onClone },
+					{
+						label: 'Delete',
+						icon: <TrashIcon />,
+						onSelect: onDelete,
+						danger: true,
+					},
+				]}
+			/>
+		</div>
 	)
 }

@@ -1,27 +1,25 @@
-import Page from '@/components/Page'
+import Page, { PageHeader } from '@/components/Page'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import type { Brewer, Grinder } from 'generated/prisma/client'
-import { Plus, Edit, Trash } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BrewerFormModal from '@/components/BrewerFormModal'
 import GrinderFormModal from '@/components/GrinderFormModal'
 
-import { Button } from '@/components/ui/button'
-import {
-	Card,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-} from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Skeleton } from '@/components/ui/skeleton'
+import { AddKey, TextButton } from '@/components/kit/buttons'
+import { RowMenu } from '@/components/kit/RowMenu'
+import { SegTabs } from '@/components/kit/rows'
+import { EmptyState, RowSkeleton } from '@/components/kit/states'
+import { EditIcon, TrashIcon } from '@/components/kit/icons'
+
+type Seg = 'brewers' | 'grinders'
 
 export default function EquipmentPage() {
 	const [brewers, setBrewers] = useState<Brewer[]>([])
 	const [grinders, setGrinders] = useState<Grinder[]>([])
 	const [isLoading, setIsLoading] = useState(true)
+	const [seg, setSeg] = useState<Seg>('brewers')
 
 	const [isBrewerModalOpen, setIsBrewerModalOpen] = useState(false)
 	const [isGrinderModalOpen, setIsGrinderModalOpen] = useState(false)
@@ -69,149 +67,124 @@ export default function EquipmentPage() {
 		}
 	}
 
+	const openAdd = () => {
+		setSelectedId(undefined)
+		if (seg === 'brewers') setIsBrewerModalOpen(true)
+		else setIsGrinderModalOpen(true)
+	}
+
+	const openEdit = (type: 'brewer' | 'grinder', id: number) => {
+		setSelectedId(id)
+		if (type === 'brewer') setIsBrewerModalOpen(true)
+		else setIsGrinderModalOpen(true)
+	}
+
+	const items =
+		seg === 'brewers'
+			? brewers.map((b) => ({
+					type: 'brewer' as const,
+					id: b.id,
+					name: b.name,
+					sub: b.type,
+				}))
+			: grinders.map((g) => ({
+					type: 'grinder' as const,
+					id: g.id,
+					name: g.name,
+					sub: g.burrType,
+				}))
+
 	return (
-		<Page title='Equipment'>
-			<div className='p-6'>
-				<div className='flex justify-between items-center mb-8'>
-					<h1 className='text-3xl font-bold tracking-tight'>Equipment</h1>
-				</div>
+		<Page title='Gear'>
+			<PageHeader
+				title='Gear'
+				actions={
+					<AddKey
+						onClick={openAdd}
+						aria-label={seg === 'brewers' ? 'Add a brewer' : 'Add a grinder'}
+					/>
+				}
+			/>
 
-				<Tabs defaultValue='brewers' className='w-full'>
-					<TabsList className='mb-4 w-full'>
-						<TabsTrigger value='brewers' className='grow'>
-							Brewers
-						</TabsTrigger>
-						<TabsTrigger value='grinders' className='grow'>
-							Grinders
-						</TabsTrigger>
-					</TabsList>
+			<div className='px-5 pt-1'>
+				<SegTabs
+					value={seg}
+					onChange={setSeg}
+					options={[
+						{ value: 'brewers', label: 'Brewers' },
+						{ value: 'grinders', label: 'Grinders' },
+					]}
+				/>
+			</div>
 
-					<TabsContent value='brewers'>
-						<div className='flex justify-end mb-4'>
-							<Button
-								onClick={() => {
-									setSelectedId(undefined)
-									setIsBrewerModalOpen(true)
-								}}
+			<div className='px-5 pt-1'>
+				{isLoading ? (
+					<RowSkeleton rows={3} variant='simple' />
+				) : items.length === 0 ? (
+					<EmptyState
+						className='mt-3 border-t-0'
+						title={seg === 'brewers' ? 'No brewers yet' : 'No grinders yet'}
+						body={
+							seg === 'brewers'
+								? 'Add your machine or brewer so shots can record what they were made on.'
+								: 'Add a grinder so grind settings stay tied to the right burrs.'
+						}
+						action={
+							<TextButton tone='accent' onClick={openAdd} className='-ml-1'>
+								{seg === 'brewers' ? 'Add a brewer' : 'Add a grinder'}
+							</TextButton>
+						}
+					/>
+				) : (
+					items.map((it, i) => (
+						<div
+							key={`${it.type}-${it.id}`}
+							className={
+								i > 0
+									? 'flex items-start border-t border-line'
+									: 'flex items-start'
+							}
+						>
+							<button
+								type='button'
+								onClick={() => openEdit(it.type, it.id)}
+								className='min-w-0 flex-1 py-3.5 text-left outline-offset-[-2px]'
 							>
-								<Plus className='mr-2 h-4 w-4' /> Add Brewer
-							</Button>
-						</div>
-						{isLoading ? (
-							<Skeleton className='h-24 w-full' />
-						) : (
-							<div className='grid gap-4 md:grid-cols-2'>
-								{brewers.map((item) => (
-									<Card key={item.id}>
-										<CardHeader className='flex flex-row items-start justify-between space-y-0'>
-											<div>
-												<CardTitle className='text-base'>{item.name}</CardTitle>
-												<CardDescription>{item.type}</CardDescription>
-											</div>
-											<div className='flex gap-1'>
-												<Button
-													variant='ghost'
-													size='icon'
-													className='h-8 w-8'
-													aria-label={`Edit ${item.name}`}
-													onClick={() => {
-														setSelectedId(item.id)
-														setIsBrewerModalOpen(true)
-													}}
-												>
-													<Edit className='h-4 w-4' />
-												</Button>
-												<Button
-													variant='ghost'
-													size='icon'
-													className='h-8 w-8 text-destructive'
-													aria-label={`Delete ${item.name}`}
-													onClick={() =>
-														setDeleteData({
-															type: 'brewer',
-															id: item.id,
-															name: item.name,
-														})
-													}
-												>
-													<Trash className='h-4 w-4' />
-												</Button>
-											</div>
-										</CardHeader>
-									</Card>
-								))}
-								{brewers.length === 0 && (
-									<div className='text-center text-muted-foreground py-8 col-span-2'>
-										No brewers found
+								<div className='truncate text-[17px] font-semibold'>
+									{it.name}
+								</div>
+								{it.sub && (
+									<div className='mt-0.5 text-[13.5px] leading-[18px] text-ink-2'>
+										{it.sub}
 									</div>
 								)}
-							</div>
-						)}
-					</TabsContent>
-
-					<TabsContent value='grinders'>
-						<div className='flex justify-end mb-4'>
-							<Button
-								onClick={() => {
-									setSelectedId(undefined)
-									setIsGrinderModalOpen(true)
-								}}
-							>
-								<Plus className='mr-2 h-4 w-4' /> Add Grinder
-							</Button>
+							</button>
+							<RowMenu
+								className='mt-2.5'
+								label={`Actions for ${it.name}`}
+								width={172}
+								items={[
+									{
+										label: 'Edit',
+										icon: <EditIcon />,
+										onSelect: () => openEdit(it.type, it.id),
+									},
+									{
+										label: 'Delete',
+										icon: <TrashIcon />,
+										danger: true,
+										onSelect: () =>
+											setDeleteData({
+												type: it.type,
+												id: it.id,
+												name: it.name,
+											}),
+									},
+								]}
+							/>
 						</div>
-						{isLoading ? (
-							<Skeleton className='h-24 w-full' />
-						) : (
-							<div className='grid gap-4 md:grid-cols-2'>
-								{grinders.map((item) => (
-									<Card key={item.id}>
-										<CardHeader className='flex flex-row items-start justify-between space-y-0'>
-											<div>
-												<CardTitle className='text-base'>{item.name}</CardTitle>
-												<CardDescription>{item.burrType}</CardDescription>
-											</div>
-											<div className='flex gap-1'>
-												<Button
-													variant='ghost'
-													size='icon'
-													className='h-8 w-8'
-													aria-label={`Edit ${item.name}`}
-													onClick={() => {
-														setSelectedId(item.id)
-														setIsGrinderModalOpen(true)
-													}}
-												>
-													<Edit className='h-4 w-4' />
-												</Button>
-												<Button
-													variant='ghost'
-													size='icon'
-													className='h-8 w-8 text-destructive'
-													aria-label={`Delete ${item.name}`}
-													onClick={() =>
-														setDeleteData({
-															type: 'grinder',
-															id: item.id,
-															name: item.name,
-														})
-													}
-												>
-													<Trash className='h-4 w-4' />
-												</Button>
-											</div>
-										</CardHeader>
-									</Card>
-								))}
-								{grinders.length === 0 && (
-									<div className='text-center text-muted-foreground py-8 col-span-2'>
-										No grinders found
-									</div>
-								)}
-							</div>
-						)}
-					</TabsContent>
-				</Tabs>
+					))
+				)}
 			</div>
 
 			<BrewerFormModal
@@ -232,8 +205,9 @@ export default function EquipmentPage() {
 				open={!!deleteData}
 				onClose={() => setDeleteData(null)}
 				onConfirm={handleDelete}
-				title={`Delete ${deleteData?.type === 'brewer' ? 'Brewer' : 'Grinder'}`}
-				description={`Are you sure you want to delete "${deleteData?.name}"?`}
+				title={`Delete ${deleteData?.type ?? 'item'}?`}
+				description={`"${deleteData?.name}" will be removed. This can't be undone.`}
+				confirmLabel='Delete'
 			/>
 		</Page>
 	)

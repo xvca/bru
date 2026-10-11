@@ -36,7 +36,7 @@ export default withLocalAccess(
 			res.json({
 				brews,
 				hasMore,
-				nextId: hasMore ? brews.at(-1)!.id : null,
+				nextId: hasMore ? (brews.at(-1)?.id ?? null) : null,
 			})
 		},
 		POST: async (req, res) => {

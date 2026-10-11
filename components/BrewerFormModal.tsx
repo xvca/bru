@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,29 +9,10 @@ import {
 } from '@/lib/validators'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import {
-	Field,
-	FieldLabel,
-	FieldError,
-	FieldGroup,
-} from '@/components/ui/field'
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select'
+import { Sheet } from '@/components/kit/Sheet'
+import { Chip, Key, TextButton } from '@/components/kit/buttons'
+import { FormField } from '@/components/kit/rows'
+import { RowSkeleton } from '@/components/kit/states'
 
 interface BrewerFormModalProps {
 	isOpen: boolean
@@ -60,6 +41,31 @@ export default function BrewerFormModal({
 		},
 	})
 
+	// Parents pass an inline onClose; a ref keeps the fetch from re-running
+	const onCloseRef = useRef(onClose)
+	useEffect(() => {
+		onCloseRef.current = onClose
+	})
+
+	const fetchBrewer = useCallback(async () => {
+		try {
+			setIsFetching(true)
+			const { data } = await axios.get(`/api/brewers/${brewerId}`)
+
+			form.reset({
+				name: data.name,
+				type: data.type || '',
+				notes: data.notes || '',
+			})
+		} catch (error) {
+			console.error('Error fetching brewer:', error)
+			toast.error('Failed to load brewer data')
+			onCloseRef.current()
+		} finally {
+			setIsFetching(false)
+		}
+	}, [brewerId, form])
+
 	useEffect(() => {
 		if (isOpen) {
 			if (!isEditMode) {
@@ -74,26 +80,7 @@ export default function BrewerFormModal({
 		} else {
 			form.reset()
 		}
-	}, [isOpen, isEditMode, brewerId])
-
-	const fetchBrewer = async () => {
-		try {
-			setIsFetching(true)
-			const { data } = await axios.get(`/api/brewers/${brewerId}`)
-
-			form.reset({
-				name: data.name,
-				type: data.type || '',
-				notes: data.notes || '',
-			})
-		} catch (error) {
-			console.error('Error fetching brewer:', error)
-			toast.error('Failed to load brewer data')
-			onClose()
-		} finally {
-			setIsFetching(false)
-		}
-	}
+	}, [isOpen, isEditMode, brewerId, form, fetchBrewer])
 
 	const onSubmit = async (data: BrewerFormData) => {
 		setIsLoading(true)
@@ -118,97 +105,109 @@ export default function BrewerFormModal({
 	}
 
 	return (
-		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className='max-w-md'>
-				<DialogHeader>
-					<DialogTitle>{isEditMode ? 'Edit Brewer' : 'Add Brewer'}</DialogTitle>
-				</DialogHeader>
+		<Sheet
+			open={isOpen}
+			onClose={onClose}
+			title={isEditMode ? 'Edit brewer' : 'Add brewer'}
+			action={
+				<TextButton underline onClick={onClose} className='-mr-1 text-[13px]'>
+					Cancel
+				</TextButton>
+			}
+			footer={
+				<div className='pb-1.5'>
+					<Key
+						type='submit'
+						form='brewer-form'
+						disabled={isLoading || isFetching}
+						className='h-16 text-[18px]'
+					>
+						{isLoading
+							? 'Saving…'
+							: isEditMode
+								? 'Update brewer'
+								: 'Add brewer'}
+					</Key>
+				</div>
+			}
+		>
+			{isFetching ? (
+				<RowSkeleton rows={2} variant='simple' />
+			) : (
+				<form
+					id='brewer-form'
+					onSubmit={form.handleSubmit(onSubmit)}
+					className='flex flex-col gap-4 pt-1 pb-2'
+				>
+					<Controller
+						name='name'
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<FormField
+								label='Name'
+								htmlFor='brewer-name'
+								error={fieldState.error?.message}
+							>
+								<input
+									{...field}
+									id='brewer-name'
+									placeholder='Breville Dual Boiler'
+									aria-invalid={fieldState.invalid}
+									autoComplete='off'
+									className='fin text-[20px] font-semibold'
+								/>
+							</FormField>
+						)}
+					/>
 
-				{isFetching ? (
-					<div className='flex justify-center items-center py-8'>
-						<Spinner />
-					</div>
-				) : (
-					<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
-						<FieldGroup>
-							<Controller
-								name='name'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='name'>
-											Name <span className='text-error'>*</span>
-										</FieldLabel>
-										<Input
-											{...field}
-											id='name'
-											placeholder='e.g., Breville Dual Boiler'
-										/>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
+					<Controller
+						name='type'
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<div className='flex flex-col gap-0.5'>
+								<span className='text-[12.5px] text-ink-2'>Type</span>
+								<div
+									role='group'
+									aria-label='Type'
+									className='flex flex-wrap gap-2 pt-1.5'
+								>
+									{BREW_METHODS.map((m) => (
+										<Chip
+											key={m}
+											size='sm'
+											on={field.value === m}
+											onClick={() => field.onChange(m)}
+										>
+											{m}
+										</Chip>
+									))}
+								</div>
+								{fieldState.error && (
+									<span role='alert' className='mt-1 text-[12.5px] text-danger'>
+										Pick a type
+									</span>
 								)}
-							/>
+							</div>
+						)}
+					/>
 
-							<Controller
-								name='type'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel>
-											Type <span className='text-error'>*</span>
-										</FieldLabel>
-										<Select onValueChange={field.onChange} value={field.value}>
-											<SelectTrigger>
-												<SelectValue placeholder='Select a type' />
-											</SelectTrigger>
-											<SelectContent>
-												{BREW_METHODS.map((m) => (
-													<SelectItem key={m} value={m}>
-														{m}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							<Controller
-								name='notes'
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor='notes'>Notes</FieldLabel>
-										<Textarea
-											{...field}
-											value={field.value || ''}
-											id='notes'
-											rows={3}
-											placeholder='Additional notes about this brewer'
-										/>
-									</Field>
-								)}
-							/>
-						</FieldGroup>
-
-						<div className='flex justify-end gap-3 pt-2'>
-							<Button onClick={onClose} variant='outline' type='button'>
-								Cancel
-							</Button>
-
-							<Button type='submit' disabled={isLoading}>
-								{isLoading && <Spinner className='mr-2' />}
-								{isEditMode ? 'Update' : 'Add'}
-							</Button>
-						</div>
-					</form>
-				)}
-			</DialogContent>
-		</Dialog>
+					<Controller
+						name='notes'
+						control={form.control}
+						render={({ field }) => (
+							<FormField label='Notes' htmlFor='brewer-notes'>
+								<textarea
+									{...field}
+									id='brewer-notes'
+									value={field.value || ''}
+									placeholder='Anything worth remembering'
+									className='notes mt-1 h-[84px]'
+								/>
+							</FormField>
+						)}
+					/>
+				</form>
+			)}
+		</Sheet>
 	)
 }

@@ -6,6 +6,7 @@ import {
 	updateGrinder,
 	deleteGrinder,
 } from '@/services/grinderService'
+
 export default createEquipmentCollectionHandler({
 	list: getGrinders,
 	get: getGrinderById,

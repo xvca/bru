@@ -1,50 +1,31 @@
-import Page from '@/components/Page'
+import Page, { PageHeader } from '@/components/Page'
+import { AnimatePresence, motion } from 'framer-motion'
+import { FadeIn, collapse } from '@/components/kit/FadeIn'
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import axios from 'axios'
 import { useBeans } from '@/hooks/useBeans'
-import {
-	Plus,
-	Coffee,
-	Calendar,
-	Star,
-	Edit,
-	Trash,
-	Package,
-	Snowflake,
-	ThermometerSun,
-	Droplets,
-	ChevronDown,
-	ChevronUp,
-	MoreVertical,
-	List,
-	PackageX,
-} from 'lucide-react'
 import { toast } from 'sonner'
+import type { Bean } from '@/generated/prisma/client'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import BeanFormModal from '@/components/BeanFormModal'
 import ThawBeanModal from '@/components/ThawBeanModal'
 import BrewFormModal from '@/components/BrewFormModal'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
+import { beanColor } from '@/lib/beanColor'
 
-import { Button } from '@/components/ui/button'
+import { AddKey, TextButton } from '@/components/kit/buttons'
+import { RowMenu } from '@/components/kit/RowMenu'
+import { Swatch } from '@/components/kit/rows'
+import { EmptyState, RowSkeleton } from '@/components/kit/states'
 import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-	CardDescription,
-} from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+	CupIcon,
+	DoneIcon,
+	EditIcon,
+	ListIcon,
+	SnowIcon,
+	TrashIcon,
+} from '@/components/kit/icons'
 
 export default function BeansPage() {
 	const router = useRouter()
@@ -188,15 +169,6 @@ export default function BeansPage() {
 		return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
 	}
 
-	const getBatchColor = (str: string) => {
-		let hash = 0
-		for (let i = 0; i < str.length; i++) {
-			hash = str.charCodeAt(i) + ((hash << 5) - hash)
-		}
-		const hue = Math.abs(hash % 360)
-		return `hsl(${hue}, 50%, 65%)`
-	}
-
 	const sortedBeans = useMemo(() => {
 		if (!beans) return []
 
@@ -250,11 +222,7 @@ export default function BeansPage() {
 			return dateDifference || b.id - a.id
 		})
 
-	const renderBeanCard = (bean: (typeof beans)[0], index: number) => {
-		const percentRemaining = bean.remainingWeight
-			? Math.min(100, (bean.remainingWeight / bean.initialWeight) * 100)
-			: 0
-
+	const renderBeanRow = (bean: Bean, index: number) => {
 		const isThawed = !!bean.freezeDate && !!bean.thawDate
 		const isFrozen = !!bean.freezeDate && !bean.thawDate
 		const isFinished = bean.remainingWeight === 0
@@ -265,260 +233,187 @@ export default function BeansPage() {
 			bean.thawDate,
 		)
 
-		const batchColor = getBatchColor(bean.batchId || `fallback-${bean.id}`)
+		const pct =
+			bean.remainingWeight !== null && bean.initialWeight > 0
+				? Math.min(100, (bean.remainingWeight / bean.initialWeight) * 100)
+				: null
+
+		const detail = [
+			isFrozen ? 'Frozen' : isThawed ? 'Thawed' : null,
+			daysOld === 0
+				? 'Roasted today'
+				: `${daysOld} day${daysOld === 1 ? '' : 's'} off roast`,
+			bean.roastLevel,
+		]
+			.filter(Boolean)
+			.join(' · ')
 
 		return (
-			<motion.div
-				key={bean.id}
-				initial={{ opacity: 0, y: 20 }}
-				whileInView={{ opacity: 1, y: 0 }}
-				transition={{ duration: 0.4 }}
-			>
-				<Card
+			<FadeIn key={bean.id}>
+				<div
 					className={cn(
-						'flex flex-col justify-between hover:border-primary/50 transition-colors h-full',
+						'relative flex items-start',
+						index > 0 && 'border-t border-line',
 						isFinished && 'opacity-60',
 					)}
 				>
-					<CardHeader className='pb-3'>
-						<div className='flex justify-between items-start gap-2'>
-							<div className='space-y-1'>
-								<CardTitle className='text-lg leading-tight flex items-center gap-2'>
-									<div
-										className='w-3 h-3 rounded-full shrink-0'
-										style={{ backgroundColor: batchColor }}
-										title='Batch Indicator'
-									/>
-									{bean.name}
-								</CardTitle>
-								<CardDescription>{bean.roaster}</CardDescription>
-							</div>
-							<div className='flex gap-1 -mr-2 -mt-1'>
-								{isFrozen && (
-									<Button
-										onClick={() =>
-											handleThaw(bean.id, bean.name, bean.remainingWeight || 0)
-										}
-										variant='ghost'
-										size='icon'
-										className='h-8 w-8 text-frozen-foreground hover:text-frozen-foreground hover:bg-frozen/20'
-										title='Thaw Beans'
-									>
-										<ThermometerSun size={16} />
-									</Button>
-								)}
-								<DropdownMenu
-									open={openDropdownId === bean.id}
-									onOpenChange={(open) =>
-										setOpenDropdownId(open ? bean.id : null)
-									}
-								>
-									<DropdownMenuTrigger asChild>
-										<Button
-											variant='ghost'
-											size='icon'
-											className='h-8 w-8 text-muted-foreground hover:text-foreground'
-											aria-label={`Actions for ${bean.name}`}
-										>
-											<MoreVertical size={16} />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align='end'>
-										<DropdownMenuItem
-											onClick={() => handleCreateBrew(bean.id)}
-											className='cursor-pointer'
-										>
-											<Coffee size={14} className='mr-2' />
-											Brew
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => handleViewBrews(bean.id)}
-											className='cursor-pointer'
-										>
-											<List size={14} className='mr-2' />
-											View Brews
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => handleEdit(bean.id)}
-											className='cursor-pointer'
-										>
-											<Edit size={14} className='mr-2' />
-											Edit
-										</DropdownMenuItem>
-										{!isFinished && (
-											<DropdownMenuItem
-												onClick={() => confirmMarkEmpty(bean.id, bean.name)}
-												className='cursor-pointer'
-											>
-												<PackageX size={14} className='mr-2' />
-												Mark finished
-											</DropdownMenuItem>
-										)}
-										<DropdownMenuItem
-											onClick={() => confirmDelete(bean.id, bean.name)}
-											className='cursor-pointer text-destructive focus:text-destructive'
-										>
-											<Trash size={14} className='mr-2' />
-											Delete
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-							</div>
+					<div className='min-w-0 flex-1 py-4'>
+						<div className='flex items-center gap-[9px]'>
+							<Swatch color={beanColor(bean)} />
+							<span className='truncate text-[17px] font-semibold'>
+								{bean.name}
+							</span>
 						</div>
-					</CardHeader>
-
-					<CardContent className='space-y-4'>
-						<div className='flex flex-wrap gap-2'>
-							{bean.origin && (
-								<Badge variant='secondary' className='font-normal'>
-									<Coffee className='mr-1 h-3 w-3' />
-									{bean.origin}
-								</Badge>
-							)}
-
-							<Badge
-								variant={isFrozen ? 'secondary' : 'outline'}
-								className={cn(
-									'font-normal',
-									isFrozen &&
-										'bg-frozen text-frozen-foreground hover:bg-frozen/80 border-transparent',
-									isThawed && 'border-frozen text-frozen-foreground',
-								)}
-							>
-								{isFrozen ? (
-									<Snowflake className='mr-1 h-3 w-3' />
-								) : isThawed ? (
-									<Droplets className='mr-1 h-3 w-3' />
-								) : (
-									<Calendar className='mr-1 h-3 w-3' />
-								)}
-								{daysOld === 0
-									? 'Roasted today'
-									: `${daysOld} day${daysOld === 1 ? '' : 's'} off roast`}
-							</Badge>
-
-							{bean.roastLevel && (
-								<Badge variant='outline' className='font-normal'>
-									<Star className='mr-1 h-3 w-3' />
-									{bean.roastLevel}
-								</Badge>
-							)}
-						</div>
-
-						{bean.remainingWeight !== null && (
-							<div className='space-y-2'>
-								<div className='flex justify-between text-xs text-muted-foreground'>
-									<span>Remaining</span>
-									<span className='font-medium text-foreground'>
-										{bean.remainingWeight}g{' '}
-										<span className='text-muted-foreground/60'>
-											/ {bean.initialWeight}g
-										</span>
-									</span>
-								</div>
-								<Progress value={percentRemaining} className='h-2' />
+						{bean.roaster && (
+							<div className='mt-0.5 ml-[19px] truncate text-[13.5px] leading-[18px] text-ink-2'>
+								{bean.roaster}
 							</div>
 						)}
-					</CardContent>
-				</Card>
-			</motion.div>
+						<div className='mt-px ml-[19px] text-[13.5px] leading-[18px] text-ink-2'>
+							{detail}
+						</div>
+						{isFrozen && (
+							<TextButton
+								tone='accent'
+								onClick={() =>
+									handleThaw(bean.id, bean.name, bean.remainingWeight || 0)
+								}
+								className='mt-1.5 ml-[15px] min-h-8'
+							>
+								<SnowIcon />
+								Thaw
+							</TextButton>
+						)}
+						{pct !== null && (
+							<div
+								className='relative mt-3 ml-[19px] h-[3px] rounded-[2px] bg-line'
+								role='progressbar'
+								aria-label={`${bean.remainingWeight} of ${bean.initialWeight} grams left`}
+								aria-valuenow={Math.round(pct)}
+								aria-valuemin={0}
+								aria-valuemax={100}
+							>
+								<div
+									className={cn(
+										'absolute inset-y-0 left-0 rounded-[2px]',
+										isFrozen ? 'bg-ink-2' : 'bg-ink',
+									)}
+									style={{ width: `${pct}%` }}
+								/>
+							</div>
+						)}
+					</div>
+					<div className='w-[76px] shrink-0 pt-4 pl-3 text-right whitespace-nowrap'>
+						<div className='font-mono text-[20px] leading-6 font-medium'>
+							{bean.remainingWeight ?? bean.initialWeight}
+							<span className='text-[12px] text-ink-2'> g</span>
+						</div>
+						{bean.remainingWeight !== null && (
+							<div className='text-[12px] text-ink-2'>
+								of {bean.initialWeight} g
+							</div>
+						)}
+					</div>
+					<RowMenu
+						className='mt-2.5'
+						label={`Actions for ${bean.name}`}
+						open={openDropdownId === bean.id}
+						onOpenChange={(open) => setOpenDropdownId(open ? bean.id : null)}
+						items={[
+							{
+								label: 'Brew',
+								icon: <CupIcon />,
+								onSelect: () => handleCreateBrew(bean.id),
+							},
+							{
+								label: 'View shots',
+								icon: <ListIcon size={16} strokeWidth={1.9} />,
+								onSelect: () => handleViewBrews(bean.id),
+							},
+							{
+								label: 'Edit',
+								icon: <EditIcon />,
+								onSelect: () => handleEdit(bean.id),
+							},
+							{
+								label: 'Mark finished',
+								icon: <DoneIcon />,
+								onSelect: () => confirmMarkEmpty(bean.id, bean.name),
+								hidden: isFinished,
+							},
+							{
+								label: 'Delete',
+								icon: <TrashIcon />,
+								onSelect: () => confirmDelete(bean.id, bean.name),
+								danger: true,
+							},
+						]}
+					/>
+				</div>
+			</FadeIn>
 		)
 	}
 
 	return (
 		<Page title='Beans'>
-			<div className='p-6'>
-				<div className='flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4'>
-					<h1 className='text-3xl font-bold tracking-tight'>Beans</h1>
+			<PageHeader
+				title='Beans'
+				actions={<AddKey onClick={handleAddNew} aria-label='Add a bean' />}
+			/>
 
-					<div className='flex items-center gap-2 w-full md:w-auto'>
-						<Button onClick={handleAddNew}>
-							<Plus className='mr-2 h-4 w-4' />
-							Add Bean
-						</Button>
-					</div>
-				</div>
-
+			<div className='px-5 pt-2'>
 				{isLoading ? (
-					<div className='grid gap-4 md:grid-cols-2'>
-						{[1, 2, 3, 4, 5, 6].map((i) => (
-							<Card key={i} className='overflow-hidden'>
-								<CardHeader className='pb-2'>
-									<Skeleton className='h-6 w-3/4' />
-									<Skeleton className='h-4 w-1/2' />
-								</CardHeader>
-								<CardContent>
-									<div className='flex gap-2 mb-4'>
-										<Skeleton className='h-5 w-16' />
-										<Skeleton className='h-5 w-16' />
-									</div>
-									<Skeleton className='h-2 w-full mt-4' />
-								</CardContent>
-							</Card>
-						))}
-					</div>
+					<RowSkeleton rows={4} variant='bean' />
 				) : beans.length === 0 ? (
-					<Card className='border-dashed'>
-						<CardContent className='flex flex-col items-center justify-center py-16 space-y-4'>
-							<div className='p-4 rounded-full bg-secondary/50'>
-								<Package className='h-12 w-12 text-muted-foreground/50' />
-							</div>
-							<div className='text-center'>
-								<h3 className='text-lg font-semibold'>No beans found</h3>
-								<p className='text-muted-foreground text-sm max-w-sm mt-1'>
-									You haven&apos;t added any coffee beans yet. Start by adding
-									your first bag to track your inventory.
-								</p>
-							</div>
-							<Button onClick={handleAddNew} variant='outline' className='mt-4'>
-								Add your first coffee bean
-							</Button>
-						</CardContent>
-					</Card>
+					<EmptyState
+						className='mt-2'
+						title='No beans yet'
+						body='Add your first bag to track what is left, days off roast and which shots you pulled with it.'
+						action={
+							<TextButton
+								tone='accent'
+								onClick={handleAddNew}
+								className='-ml-1'
+							>
+								Add a bean
+							</TextButton>
+						}
+					/>
 				) : (
-					<div className='space-y-8'>
-						<div className='grid gap-4 md:grid-cols-2'>
-							{activeBeans.map((bean, index) => renderBeanCard(bean, index))}
-						</div>
-
-						{finishedBeans.length > 0 && (
-							<div className='pt-4'>
-								<div className='relative'>
-									<div className='absolute inset-0 flex items-center'>
-										<span className='w-full border-t' />
-									</div>
-									<div className='relative flex justify-center text-xs uppercase'>
-										<Button
-											variant='outline'
-											size='sm'
-											className='bg-background px-4 text-muted-foreground hover:text-foreground'
-											onClick={() => setShowFinished(!showFinished)}
-										>
-											{showFinished ? (
-												<>
-													Hide Finished ({finishedBeans.length})
-													<ChevronUp className='ml-2 h-3 w-3' />
-												</>
-											) : (
-												<>
-													Show Finished ({finishedBeans.length})
-													<ChevronDown className='ml-2 h-3 w-3' />
-												</>
-											)}
-										</Button>
-									</div>
-								</div>
-
-								{showFinished && (
-									<div className='mt-6 grid gap-4 md:grid-cols-2'>
-										{finishedBeans.map((bean, index) =>
-											renderBeanCard(bean, index),
-										)}
-									</div>
-								)}
-							</div>
+					<>
+						{activeBeans.length === 0 && (
+							<EmptyState
+								title='Nothing open'
+								body='Every bag is finished. Add a new one to keep logging.'
+							/>
 						)}
-					</div>
+						{activeBeans.map((bean, index) => renderBeanRow(bean, index))}
+
+						<AnimatePresence initial={false}>
+							{showFinished && (
+								<motion.div
+									key='finished'
+									{...collapse}
+									className='overflow-hidden'
+								>
+									{finishedBeans.map((bean, index) =>
+										renderBeanRow(bean, activeBeans.length + index),
+									)}
+								</motion.div>
+							)}
+						</AnimatePresence>
+						{finishedBeans.length > 0 && (
+							<TextButton
+								tone='ink2'
+								onClick={() => setShowFinished(!showFinished)}
+								aria-expanded={showFinished}
+								className='mt-2 -ml-1'
+							>
+								{showFinished ? 'Hide finished' : 'Show finished'} (
+								{finishedBeans.length})
+							</TextButton>
+						)}
+					</>
 				)}
 			</div>
 
@@ -542,8 +437,9 @@ export default function BeansPage() {
 				open={modalData.isOpen}
 				onClose={() => setModalData({ ...modalData, isOpen: false })}
 				onConfirm={() => handleDelete(modalData.beanId)}
-				title='Delete Coffee Bean'
-				description={`Are you sure you want to delete "${modalData.beanName}"? This action cannot be undone.`}
+				title='Delete bean?'
+				description={`"${modalData.beanName}" will be removed. This can't be undone.`}
+				confirmLabel='Delete'
 			/>
 
 			<ConfirmModal

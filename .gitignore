@@ -14,3 +14,6 @@ node_modules
 *.db
 
 /generated/prisma
+
+# Design reference (local only)
+/design

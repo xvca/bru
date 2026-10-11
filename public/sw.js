@@ -3,7 +3,7 @@ self.addEventListener('install', () => {
 	self.skipWaiting()
 })
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', (_event) => {
 	// We just need this listener to exist to satisfy PWA requirements
 	// We won't actually cache anything here, so your app works like a normal website
 })

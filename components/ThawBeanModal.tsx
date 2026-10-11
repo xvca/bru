@@ -1,20 +1,10 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'sonner'
-import { Snowflake } from 'lucide-react'
-import { format } from 'date-fns'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-} from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Spinner } from './ui/spinner'
+import { Sheet } from '@/components/kit/Sheet'
+import { Key, NeutralKey } from '@/components/kit/buttons'
+import { Hint } from '@/components/kit/rows'
 
 interface ThawBeanModalProps {
 	isOpen: boolean
@@ -42,10 +32,6 @@ export default function ThawBeanModal({
 		}
 	}, [isOpen, remainingWeight])
 
-	const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setThawWeight(Number(e.target.value))
-	}
-
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const val = Number(e.target.value)
 		if (!isNaN(val) && val >= 0 && val <= remainingWeight) {
@@ -53,8 +39,8 @@ export default function ThawBeanModal({
 		}
 	}
 
-	const onSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
+	const onSubmit = async (e?: React.FormEvent) => {
+		e?.preventDefault()
 		setIsSubmitting(true)
 
 		try {
@@ -78,71 +64,78 @@ export default function ThawBeanModal({
 		}
 	}
 
+	const pct = remainingWeight > 0 ? (thawWeight / remainingWeight) * 100 : 0
+
 	return (
-		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className='max-w-md'>
-				<DialogHeader>
-					<DialogTitle className='flex items-center gap-2'>
-						<Snowflake className='h-5 w-5 text-blue-500' />
-						Thaw Coffee Beans
-					</DialogTitle>
-					<DialogDescription>
-						How much of <strong>{beanName}</strong> would you like to thaw?
-					</DialogDescription>
-				</DialogHeader>
-
-				<form onSubmit={onSubmit} className='space-y-6 py-4'>
-					<div className='space-y-4'>
-						<div className='flex justify-between items-center'>
-							<FieldLabel>Amount to Thaw</FieldLabel>
-							<span className='text-sm font-medium text-muted-foreground'>
-								{thawWeight}g / {remainingWeight}g
-							</span>
-						</div>
-
-						<div className='flex gap-4 items-center'>
-							<input
-								type='range'
-								min='0'
-								max={remainingWeight}
-								step='1'
-								value={thawWeight}
-								onChange={handleSliderChange}
-								className='flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary'
-							/>
-							<div className='w-20'>
-								<Input
-									type='number'
-									inputMode='decimal'
-									min='0'
-									max={remainingWeight}
-									value={thawWeight}
-									onChange={handleInputChange}
-									className='text-right'
-								/>
-							</div>
-						</div>
-
-						<p className='text-sm text-muted-foreground'>
-							{thawWeight === remainingWeight
-								? 'The entire bag will be marked as thawed today.'
-								: `A new bag with ${thawWeight}g will be created with today's thaw date. The remaining ${
-										Math.round((remainingWeight - thawWeight) * 10) / 10
-									}g will stay frozen.`}
-						</p>
-					</div>
-
-					<div className='flex justify-end gap-3'>
-						<Button onClick={onClose} variant='outline' type='button'>
-							Cancel
-						</Button>
-						<Button type='submit' disabled={isSubmitting || thawWeight <= 0}>
-							{isSubmitting && <Spinner />}
-							Thaw Beans
-						</Button>
-					</div>
-				</form>
-			</DialogContent>
-		</Dialog>
+		<Sheet
+			open={isOpen}
+			onClose={onClose}
+			title='Thaw beans'
+			description={`How much of ${beanName} do you want to thaw?`}
+			footer={
+				<div className='flex items-center gap-3 pb-1.5'>
+					<NeutralKey
+						onClick={onClose}
+						className='text-[16px] tracking-normal normal-case'
+					>
+						Cancel
+					</NeutralKey>
+					<Key
+						onClick={() => onSubmit()}
+						disabled={isSubmitting || thawWeight <= 0}
+						className='flex-1'
+					>
+						{isSubmitting ? 'Thawing…' : 'Thaw'}
+					</Key>
+				</div>
+			}
+		>
+			<form onSubmit={onSubmit} className='pt-2 pb-1'>
+				<div className='flex items-baseline justify-between'>
+					<label htmlFor='thaw-weight' className='text-[12.5px] text-ink-2'>
+						Amount to thaw
+					</label>
+					<span className='text-[12.5px] text-ink-2'>
+						of {remainingWeight} g
+					</span>
+				</div>
+				<div className='flex items-baseline gap-1.5'>
+					<input
+						id='thaw-weight'
+						type='number'
+						inputMode='decimal'
+						min='0'
+						max={remainingWeight}
+						value={thawWeight}
+						onChange={handleInputChange}
+						onFocus={(e) => e.target.select()}
+						className='fin h-14 w-36 font-mono text-[34px] font-medium'
+					/>
+					<span className='font-mono text-[15px] font-medium text-ink-2'>
+						g
+					</span>
+				</div>
+				<input
+					type='range'
+					min='0'
+					max={remainingWeight}
+					step='1'
+					value={thawWeight}
+					onChange={(e) => setThawWeight(Number(e.target.value))}
+					aria-label='Amount to thaw'
+					className='mt-5 h-1 w-full cursor-pointer appearance-none rounded-full accent-accent'
+					style={{
+						background: `linear-gradient(to right, var(--accent) ${pct}%, var(--line) ${pct}%)`,
+					}}
+				/>
+				<Hint className='mt-4 text-[14px] leading-5'>
+					{thawWeight === remainingWeight
+						? 'The whole bag is marked as thawed today.'
+						: `A new ${thawWeight} g bag is created with today's thaw date. The other ${
+								Math.round((remainingWeight - thawWeight) * 10) / 10
+							} g stays frozen.`}
+				</Hint>
+			</form>
+		</Sheet>
 	)
 }

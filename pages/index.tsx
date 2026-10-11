@@ -1,38 +1,24 @@
 import Page from '@/components/Page'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { Play, Square, ArrowUp, ArrowDown, Power } from 'lucide-react'
-import axios, { AxiosInstance } from 'axios'
+import axios, { type AxiosInstance } from 'axios'
 import { useSWRConfig } from 'swr'
 import { toast } from 'sonner'
-import { Gauge } from '@/components/Gauge'
-import { useWebSocket } from '@/lib/websocketContext'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useEspConfig } from '@/lib/espConfigContext'
-
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
-import { Badge } from '@/components/ui/badge'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
-import { SmartCarousel, type SmartSuggestion } from '@/components/SmartCarousel'
-import { DEFAULT_MAX_SHOT_WEIGHT, type BrewFormData } from '@/lib/validators'
-import { SUGGESTIONS_KEY } from '@/hooks/useSuggestions'
-import BrewForm from '@/components/BrewFormModal'
 import Link from 'next/link'
-import { Label } from '@/components/ui/label'
+import { useWebSocket } from '@/lib/websocketContext'
+import { useEspConfig } from '@/lib/espConfigContext'
+import { DEFAULT_MAX_SHOT_WEIGHT, type BrewFormData } from '@/lib/validators'
+import { SUGGESTIONS_KEY, type SmartSuggestion } from '@/hooks/useSuggestions'
+import BrewForm from '@/components/BrewFormModal'
 import { verifyEspReachable } from '@/utils/esp'
-import {
-	AnimatedNumber,
-	AnimatedNumberGroup,
-	StaticNumber,
-} from '@/components/AnimatedNumber'
+import { cn } from '@/lib/utils'
+
+import { Dial } from '@/components/Dial'
+import { RecipeChips } from '@/components/RecipeChips'
+import { QuickLogSheet } from '@/components/QuickLogSheet'
+import { Sheet } from '@/components/kit/Sheet'
+import { FormField, Hint, StatusDot } from '@/components/kit/rows'
+import { Key, NeutralKey, TextButton } from '@/components/kit/buttons'
+import { MinusIcon, PlayIcon, PlusIcon, StopIcon } from '@/components/kit/icons'
 
 enum BrewStates {
 	IDLE,
@@ -41,11 +27,15 @@ enum BrewStates {
 	DRIPPING,
 }
 
+const isLiteMode = process.env.NEXT_PUBLIC_LITE === 'true'
+
 const sanitizeIp = (value: string) =>
 	value
 		.trim()
 		.replace(/^https?:\/\//i, '')
 		.replace(/\/+$/, '')
+
+const DIAL = 336
 
 export default function Dashboard() {
 	const [targetWeight, setTargetWeight] = useState(() => {
@@ -56,6 +46,8 @@ export default function Dashboard() {
 		}
 		return 20
 	})
+	// What the user is typing; committed to targetWeight as it parses
+	const [targetText, setTargetText] = useState<string | null>(null)
 
 	const [isWaking, setIsWaking] = useState(false)
 	const [isBrewing, setIsBrewing] = useState(false)
@@ -92,6 +84,7 @@ export default function Dashboard() {
 	const [selectedSuggestion, setSelectedSuggestion] =
 		useState<SmartSuggestion | null>(null)
 	const [isBrewFormOpen, setIsBrewFormOpen] = useState(false)
+	const [isQuickLogOpen, setIsQuickLogOpen] = useState(false)
 	const [brewDraft, setBrewDraft] = useState<Partial<BrewFormData> | null>(null)
 
 	const [displayWeight, setDisplayWeight] = useState(brewData.weight)
@@ -193,7 +186,7 @@ export default function Dashboard() {
 				setBrewDraft(prefill)
 
 				formTimeoutRef.current = setTimeout(() => {
-					setIsBrewFormOpen(true)
+					setIsQuickLogOpen(true)
 					setShowCompletionAnimation(false)
 				}, 3000)
 			} else {
@@ -261,67 +254,54 @@ export default function Dashboard() {
 		return () => cancelAnimationFrame(animationFrameId)
 	}, [])
 
-	const getBrewStateText = (state: number) => {
-		switch (state) {
-			case BrewStates.IDLE:
-				return 'Idle'
-			case BrewStates.PREINFUSION:
-				return 'Pre-infusion'
-			case BrewStates.BREWING:
-				return 'Brewing'
-			case BrewStates.DRIPPING:
-				return 'Dripping'
-			default:
-				return ''
-		}
-	}
+	const isEspConfigured = Boolean(api)
 
-	const getConnectionState = () => {
-		if (!isEspConfigured) {
-			return { label: 'ESP not configured', color: 'bg-warning' }
-		}
-
-		if (!isWsConnected) return { label: 'Offline', color: 'bg-destructive' }
-
-		if (brewData.isScaleConnected)
-			return { label: 'Connected', color: 'bg-success' }
-
-		if (brewData.isActive) return { label: 'Scanning...', color: 'bg-warning' }
-
-		return { label: 'Sleeping', color: 'bg-secondary' }
-	}
-
-	const handleTargetChange = useCallback(
-		(weight: number) => {
-			const next = clampTargetWeight(Number(weight.toFixed(1)))
-
-			setTargetWeight((prev) => (prev === next ? prev : next))
-
-			if (targetWeight !== next) {
-				toast.success(`Target set to ${next}g`)
+	const status = useMemo((): {
+		label: string
+		tone: 'green' | 'ink2' | 'danger' | 'warning'
+		pulse?: boolean
+	} => {
+		if (!isEspConfigured) return { label: 'Not set up', tone: 'warning' }
+		if (!isWsConnected) return { label: 'Offline', tone: 'danger' }
+		if (brewData.isScaleConnected) {
+			switch (brewData.state) {
+				case BrewStates.PREINFUSION:
+					return { label: 'Pre-infusion', tone: 'green' }
+				case BrewStates.BREWING:
+					return { label: 'Brewing', tone: 'green' }
+				case BrewStates.DRIPPING:
+					return { label: 'Dripping', tone: 'green' }
+				default:
+					return {
+						label: showCompletionAnimation ? 'Done' : 'Ready',
+						tone: 'green',
+					}
 			}
+		}
+		if (brewData.isActive)
+			return { label: 'Scanning', tone: 'warning', pulse: true }
+		return { label: 'Sleeping', tone: 'ink2' }
+	}, [brewData, isWsConnected, isEspConfigured, showCompletionAnimation])
+
+	const setTarget = useCallback(
+		(weight: number) => {
+			setTargetText(null)
+			setTargetWeight(clampTargetWeight(Number(weight.toFixed(1))))
 		},
-		[targetWeight, clampTargetWeight],
+		[clampTargetWeight],
 	)
 
 	const handleSuggestionToggle = useCallback(
 		(bean: SmartSuggestion, nextSelected: boolean) => {
 			if (nextSelected) {
 				setSelectedSuggestion(bean)
+				if (bean.lastBrew?.yieldWeight) setTarget(bean.lastBrew.yieldWeight)
 			} else {
 				setSelectedSuggestion(null)
 			}
 		},
-		[],
+		[setTarget],
 	)
-
-	const isEspConfigured = Boolean(api)
-
-	const connectionState = useMemo(getConnectionState, [
-		brewData,
-		isWsConnected,
-		isEspConfigured,
-	])
 
 	const startBrew = useCallback(async () => {
 		if (!api) {
@@ -337,8 +317,7 @@ export default function Dashboard() {
 		try {
 			const formData = new FormData()
 			formData.append('weight', targetWeight.toString())
-			const { data } = await api.post('/start', formData)
-			console.log('Brew started:', data)
+			await api.post('/start', formData)
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
 				console.error(
@@ -357,8 +336,7 @@ export default function Dashboard() {
 		}
 
 		try {
-			const { data } = await api.post('/stop')
-			console.log('Brew stopped:', data)
+			await api.post('/stop')
 			setIsBrewing(false)
 		} catch (error) {
 			console.error('Failed to stop brew')
@@ -374,8 +352,7 @@ export default function Dashboard() {
 		if (brewData.isActive) return
 		setIsWaking(true)
 		try {
-			const { data } = await api.post('/wake')
-			console.log('ESP now active: ', data)
+			await api.post('/wake')
 			toast.success('Waking up ESP...')
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
@@ -420,315 +397,280 @@ export default function Dashboard() {
 		setShowEspPrompt(false)
 	}
 
-	const displayTimeSeconds = displayTime / 1000
+	const onBrewLogged = () => {
+		setSelectedSuggestion(null)
+		setBrewDraft(null)
+		refreshSuggestions()
+	}
 
-	const smoothTiming = { duration: 400, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+	const saveQuickLog = async () => {
+		if (!brewDraft) return
+		try {
+			await axios.post('/api/brews', brewDraft)
+			toast.success('Shot saved')
+			setIsQuickLogOpen(false)
+			onBrewLogged()
+		} catch (error) {
+			console.error('Error saving brew:', error)
+			toast.error('Failed to save shot')
+		}
+	}
+
+	// Scale the dial to the space left above the controls
+	const dialAreaRef = useRef<HTMLDivElement>(null)
+	const [dialFit, setDialFit] = useState(1)
+	useEffect(() => {
+		const el = dialAreaRef.current
+		if (!el) return
+		const ro = new ResizeObserver(([entry]) => {
+			const { width, height } = entry.contentRect
+			setDialFit(Math.max(0.4, Math.min(width - 24, height - 12) / DIAL))
+		})
+		ro.observe(el)
+		return () => ro.disconnect()
+	}, [])
+
+	const isDripping = brewData.state === BrewStates.DRIPPING
+	// Phone size by default; on big screens the resting dial grows with the
+	// space, leaving room for the 1.14x step while brewing
+	const BREW_GROW = 1.14
+	const restScale = Math.max(1, dialFit / BREW_GROW)
+	const dialScale = Math.min(
+		dialFit,
+		isBrewing ? restScale * BREW_GROW : restScale,
+	)
+
+	// The bean being brewed, held through the drip so the layout doesn't shift
+	const statusText = isBrewing ? (selectedSuggestion?.name ?? '') : ''
+
+	const keyDisabled =
+		!brewData.isScaleConnected || isDripping || (!isBrewing && !isTargetValid)
 
 	return (
-		<Page title='Autobru'>
-			{isEspConfigReady && !espIp && (
-				<div className='flex items-start justify-between gap-4 rounded-lg border border-dashed border-warning bg-warning/20 p-4 text-sm m-4'>
-					<div>
-						<p className='font-semibold'>Connect your Autobru ESP</p>
-						<p className='mt-1 text-xs leading-relaxed opacity-90'>
-							Enter the device IP to unlock live brewing controls. You can find
-							the IP on the Autobru display or your router.
-						</p>
-					</div>
-					<div className='flex flex-col gap-2 sm:flex-col sm:items-center'>
-						<Button
-							size='sm'
-							variant='outline'
-							onClick={openEspModal}
-							className='w-full sm:w-auto'
+		<Page title='Autobru' fill>
+			<header className='flex h-[52px] shrink-0 items-center justify-between pt-2 pr-2 pl-5'>
+				<div className='flex items-center gap-2.5'>
+					<StatusDot tone={status.tone} size={8} pulse={status.pulse} />
+					<span className='lbl'>{status.label}</span>
+				</div>
+				<div className='flex items-center gap-1'>
+					{isEspConfigured && isWsConnected && !brewData.isScaleConnected && (
+						<button
+							type='button'
+							onClick={wakeESP}
+							disabled={isWaking || brewData.isActive}
+							className='skey lbl h-9 rounded-xl px-3.5 text-[11px] text-ink!'
 						>
-							Configure now
-						</Button>
+							{isWaking ? 'Waking…' : brewData.isActive ? 'Waking…' : 'Wake'}
+						</button>
+					)}
+				</div>
+			</header>
+
+			{isEspConfigReady && !espIp && (
+				<div className='mx-5 flex shrink-0 items-center justify-between gap-3 border-y border-line py-1.5'>
+					<span className='text-[14px] text-ink-2'>
+						Connect your Autobru to brew.
+					</span>
+					<div className='flex items-center'>
 						<Link
 							href='/settings'
-							className='text-xs font-medium text-primary underline underline-offset-4'
+							className='flex min-h-11 items-center px-2 text-[14px] font-semibold text-ink-2'
 						>
-							Open ESP settings
+							Settings
 						</Link>
+						<TextButton tone='accent' onClick={openEspModal}>
+							Set up
+						</TextButton>
 					</div>
 				</div>
 			)}
 
-			<div className='relative h-full grow flex flex-col justify-between p-6 pb-0 mb-28'>
-				<div className='flex justify-between items-center rounded-lg z-10 mb-0'>
-					<div className='flex items-center gap-2'>
-						<div
-							className={`w-2.5 h-2.5 rounded-full ${connectionState.color} animate-pulse`}
-						/>
-						<span className='text-sm font-medium text-muted-foreground'>
-							{connectionState.label}
-						</span>
+			<div
+				ref={dialAreaRef}
+				className='flex min-h-0 flex-1 items-center justify-center'
+			>
+				<div
+					style={{
+						width: DIAL * dialScale,
+						height: DIAL * dialScale,
+						transition: 'width .35s ease, height .35s ease',
+					}}
+					className='flex items-center justify-center'
+				>
+					<Dial
+						weight={displayWeight}
+						target={targetWeight}
+						time={displayTime / 1000}
+						flow={isBrewing ? brewData.flowRate : null}
+						showTarget={isBrewing}
+						done={showCompletionAnimation}
+						scale={dialScale}
+					/>
+				</div>
+			</div>
+
+			{!isBrewing && (
+				<div className='shrink-0 px-5 animate-in fade-in slide-in-from-bottom-2 duration-300'>
+					<div className='lbl text-[10px]'>Target yield</div>
+					<div className='mt-1.5 flex items-center justify-between'>
+						<button
+							type='button'
+							className='skey size-11 rounded-xl font-mono text-[15px] font-medium'
+							onClick={() => setTarget(targetWeight / 2)}
+							aria-label='Halve target weight'
+						>
+							½×
+						</button>
+						<button
+							type='button'
+							className='skey size-11 rounded-xl'
+							onClick={() => setTarget(targetWeight - 1)}
+							aria-label='Decrease target weight'
+						>
+							<MinusIcon />
+						</button>
+						<div className='flex items-baseline gap-1.5'>
+							<input
+								type='text'
+								inputMode='decimal'
+								aria-label='Target weight in grams'
+								value={targetText ?? targetWeight.toFixed(1)}
+								onChange={(e) => {
+									setTargetText(e.target.value)
+									const n = parseFloat(e.target.value)
+									if (Number.isFinite(n) && n >= 1 && n <= maxShotWeight)
+										setTargetWeight(n)
+								}}
+								onFocus={(e) => e.target.select()}
+								onBlur={() => setTarget(targetWeight)}
+								onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+								className='h-11 w-[86px] rounded-none border-0 border-b-2 border-line bg-transparent p-0 text-center font-mono text-[26px] font-medium text-ink outline-none focus:border-accent'
+							/>
+							<span className='font-mono text-[13px] font-medium text-ink-2'>
+								g
+							</span>
+						</div>
+						<button
+							type='button'
+							className='skey size-11 rounded-xl'
+							onClick={() => setTarget(targetWeight + 1)}
+							aria-label='Increase target weight'
+						>
+							<PlusIcon size={18} strokeWidth={2} />
+						</button>
+						<button
+							type='button'
+							className='skey size-11 rounded-xl font-mono text-[15px] font-medium'
+							onClick={() => setTarget(targetWeight * 2)}
+							aria-label='Double target weight'
+						>
+							2×
+						</button>
 					</div>
 
-					{brewData.isScaleConnected ? (
-						<Badge
-							variant='outline'
-							className='font-mono uppercase tracking-widest'
-						>
-							{getBrewStateText(brewData.state)}
-						</Badge>
-					) : (
-						<Button
-							onClick={wakeESP}
-							disabled={isWaking || brewData.isActive}
-							variant='outline'
-							size='sm'
-							className='h-8 px-4'
-						>
-							{isWaking ? (
-								<Spinner className='mr-2 h-3 w-3' />
-							) : (
-								<Power className='mr-2 h-3 w-3' />
-							)}
-							Wake
-						</Button>
+					{!isLiteMode && (
+						<RecipeChips
+							className='mt-4'
+							selectedBeanId={selectedSuggestion?.id ?? null}
+							onToggle={handleSuggestionToggle}
+						/>
 					)}
 				</div>
+			)}
 
-				<motion.div
-					layout
-					layoutId='gauge-wrapper'
-					transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-					className='grow flex flex-col justify-center'
-				>
-					<motion.div layout className='relative w-full -mt-8'>
-						<Gauge
-							value={
-								displayWeight < 0 ? 0 : (displayWeight / targetWeight) * 100
-							}
-							min={0}
-							max={100}
-							arcSize={250}
-							gaugePrimaryColor={
-								isBrewing ? 'var(--destructive)' : 'var(--primary-foreground)'
-							}
-							gaugePrimaryEndColor={isBrewing ? 'var(--success)' : ''}
-							gaugeSecondaryColor='var(--secondary)'
-							className='mx-auto max-w-[80vw] sm:max-w-md -mb-12'
-							isCompleted={showCompletionAnimation}
-							completedColor='var(--success)'
-						/>
-
-						<div className='absolute inset-0 flex flex-col items-center justify-center pt-16 sm:pt-8'>
-							<div className='flex flex-col items-center gap-1 mb-4'>
-								<AnimatedNumberGroup>
-									<div className='text-3xl sm:text-4xl font-mono font-bold tabular-nums tracking-tighter text-muted-foreground'>
-										<AnimatedNumber
-											value={displayTimeSeconds}
-											decimals={0}
-											suffix='s'
-											spinTiming={smoothTiming}
-											transformTiming={smoothTiming}
-										/>
-									</div>
-
-									<div className='text-5xl sm:text-7xl font-bold tabular-nums tracking-tighter leading-none'>
-										<StaticNumber
-											value={displayWeight}
-											decimals={1}
-											suffix='g'
-										/>
-									</div>
-
-									{isBrewing && (
-										<div className='h-8 text-xl font-medium tabular-nums text-muted-foreground'>
-											<StaticNumber
-												value={brewData.flowRate}
-												decimals={1}
-												suffix=' g/s'
-											/>
-										</div>
-									)}
-								</AnimatedNumberGroup>
-							</div>
-
-							{!isBrewing && (
-								<div className='flex flex-col items-center gap-2 animate-in fade-in slide-in-from-bottom-4 duration-500'>
-									<div className='flex items-center justify-center gap-4'>
-										<Button
-											onClick={() =>
-												setTargetWeight((prev) => clampTargetWeight(prev - 1))
-											}
-											variant='ghost'
-											size='icon'
-											className=''
-										>
-											<ArrowDown />
-										</Button>
-
-										<div className='flex-col justify-center'>
-											<div className='text-2xl font-bold tabular-nums'>
-												<div className='flex justify-center items-center gap-1'>
-													<div className='w-20 flex justify-end'>
-														<Input
-															inputMode='decimal'
-															type='number'
-															min='1'
-															max={maxShotWeight}
-															step='0.1'
-															aria-label='Target weight'
-															value={targetWeight || ''}
-															onChange={(e) => {
-																let value =
-																	e.target.value === ''
-																		? 0
-																		: parseFloat(e.target.value)
-																if (!Number.isFinite(value)) value = 0
-																setTargetWeight(
-																	Math.min(maxShotWeight, Math.max(0, value)),
-																)
-															}}
-															onBlur={() => setTargetWeight(clampTargetWeight)}
-															onFocus={(e) => e.target.select()}
-															className='h-auto w-20 border-none bg-transparent p-0 text-center text-3xl md:text-3xl font-bold shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
-														/>
-													</div>
-												</div>
-											</div>
-											<div className='text-xs text-primary'>
-												target weight (g)
-											</div>
-										</div>
-
-										<Button
-											onClick={() =>
-												setTargetWeight((prev) => clampTargetWeight(prev + 1))
-											}
-											variant='ghost'
-											size='icon'
-											className='rounded-full'
-										>
-											<ArrowUp size={48} />
-										</Button>
-									</div>
-
-									<div className='flex gap-2 mt-2'>
-										<Button
-											size='sm'
-											variant='outline'
-											onClick={() =>
-												setTargetWeight((prev) => clampTargetWeight(prev / 2))
-											}
-											className='text-xs font-mono h-7 px-2.5'
-										>
-											½×
-										</Button>
-										<Button
-											size='sm'
-											variant='outline'
-											onClick={() =>
-												setTargetWeight((prev) => clampTargetWeight(prev * 2))
-											}
-											className='text-xs font-mono h-7 px-2.5'
-										>
-											2×
-										</Button>
-									</div>
-								</div>
-							)}
-						</div>
-					</motion.div>
-				</motion.div>
-
-				<AnimatePresence mode='wait'>
-					{process.env.NEXT_PUBLIC_LITE !== 'true' && !isBrewing && (
-						<SmartCarousel
-							selectedBeanId={selectedSuggestion?.id ?? null}
-							onBeanToggle={handleSuggestionToggle}
-							onTargetRequest={handleTargetChange}
-							className='mx-auto max-w-lg w-full'
-						/>
-					)}
-				</AnimatePresence>
-			</div>
-
-			<div className='fixed bottom-4 left-0 right-0 p-6 flex justify-center z-50 pointer-events-none'>
-				<Button
-					onClick={isBrewing ? stopBrew : startBrew}
-					disabled={
-						!brewData.isScaleConnected || (!isBrewing && !isTargetValid)
-					}
+			<div className='mx-5 mt-3.5 h-[70px] shrink-0'>
+				<Key
 					size='lg'
-					variant={isBrewing ? 'destructive' : 'default'}
-					className='w-9/10 rounded-full h-12 text-lg font-semibold pointer-events-auto transition-all active:scale-95 max-w-2xl'
+					tone={isBrewing ? 'ink' : 'accent'}
+					onClick={isBrewing ? stopBrew : startBrew}
+					disabled={keyDisabled}
 				>
-					{isBrewing ? (
-						<>
-							<Square className='mr-3 h-6 w-6 fill-current' />
-							Stop Brew
-						</>
-					) : (
-						<>
-							<Play className='mr-3 h-6 w-6 fill-current' />
-							Start Brew
-						</>
-					)}
-				</Button>
+					{isBrewing ? <StopIcon /> : <PlayIcon />}
+					<span>{isDripping ? 'Stopping' : isBrewing ? 'Stop' : 'Start'}</span>
+				</Key>
 			</div>
+
+			<div
+				className={cn(
+					'flex shrink-0 items-center justify-center overflow-hidden transition-[height] duration-300',
+					statusText ? 'h-[34px]' : 'h-3',
+				)}
+			>
+				<span className='lbl truncate px-5'>{statusText}</span>
+			</div>
+
+			<QuickLogSheet
+				open={isQuickLogOpen}
+				beanName={selectedSuggestion?.name ?? ''}
+				draft={brewDraft}
+				onSkip={() => setIsQuickLogOpen(false)}
+				onEdit={() => {
+					setIsQuickLogOpen(false)
+					setIsBrewFormOpen(true)
+				}}
+				onSave={saveQuickLog}
+			/>
 
 			<BrewForm
+				afterShot
 				isOpen={isBrewFormOpen}
 				onClose={() => setIsBrewFormOpen(false)}
 				initialData={brewDraft ?? undefined}
-				onSuccess={() => {
-					setSelectedSuggestion(null)
-					setBrewDraft(null)
-					refreshSuggestions()
-				}}
+				onSuccess={onBrewLogged}
 			/>
 
-			<Dialog
+			<Sheet
 				open={showEspPrompt}
-				onOpenChange={(open) => {
-					if (!open && !espIp) {
-						setHasDismissedEspPrompt(true)
-					}
-					setShowEspPrompt(open)
+				onClose={() => {
+					if (!espIp) setHasDismissedEspPrompt(true)
+					setShowEspPrompt(false)
 				}}
+				title='Connect your Autobru'
+				description="Enter the device's IP address or hostname on your home network. It's on the Autobru display or in your router's client list."
+				footer={
+					<div className='flex items-center gap-3 pb-1.5'>
+						<NeutralKey
+							onClick={handleMaybeLater}
+							className='text-[16px] tracking-normal normal-case'
+						>
+							Later
+						</NeutralKey>
+						<Key
+							onClick={handleSaveEspIp}
+							disabled={isValidatingEsp}
+							className='flex-1'
+						>
+							{isValidatingEsp ? 'Checking…' : 'Connect'}
+						</Key>
+					</div>
+				}
 			>
-				<DialogContent className='max-w-md space-y-6'>
-					<DialogHeader>
-						<DialogTitle>Connect to your Autobru ESP</DialogTitle>
-						<DialogDescription>
-							Enter the device IP address or hostname on your home network. You
-							can find it on the Autobru display or your router&apos;s client
-							list.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className='space-y-3'>
-						<Label htmlFor='dashboard-esp-ip' className='text-sm font-medium'>
-							Device IP address
-						</Label>
-						<Input
+				<form
+					className='pt-2 pb-1'
+					onSubmit={(e) => {
+						e.preventDefault()
+						void handleSaveEspIp()
+					}}
+				>
+					<FormField label='Device address' htmlFor='dashboard-esp-ip'>
+						<input
 							id='dashboard-esp-ip'
+							className='fin font-mono text-[19px] font-medium'
 							value={espIpDraft}
 							onChange={(e) => setEspIpDraft(e.target.value)}
 							placeholder='192.168.1.42'
 							autoComplete='off'
+							autoCapitalize='off'
+							spellCheck={false}
+							inputMode='url'
 						/>
-						<p className='text-xs text-muted-foreground'>
-							No need to include the &apos;http://&apos;. We&apos;ll use this
-							for both REST calls and live scale data.
-						</p>
-					</div>
-
-					<DialogFooter className='flex flex-col gap-2 sm:flex-row mb-0'>
-						<Button variant='ghost' onClick={handleMaybeLater}>
-							Maybe later
-						</Button>
-						<Button onClick={handleSaveEspIp} disabled={isValidatingEsp}>
-							{isValidatingEsp && <Spinner className='mr-2 h-4 w-4' />}
-							{isValidatingEsp ? 'Checking…' : 'Save & connect'}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					</FormField>
+					<Hint>
+						No need for http://. Used for the API and the live scale feed.
+					</Hint>
+				</form>
+			</Sheet>
 		</Page>
 	)
 }

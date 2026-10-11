@@ -1,6 +1,14 @@
 import useSWR from 'swr'
 import axios from 'axios'
-import type { SmartSuggestion } from '@/components/SmartCarousel'
+import type { Brew } from '@/generated/prisma/client'
+
+export interface SmartSuggestion {
+	id: number
+	name: string
+	roaster: string | null
+	roastLevel: string | null
+	lastBrew: Brew
+}
 
 interface SuggestionsResponse {
 	suggestions: SmartSuggestion[]

@@ -17,6 +17,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
 		<Sonner
 			theme={theme as ToasterProps['theme']}
 			className='toaster group'
+			// Clear the status bar and the iOS blur band below it in the
+			// home-screen app; the inset is 0 elsewhere
+			offset={{ top: 'calc(env(safe-area-inset-top) + 16px)' }}
+			mobileOffset={{ top: 'calc(env(safe-area-inset-top) + 16px)' }}
 			icons={{
 				success: <CircleCheckIcon className='size-4' />,
 				info: <InfoIcon className='size-4' />,
@@ -27,12 +31,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			toastOptions={{
 				classNames: {
 					toast:
-						'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
-					description: 'group-[.toast]:text-muted-foreground',
+						'group toast group-[.toaster]:bg-panel group-[.toaster]:text-ink group-[.toaster]:border-line group-[.toaster]:rounded-2xl group-[.toaster]:font-sans group-[.toaster]:shadow-[0_18px_30px_-10px_var(--sh)]',
+					description: 'group-[.toast]:text-ink-2',
 					actionButton:
-						'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
-					cancelButton:
-						'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+						'group-[.toast]:bg-accent group-[.toast]:text-on-accent',
+					cancelButton: 'group-[.toast]:bg-well group-[.toast]:text-ink-2',
 				},
 			}}
 			{...props}

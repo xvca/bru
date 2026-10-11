@@ -1,27 +1,24 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
-import { Label } from '@/components/ui/label'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
-import { BeanSelect } from '@/components/BeanSelect'
 import type { Bean } from '@/generated/prisma/client'
+import { beanColor } from '@/lib/beanColor'
+import { Sheet } from '@/components/kit/Sheet'
+import { Key, NeutralKey } from '@/components/kit/buttons'
+import { Swatch, ValueRow } from '@/components/kit/rows'
+import { RowSkeleton } from '@/components/kit/states'
+import { BeanPicker } from '@/components/BeanPicker'
 
 interface AutoLoggingModalProps {
 	isOpen: boolean
 	onClose: () => void
+	onSaved?: () => void
 }
 
 export default function AutoLoggingModal({
 	isOpen,
 	onClose,
+	onSaved,
 }: AutoLoggingModalProps) {
 	const [beans, setBeans] = useState<Bean[]>([])
 	const [defaultRegularBeanId, setDefaultRegularBeanId] = useState<
@@ -32,6 +29,7 @@ export default function AutoLoggingModal({
 	)
 	const [isLoading, setIsLoading] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
+	const [picking, setPicking] = useState<'regular' | 'decaf' | null>(null)
 
 	useEffect(() => {
 		if (!isOpen) return
@@ -66,6 +64,7 @@ export default function AutoLoggingModal({
 				defaultDecafBeanId,
 			})
 			toast.success('Auto-logging beans updated')
+			onSaved?.()
 			onClose()
 		} catch (error) {
 			console.error('Error saving auto-logging settings:', error)
@@ -75,64 +74,91 @@ export default function AutoLoggingModal({
 		}
 	}
 
+	const beanTitle = (id: number | null) => {
+		const bean = beans.find((b) => b.id === id)
+		if (!bean) return <span className='text-ink-2'>Not set</span>
+		return (
+			<span className='flex items-center gap-[9px]'>
+				<Swatch color={beanColor(bean)} />
+				<span className='truncate'>{bean.name}</span>
+			</span>
+		)
+	}
+
 	return (
-		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className='max-w-md'>
-				<DialogHeader>
-					<DialogTitle>Auto-Logging Beans</DialogTitle>
-					<DialogDescription>
-						Choose which beans Autobru uses for automatic brew logs.
-					</DialogDescription>
-				</DialogHeader>
-
+		<>
+			<Sheet
+				open={isOpen}
+				onClose={onClose}
+				title='Beans for auto-logs'
+				description='Which beans Autobru uses for automatic brew logs.'
+				footer={
+					<div className='flex items-center gap-3 pb-1.5'>
+						<NeutralKey
+							onClick={onClose}
+							className='text-[16px] tracking-normal normal-case'
+						>
+							Cancel
+						</NeutralKey>
+						<Key
+							onClick={save}
+							disabled={isSaving || isLoading || beans.length === 0}
+							className='flex-1'
+						>
+							{isSaving ? 'Saving…' : 'Save'}
+						</Key>
+					</div>
+				}
+			>
 				{isLoading ? (
-					<div className='flex justify-center py-8'>
-						<Spinner />
-					</div>
+					<RowSkeleton rows={2} variant='simple' />
+				) : beans.length === 0 ? (
+					<p className='py-3 text-[14px] text-ink-2'>
+						No beans yet. Add a bag on the Beans tab first.
+					</p>
 				) : (
-					<div className='space-y-6'>
-						<div className='space-y-2'>
-							<Label>Regular Bean</Label>
-							{beans.length ? (
-								<BeanSelect
-									beans={beans}
-									value={defaultRegularBeanId?.toString() ?? ''}
-									onChange={(value) =>
-										setDefaultRegularBeanId(value ? Number(value) : null)
-									}
-								/>
-							) : (
-								<p className='text-sm text-muted-foreground'>No beans yet</p>
-							)}
-						</div>
-
-						<div className='space-y-2'>
-							<Label>Decaf Bean</Label>
-							{beans.length ? (
-								<BeanSelect
-									beans={beans}
-									value={defaultDecafBeanId?.toString() ?? ''}
-									onChange={(value) =>
-										setDefaultDecafBeanId(value ? Number(value) : null)
-									}
-								/>
-							) : (
-								<p className='text-sm text-muted-foreground'>No beans yet</p>
-							)}
-						</div>
-
-						<div className='flex justify-end gap-3'>
-							<Button onClick={onClose} variant='outline'>
-								Cancel
-							</Button>
-							<Button onClick={save} disabled={isSaving || beans.length === 0}>
-								{isSaving && <Spinner className='mr-2' />}
-								Save
-							</Button>
-						</div>
-					</div>
+					<>
+						<ValueRow
+							first
+							chevron='down'
+							title={
+								<span className='flex flex-col gap-0.5'>
+									<span className='text-[13px] font-normal text-ink-2'>
+										Regular bean
+									</span>
+									{beanTitle(defaultRegularBeanId)}
+								</span>
+							}
+							onClick={() => setPicking('regular')}
+						/>
+						<ValueRow
+							chevron='down'
+							title={
+								<span className='flex flex-col gap-0.5'>
+									<span className='text-[13px] font-normal text-ink-2'>
+										Decaf bean
+									</span>
+									{beanTitle(defaultDecafBeanId)}
+								</span>
+							}
+							onClick={() => setPicking('decaf')}
+						/>
+					</>
 				)}
-			</DialogContent>
-		</Dialog>
+			</Sheet>
+
+			<BeanPicker
+				open={picking !== null}
+				onClose={() => setPicking(null)}
+				title={picking === 'decaf' ? 'Decaf bean' : 'Regular bean'}
+				beans={beans}
+				value={picking === 'decaf' ? defaultDecafBeanId : defaultRegularBeanId}
+				onChange={(id) =>
+					picking === 'decaf'
+						? setDefaultDecafBeanId(id)
+						: setDefaultRegularBeanId(id)
+				}
+			/>
+		</>
 	)
 }

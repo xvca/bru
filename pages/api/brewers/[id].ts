@@ -6,6 +6,7 @@ import {
 	updateBrewer,
 	deleteBrewer,
 } from '@/services/brewerService'
+
 export default createEquipmentDetailHandler({
 	list: getBrewers,
 	get: getBrewerById,

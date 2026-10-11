@@ -1,269 +1,421 @@
 @import 'tailwindcss';
+@import 'tailwindcss-safe-area';
 
 @plugin 'tailwindcss-animate';
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-	--color-border: var(--border);
-	--color-input: var(--input);
-	--color-ring: var(--ring);
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
+/*
+  Bru colour tokens. Light and dark are equal citizens; every component
+  uses these through the Tailwind colours mapped in @theme below.
+*/
+:root {
+	--bg: #e9e4da;
+	--panel: #f4f0e8;
+	--well: #dcd6ca;
+	--ink: #1a1a18;
+	--ink-2: #5e5a50;
+	--line: rgba(26, 26, 24, 0.16);
+	--tick: rgba(26, 26, 24, 0.24);
+	--tick-long: rgba(26, 26, 24, 0.42);
+	--accent: #b4501f;
+	--accent-edge: #7a3211;
+	--on-accent: #fff3e8;
+	--danger: #b3261e;
+	--green: #2a8a55;
+	--star: #b4501f;
+	--frost: #3f6f96;
+	/* Lighting: top highlight, drop shadow, sheet scrim */
+	--hi: rgba(255, 255, 255, 0.75);
+	--sh: rgba(46, 40, 30, 0.28);
+	--scrim: rgba(20, 18, 14, 0.45);
+	/* Dial: lit ticks while running, and once the shot is done */
+	--dial-lit: var(--accent);
+	--dial-done: var(--green);
 
-	--color-primary: var(--primary);
-	--color-primary-foreground: var(--primary-foreground);
-	--color-primary-light: var(--color-primary-light);
-	--color-primary-dark: var(--color-primary-dark);
+	--on-danger: #fff;
+	--warning: #b7791f;
+	/* Base for the rounded-sm..xl scale */
+	--radius: 0.75rem;
 
-	--color-secondary: var(--secondary);
-	--color-secondary-foreground: var(--secondary-foreground);
-
-	--color-destructive: var(--destructive);
-	--color-destructive-foreground: var(--destructive-foreground);
-
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-
-	--color-accent: var(--accent);
-	--color-accent-foreground: var(--accent-foreground);
-
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
-
-	--color-card: var(--card);
-	--color-card-foreground: var(--card-foreground);
-
-	--color-success: var(--color-success);
-	--color-error: var(--color-error);
-
-	--color-text: var(--color-text);
-	--color-text-secondary: var(--color-text-secondary);
-
-	--color-gauge-primary: var(--color-gauge-primary);
-	--color-gauge-secondary: var(--color-gauge-secondary);
-
-	--color-chart-1: var(--chart-1);
-	--color-chart-2: var(--chart-2);
-	--color-chart-3: var(--chart-3);
-	--color-chart-4: var(--chart-4);
-	--color-chart-5: var(--chart-5);
-
-	--radius-lg: var(--radius);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-sm: calc(var(--radius) - 4px);
+	color-scheme: light;
 }
 
-/*
-  The default border color has changed to `currentcolor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
+.dark {
+	--bg: #14110f;
+	--panel: #1d1a17;
+	--well: #0c0a09;
+	--ink: #efeae0;
+	--ink-2: #9e998c;
+	--line: rgba(237, 235, 229, 0.14);
+	--tick: rgba(237, 235, 229, 0.2);
+	--tick-long: rgba(237, 235, 229, 0.4);
+	--accent: #d46c3c;
+	--accent-edge: #8c3f1c;
+	--on-accent: #1a0f09;
+	--danger: #f2877f;
+	--green: #4cc48a;
+	--star: #d46c3c;
+	--frost: #8fb8da;
+	--hi: rgba(255, 255, 255, 0.07);
+	--sh: rgba(0, 0, 0, 0.65);
+	--scrim: rgba(0, 0, 0, 0.6);
+	--on-danger: #1a0f09;
+	--warning: #e0a84a;
 
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
+	color-scheme: dark;
+}
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-panel: var(--panel);
+	--color-well: var(--well);
+	--color-ink: var(--ink);
+	--color-ink-2: var(--ink-2);
+	--color-line: var(--line);
+	--color-accent: var(--accent);
+	--color-accent-edge: var(--accent-edge);
+	--color-on-accent: var(--on-accent);
+	--color-danger: var(--danger);
+	--color-green: var(--green);
+	--color-star: var(--star);
+	--color-frost: var(--frost);
+	--color-scrim: var(--scrim);
+	--color-warning: var(--warning);
+
+	--font-sans: var(--font-text), ui-sans-serif, system-ui, sans-serif;
+	--font-mono: var(--font-figures), ui-monospace, monospace;
+
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+}
+
 @layer base {
 	*,
 	::after,
 	::before,
 	::backdrop,
 	::file-selector-button {
-		border-color: var(--color-gray-200, currentcolor);
+		border-color: var(--line);
 	}
-}
 
-@layer base {
 	:root {
-		--background: oklch(0.9582 0.0152 90.2357);
-		--foreground: oklch(0.376 0.0225 64.3434);
-		--card: oklch(0.9914 0.0098 87.4695);
-		--card-foreground: oklch(0.376 0.0225 64.3434);
-		--popover: oklch(0.9914 0.0098 87.4695);
-		--popover-foreground: oklch(0.376 0.0225 64.3434);
-		--primary: oklch(0.618 0.0778 65.5444);
-		--primary-foreground: oklch(1 0 0);
-		--secondary: oklch(0.8846 0.0302 85.5655);
-		--secondary-foreground: oklch(0.4313 0.03 64.9288);
-		--muted: oklch(0.9239 0.019 83.0636);
-		--muted-foreground: oklch(0.5391 0.0387 71.1655);
-		--accent: oklch(0.8348 0.0426 88.8064);
-		--accent-foreground: oklch(0.376 0.0225 64.3434);
-		--destructive: oklch(0.5471 0.1438 32.9149);
-		--destructive-foreground: oklch(1 0 0);
-		--warning: oklch(0.65 0.15 70);
-		--success: oklch(0.4833 0.0647 150.07);
-		--border: oklch(0.8606 0.0321 84.5881);
-		--input: oklch(0.8606 0.0321 84.5881);
-		--ring: oklch(0.618 0.0778 65.5444);
-		--chart-1: oklch(0.618 0.0778 65.5444);
-		--chart-2: oklch(0.5604 0.0624 68.5805);
-		--chart-3: oklch(0.4851 0.057 72.6827);
-		--chart-4: oklch(0.6777 0.0624 64.7755);
-		--chart-5: oklch(0.7264 0.0581 66.6967);
-		--sidebar: oklch(0.9239 0.019 83.0636);
-		--sidebar-foreground: oklch(0.376 0.0225 64.3434);
-		--sidebar-primary: oklch(0.618 0.0778 65.5444);
-		--sidebar-primary-foreground: oklch(1 0 0);
-		--sidebar-accent: oklch(0.8348 0.0426 88.8064);
-		--sidebar-accent-foreground: oklch(0.376 0.0225 64.3434);
-		--sidebar-border: oklch(0.8606 0.0321 84.5881);
-		--sidebar-ring: oklch(0.618 0.0778 65.5444);
-		--radius: 0.5rem;
-		--shadow-x: 2px;
-		--shadow-y: 3px;
-		--shadow-blur: 5px;
-		--shadow-spread: 0px;
-		--shadow-opacity: 0.12;
-		--shadow-color: hsl(28 13% 20%);
-		--shadow-2xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
-		--shadow-xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
-		--shadow-sm:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 1px 2px -1px hsl(28 13% 20% / 0.12);
-		--shadow:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 1px 2px -1px hsl(28 13% 20% / 0.12);
-		--shadow-md:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 2px 4px -1px hsl(28 13% 20% / 0.12);
-		--shadow-lg:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 4px 6px -1px hsl(28 13% 20% / 0.12);
-		--shadow-xl:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 8px 10px -1px hsl(28 13% 20% / 0.12);
-		--shadow-2xl: 2px 3px 5px 0px hsl(28 13% 20% / 0.3);
-		--tracking-normal: 0em;
-		--spacing: 0.25rem;
-		--frozen: oklch(0.92 0.03 245);
-		--frozen-foreground: oklch(0.4 0.1 245);
+		/* Screen height the shell lays out against */
+		--app-h: 100dvh;
+		/* The 64px tab row already has breathing room, so it only needs part
+		   of the home-indicator inset beneath it */
+		--tabbar-pad: max(0px, calc(env(safe-area-inset-bottom) - 10px));
+		--tabbar-h: calc(4rem + var(--tabbar-pad));
+		/* Extra room under the status bar; see the iOS rule below */
+		--ios-blur-gap: 0px;
 	}
 
-	.dark {
-		--background: oklch(0.2747 0.0139 57.6523);
-		--foreground: oklch(0.9239 0.019 83.0636);
-		--card: oklch(0.3237 0.0155 59.0603);
-		--card-foreground: oklch(0.9239 0.019 83.0636);
-		--popover: oklch(0.3237 0.0155 59.0603);
-		--popover-foreground: oklch(0.9239 0.019 83.0636);
-		--primary: oklch(0.7264 0.0581 66.6967);
-		--primary-foreground: oklch(0.2747 0.0139 57.6523);
-		--secondary: oklch(0.3795 0.0181 57.128);
-		--secondary-foreground: oklch(0.9239 0.019 83.0636);
-		--muted: oklch(0.2939 0.0125 62.1298);
-		--muted-foreground: oklch(0.7982 0.0243 82.1078);
-		--accent: oklch(0.4186 0.0281 56.3404);
-		--accent-foreground: oklch(0.9239 0.019 83.0636);
-		--destructive: oklch(0.5471 0.1438 32.9149);
-		--destructive-foreground: oklch(1 0 0);
-		--border: oklch(0.3795 0.0181 57.128);
-		--input: oklch(0.3795 0.0181 57.128);
-		--ring: oklch(0.7264 0.0581 66.6967);
-		--chart-1: oklch(0.7264 0.0581 66.6967);
-		--chart-2: oklch(0.6777 0.0624 64.7755);
-		--chart-3: oklch(0.618 0.0778 65.5444);
-		--chart-4: oklch(0.5604 0.0624 68.5805);
-		--chart-5: oklch(0.4851 0.057 72.6827);
-		--sidebar: oklch(0.2747 0.0139 57.6523);
-		--sidebar-foreground: oklch(0.9239 0.019 83.0636);
-		--sidebar-primary: oklch(0.7264 0.0581 66.6967);
-		--sidebar-primary-foreground: oklch(0.2747 0.0139 57.6523);
-		--sidebar-accent: oklch(0.4186 0.0281 56.3404);
-		--sidebar-accent-foreground: oklch(0.9239 0.019 83.0636);
-		--sidebar-border: oklch(0.3795 0.0181 57.128);
-		--sidebar-ring: oklch(0.7264 0.0581 66.6967);
-		--radius: 0.5rem;
-		--shadow-x: 2px;
-		--shadow-y: 3px;
-		--shadow-blur: 5px;
-		--shadow-spread: 0px;
-		--shadow-opacity: 0.12;
-		--shadow-color: hsl(28 13% 20%);
-		--shadow-2xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
-		--shadow-xs: 2px 3px 5px 0px hsl(28 13% 20% / 0.06);
-		--shadow-sm:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 1px 2px -1px hsl(28 13% 20% / 0.12);
-		--shadow:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 1px 2px -1px hsl(28 13% 20% / 0.12);
-		--shadow-md:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 2px 4px -1px hsl(28 13% 20% / 0.12);
-		--shadow-lg:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 4px 6px -1px hsl(28 13% 20% / 0.12);
-		--shadow-xl:
-			2px 3px 5px 0px hsl(28 13% 20% / 0.12),
-			2px 8px 10px -1px hsl(28 13% 20% / 0.12);
-		--shadow-2xl: 2px 3px 5px 0px hsl(28 13% 20% / 0.3);
-		--frozen: oklch(0.25 0.08 245);
-		--frozen-foreground: oklch(0.85 0.05 245);
+	html {
+		-webkit-tap-highlight-color: transparent;
+		-webkit-text-size-adjust: 100%;
 	}
 
-	@theme inline {
-		--color-background: var(--background);
-		--color-foreground: var(--foreground);
-		--color-card: var(--card);
-		--color-card-foreground: var(--card-foreground);
-		--color-popover: var(--popover);
-		--color-popover-foreground: var(--popover-foreground);
-		--color-primary: var(--primary);
-		--color-primary-foreground: var(--primary-foreground);
-		--color-secondary: var(--secondary);
-		--color-secondary-foreground: var(--secondary-foreground);
-		--color-muted: var(--muted);
-		--color-muted-foreground: var(--muted-foreground);
-		--color-accent: var(--accent);
-		--color-accent-foreground: var(--accent-foreground);
-		--color-destructive: var(--destructive);
-		--color-destructive-foreground: var(--destructive-foreground);
-		--color-warning: var(--warning);
-		--color-success: var(--success);
-		--color-border: var(--border);
-		--color-input: var(--input);
-		--color-ring: var(--ring);
-		--color-chart-1: var(--chart-1);
-		--color-chart-2: var(--chart-2);
-		--color-chart-3: var(--chart-3);
-		--color-chart-4: var(--chart-4);
-		--color-chart-5: var(--chart-5);
-		--color-sidebar: var(--sidebar);
-		--color-sidebar-foreground: var(--sidebar-foreground);
-		--color-sidebar-primary: var(--sidebar-primary);
-		--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-		--color-sidebar-accent: var(--sidebar-accent);
-		--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-		--color-sidebar-border: var(--sidebar-border);
-		--color-sidebar-ring: var(--sidebar-ring);
+	/*
+	 * Home-screen web app on iOS (WebKit bug 254868): with viewport-fit=cover
+	 * and a black-translucent status bar, the layout viewport, 100dvh and
+	 * innerHeight all come up short by the top inset while drawing still
+	 * starts at the top of the screen, so anything fixed to bottom: 0 floats
+	 * above a dead band. 100lvh is the only unit that reports the full screen,
+	 * and giving the document that height makes iOS correct the viewport.
+	 * There is no browser chrome in standalone, so lvh is the real height.
+	 */
+	@media (display-mode: standalone) {
+		:root {
+			--app-h: 100lvh;
+		}
 
-		--font-sans: var(--font-sans);
-		--font-mono: var(--font-mono);
-		--font-serif: var(--font-serif);
+		html,
+		body {
+			min-height: 100lvh;
+		}
 
-		--radius-sm: calc(var(--radius) - 4px);
-		--radius-md: calc(var(--radius) - 2px);
-		--radius-lg: var(--radius);
-		--radius-xl: calc(var(--radius) + 4px);
+		/*
+		 * iOS 26 lays its own blur a little below the status bar in home-screen
+		 * apps, and it can't be turned off, so content starts below it.
+		 * -webkit-touch-callout is only supported by iOS WebKit, which keeps
+		 * Android's installed app (no blur) at the normal offset.
+		 */
+		@supports (-webkit-touch-callout: none) {
+			:root {
+				--ios-blur-gap: 16px;
+			}
+		}
+	}
 
-		--shadow-2xs: var(--shadow-2xs);
-		--shadow-xs: var(--shadow-xs);
-		--shadow-sm: var(--shadow-sm);
-		--shadow: var(--shadow);
-		--shadow-md: var(--shadow-md);
-		--shadow-lg: var(--shadow-lg);
-		--shadow-xl: var(--shadow-xl);
-		--shadow-2xl: var(--shadow-2xl);
-		--color-frozen: var(--frozen);
-		--color-frozen-foreground: var(--frozen-foreground);
+	body {
+		background: var(--bg);
+		color: var(--ink);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	/* Figures never jump while they update */
+	.font-mono {
+		font-variant-numeric: tabular-nums;
+	}
+
+	input[type='number'] {
+		appearance: textfield;
+		-moz-appearance: textfield;
+	}
+	input[type='number']::-webkit-inner-spin-button,
+	input[type='number']::-webkit-outer-spin-button {
+		appearance: none;
+		margin: 0;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 2px;
 	}
 }
 
-@layer base {
-	* {
-		@apply border-border;
+/*
+  Component patterns shared across screens. Kept as plain classes because
+  the raised key needs multi-layer shadows and an :active state that
+  utilities would make unreadable.
+*/
+@layer components {
+	/* Uppercase mono label; kept to the dial screen and tab bar so it stays special */
+	.lbl {
+		font-family: var(--font-mono);
+		font-size: 11px;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--ink-2);
 	}
-	body {
-		@apply bg-background text-foreground;
+
+	/* Raised accent key (Start, Save, Add) */
+	.key {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		width: 100%;
+		border-radius: 20px;
+		font-weight: 600;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		cursor: pointer;
+		user-select: none;
+		color: var(--on-accent);
+		background: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--accent) 86%, #fff),
+			var(--accent)
+		);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.5),
+			0 6px 0 var(--accent-edge),
+			0 16px 18px -8px var(--sh);
+		transition:
+			transform 0.06s ease,
+			box-shadow 0.06s ease,
+			opacity 0.15s ease;
+	}
+	.key:active:not(:disabled) {
+		transform: translateY(5px);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.4),
+			0 1px 0 var(--accent-edge),
+			0 6px 8px -6px var(--sh);
+	}
+	.key:focus-visible {
+		outline: 2px solid var(--ink);
+		outline-offset: 5px;
+	}
+	.key:disabled {
+		opacity: 0.4;
+		cursor: default;
+		box-shadow: none;
+		transform: translateY(5px);
+	}
+	/* Stop key: inverted ink */
+	.key.key-ink {
+		color: var(--bg);
+		background: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--ink) 88%, #fff),
+			var(--ink)
+		);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.18),
+			0 6px 0 color-mix(in srgb, var(--ink) 55%, #000),
+			0 16px 18px -8px var(--sh);
+	}
+	.key.key-ink:active:not(:disabled) {
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.14),
+			0 1px 0 color-mix(in srgb, var(--ink) 55%, #000),
+			0 6px 8px -6px var(--sh);
+	}
+	.key.key-danger {
+		color: var(--on-danger);
+		background: var(--danger);
+		box-shadow:
+			0 6px 0 color-mix(in srgb, var(--danger) 55%, #000),
+			0 16px 18px -8px var(--sh);
+	}
+	.key.key-danger:active:not(:disabled) {
+		box-shadow: 0 1px 0 color-mix(in srgb, var(--danger) 55%, #000);
+	}
+
+	/* Small raised accent key (+ in page headers) */
+	.addkey {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		border-radius: 14px;
+		cursor: pointer;
+		color: var(--on-accent);
+		background: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--accent) 86%, #fff),
+			var(--accent)
+		);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.4),
+			0 3px 0 var(--accent-edge),
+			0 8px 10px -8px var(--sh);
+		transition:
+			transform 0.06s ease,
+			box-shadow 0.06s ease;
+	}
+	.addkey:active {
+		transform: translateY(2px);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.3),
+			0 1px 0 var(--accent-edge);
+	}
+
+	/* Raised neutral key (setpoint steppers, Edit link, Cancel) */
+	.skey {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		user-select: none;
+		background: var(--panel);
+		color: var(--ink);
+		box-shadow:
+			inset 0 1px 0 var(--hi),
+			0 0 0 1px var(--line),
+			0 3px 0 var(--line),
+			0 6px 8px -4px var(--sh);
+		transition:
+			transform 0.06s ease,
+			box-shadow 0.06s ease;
+	}
+	.skey:active:not(:disabled) {
+		transform: translateY(2px);
+		box-shadow:
+			inset 0 1px 0 var(--hi),
+			0 0 0 1px var(--line),
+			0 1px 0 var(--line);
+	}
+	.skey:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	/* Recessed well (dial face) */
+	.well {
+		background: var(--well);
+		box-shadow:
+			inset 0 5px 10px -3px var(--sh),
+			inset 0 -1px 1px var(--hi),
+			0 1px 0 var(--hi);
+	}
+
+	/* Underlined form input */
+	.fin {
+		width: 100%;
+		height: 44px;
+		background: transparent;
+		border: 0;
+		border-bottom: 1.5px solid var(--line);
+		border-radius: 0;
+		padding: 0;
+		font-size: 17px;
+		color: var(--ink);
+		transition: border-color 0.12s ease;
+	}
+	.fin:focus,
+	.fin:focus-visible {
+		outline: none;
+		border-bottom-color: var(--accent);
+	}
+	.fin::placeholder {
+		color: var(--ink-2);
+		opacity: 0.6;
+	}
+	.fin[aria-invalid='true'] {
+		border-bottom-color: var(--danger);
+	}
+	.fin:disabled {
+		opacity: 0.5;
+	}
+
+	/* Inset notes box */
+	.notes {
+		width: 100%;
+		resize: none;
+		background: transparent;
+		border: 0;
+		border-radius: 12px;
+		box-shadow: inset 0 0 0 1px var(--line);
+		padding: 10px 12px;
+		font-size: 15px;
+		line-height: 20px;
+		color: var(--ink);
+	}
+	.notes:focus,
+	.notes:focus-visible {
+		outline: none;
+		box-shadow: inset 0 0 0 2px var(--ink);
+	}
+	.notes::placeholder {
+		color: var(--ink-2);
+	}
+
+	.no-scrollbar {
+		scrollbar-width: none;
+	}
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* Range slider thumb (thaw amount) */
+@layer components {
+	input[type='range']::-webkit-slider-thumb {
+		appearance: none;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow:
+			0 0 0 1px var(--line),
+			0 2px 6px rgba(0, 0, 0, 0.3);
+	}
+	input[type='range']::-moz-range-thumb {
+		width: 26px;
+		height: 26px;
+		border: 0;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow:
+			0 0 0 1px var(--line),
+			0 2px 6px rgba(0, 0, 0, 0.3);
 	}
 }

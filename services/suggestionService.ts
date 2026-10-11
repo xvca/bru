@@ -1,7 +1,12 @@
 import { prisma } from '@/lib/prisma'
+import type { Bean, Brew } from '@/generated/prisma/client'
+
+export type Suggestion = Bean & {
+	lastBrew: Brew & { bean: { batchId: string | null } }
+}
 
 export interface SuggestionResult {
-	suggestions: any[]
+	suggestions: Suggestion[]
 	decafStartHour: number
 }
 
@@ -52,7 +57,7 @@ export async function getSuggestions(): Promise<SuggestionResult> {
 		batchGroups[key].push(bean)
 	}
 
-	const suggestions = []
+	const suggestions: Suggestion[] = []
 	for (const [batchId, beans] of Object.entries(batchGroups)) {
 		const matchingBrew = relevantBrews.find((brew) => {
 			if (brew.bean.batchId) return brew.bean.batchId === batchId
